@@ -119,12 +119,12 @@ func TestGetAppTool_Schema(t *testing.T) {
 	}
 
 	// Check that we have properties defined
-	if GetAppTool.InputSchema.Properties == nil || len(GetAppTool.InputSchema.Properties) == 0 {
+	if len(GetAppTool.InputSchema.Properties) == 0 {
 		t.Error("Tool should have properties defined")
 	}
 
 	// Check that we have required fields defined
-	if GetAppTool.InputSchema.Required == nil || len(GetAppTool.InputSchema.Required) == 0 {
+	if len(GetAppTool.InputSchema.Required) == 0 {
 		t.Error("Tool should have required fields defined")
 	}
 }

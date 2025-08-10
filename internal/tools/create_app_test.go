@@ -185,7 +185,7 @@ func TestCreateAppTool_Schema(t *testing.T) {
 	}
 
 	// Check that we have properties defined
-	if CreateAppTool.InputSchema.Properties == nil || len(CreateAppTool.InputSchema.Properties) == 0 {
+	if len(CreateAppTool.InputSchema.Properties) == 0 {
 		t.Error("Tool schema should have properties defined")
 	}
 

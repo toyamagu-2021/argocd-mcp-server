@@ -115,7 +115,7 @@ func (c *Client) connect() error {
 	}
 
 	// Establish connection
-	conn, err := grpc.Dial(serverAddr, opts...)
+	conn, err := grpc.NewClient(serverAddr, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to dial: %w", err)
 	}

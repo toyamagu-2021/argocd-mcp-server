@@ -142,12 +142,12 @@ func TestSyncAppTool_Schema(t *testing.T) {
 	}
 
 	// Check that we have properties defined
-	if SyncAppTool.InputSchema.Properties == nil || len(SyncAppTool.InputSchema.Properties) == 0 {
+	if len(SyncAppTool.InputSchema.Properties) == 0 {
 		t.Error("Tool should have properties defined")
 	}
 
 	// Check that we have required fields defined
-	if SyncAppTool.InputSchema.Required == nil || len(SyncAppTool.InputSchema.Required) == 0 {
+	if len(SyncAppTool.InputSchema.Required) == 0 {
 		t.Error("Tool should have required fields defined (name should be required)")
 	}
 }
