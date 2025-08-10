@@ -25,8 +25,6 @@ go.work.sum
 /argocd-mcp-server
 
 # IDE
-.idea/
-.vscode/
 *.swp
 *.swo
 *~
