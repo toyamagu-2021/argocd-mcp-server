@@ -1,0 +1,13 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.insertSpaces": false,
+    "editor.formatOnSave": true
+  },
+  "go.testEnvFile": "${workspaceFolder}/.env",
+  "go.testEnvVars": {},
+  "go.coverOnSingleTestFile": true,
+  "go.coverOnSingleTest": true
+}
