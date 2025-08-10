@@ -84,7 +84,7 @@ func HandleCreateApplication(ctx context.Context, request mcp.CallToolRequest) (
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
 	}
-	defer argoClient.Close()
+	defer func() { _ = argoClient.Close() }()
 
 	// Use the handler function with the real client
 	return createApplicationHandler(ctx, argoClient, params)

@@ -81,7 +81,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 			"url":    url,
 		})
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -47,10 +47,10 @@ func TestNewClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variables
-			os.Setenv("ARGOCD_AUTH_TOKEN", tt.token)
-			os.Setenv("ARGOCD_SERVER", tt.server)
-			defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-			defer os.Unsetenv("ARGOCD_SERVER")
+			_ = os.Setenv("ARGOCD_AUTH_TOKEN", tt.token)
+			_ = os.Setenv("ARGOCD_SERVER", tt.server)
+			defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+			defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 			client, err := NewClient()
 			if tt.wantErr {
@@ -78,29 +78,29 @@ func TestClient_Get(t *testing.T) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader != "Bearer test-token" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error": "unauthorized"}`))
+			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
 			return
 		}
 
 		// Check path
 		if r.URL.Path == "/api/v1/applications" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"items": []}`))
+			_, _ = w.Write([]byte(`{"items": []}`))
 		} else if r.URL.Path == "/api/v1/notfound" {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"error": "not found"}`))
+			_, _ = w.Write([]byte(`{"error": "not found"}`))
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "server error"}`))
+			_, _ = w.Write([]byte(`{"error": "server error"}`))
 		}
 	}))
 	defer server.Close()
 
 	// Set environment variables
-	os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
-	os.Setenv("ARGOCD_SERVER", server.URL)
-	defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-	defer os.Unsetenv("ARGOCD_SERVER")
+	_ = os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
+	_ = os.Setenv("ARGOCD_SERVER", server.URL)
+	defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+	defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 	client, err := NewClient()
 	if err != nil {
@@ -159,7 +159,7 @@ func TestClient_Post(t *testing.T) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader != "Bearer test-token" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error": "unauthorized"}`))
+			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
 			return
 		}
 
@@ -171,15 +171,15 @@ func TestClient_Post(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status": "synced"}`))
+		_, _ = w.Write([]byte(`{"status": "synced"}`))
 	}))
 	defer server.Close()
 
 	// Set environment variables
-	os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
-	os.Setenv("ARGOCD_SERVER", server.URL)
-	defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-	defer os.Unsetenv("ARGOCD_SERVER")
+	_ = os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
+	_ = os.Setenv("ARGOCD_SERVER", server.URL)
+	defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+	defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 	client, err := NewClient()
 	if err != nil {
@@ -223,10 +223,10 @@ func TestClient_Delete(t *testing.T) {
 	defer server.Close()
 
 	// Set environment variables
-	os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
-	os.Setenv("ARGOCD_SERVER", server.URL)
-	defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-	defer os.Unsetenv("ARGOCD_SERVER")
+	_ = os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
+	_ = os.Setenv("ARGOCD_SERVER", server.URL)
+	defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+	defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 	client, err := NewClient()
 	if err != nil {

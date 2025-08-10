@@ -52,15 +52,15 @@ func TestApplicationsAPI_ListApplications(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
 	// Set environment variables
-	os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
-	os.Setenv("ARGOCD_SERVER", server.URL)
-	defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-	defer os.Unsetenv("ARGOCD_SERVER")
+	_ = os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
+	_ = os.Setenv("ARGOCD_SERVER", server.URL)
+	defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+	defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 	client, _ := NewClient()
 	api := NewApplicationsAPI(client)
@@ -127,10 +127,10 @@ func TestApplicationsAPI_GetApplication(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(app)
+			_ = json.NewEncoder(w).Encode(app)
 		} else if r.URL.Path == "/api/v1/applications/not-found" {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"error": "not found"}`))
+			_, _ = w.Write([]byte(`{"error": "not found"}`))
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
 		}
@@ -138,10 +138,10 @@ func TestApplicationsAPI_GetApplication(t *testing.T) {
 	defer server.Close()
 
 	// Set environment variables
-	os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
-	os.Setenv("ARGOCD_SERVER", server.URL)
-	defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-	defer os.Unsetenv("ARGOCD_SERVER")
+	_ = os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
+	_ = os.Setenv("ARGOCD_SERVER", server.URL)
+	defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+	defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 	client, _ := NewClient()
 	api := NewApplicationsAPI(client)
@@ -208,7 +208,7 @@ func TestApplicationsAPI_SyncApplication(t *testing.T) {
 
 			// Return success
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"status": "syncing"}`))
+			_, _ = w.Write([]byte(`{"status": "syncing"}`))
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -216,10 +216,10 @@ func TestApplicationsAPI_SyncApplication(t *testing.T) {
 	defer server.Close()
 
 	// Set environment variables
-	os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
-	os.Setenv("ARGOCD_SERVER", server.URL)
-	defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-	defer os.Unsetenv("ARGOCD_SERVER")
+	_ = os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
+	_ = os.Setenv("ARGOCD_SERVER", server.URL)
+	defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+	defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 	client, _ := NewClient()
 	api := NewApplicationsAPI(client)
@@ -298,10 +298,10 @@ func TestApplicationsAPI_DeleteApplication(t *testing.T) {
 	defer server.Close()
 
 	// Set environment variables
-	os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
-	os.Setenv("ARGOCD_SERVER", server.URL)
-	defer os.Unsetenv("ARGOCD_AUTH_TOKEN")
-	defer os.Unsetenv("ARGOCD_SERVER")
+	_ = os.Setenv("ARGOCD_AUTH_TOKEN", "test-token")
+	_ = os.Setenv("ARGOCD_SERVER", server.URL)
+	defer func() { _ = os.Unsetenv("ARGOCD_AUTH_TOKEN") }()
+	defer func() { _ = os.Unsetenv("ARGOCD_SERVER") }()
 
 	client, _ := NewClient()
 	api := NewApplicationsAPI(client)
