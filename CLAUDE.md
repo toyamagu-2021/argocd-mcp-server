@@ -55,10 +55,10 @@ go test ./internal/server/
 
 ### Linting
 ```bash
-# Format code
+# Format code (includes goimports)
 make fmt
 
-# Check formatting
+# Check formatting (includes import formatting)
 make fmt-check
 
 # Run go vet
@@ -70,7 +70,7 @@ make lint
 # Run basic linters only (fmt-check, vet)
 make lint-basic
 
-# Install all linter tools
+# Install all linter tools (includes goimports)
 make lint-install
 
 # Run advanced linting including security checks (gosec, revive)

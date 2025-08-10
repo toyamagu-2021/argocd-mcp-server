@@ -44,11 +44,16 @@ tidy:
 fmt:
 	$(GOFMT) -w .
 	$(GOCMD) fmt ./...
+	@which goimports > /dev/null || go install golang.org/x/tools/cmd/goimports@latest
+	goimports -w .
 
 .PHONY: fmt-check
 fmt-check:
 	@echo "Checking formatting..."
 	@test -z "$$($(GOFMT) -l .)" || (echo "Files need formatting. Run 'make fmt'" && $(GOFMT) -l . && exit 1)
+	@echo "Checking imports formatting..."
+	@which goimports > /dev/null || go install golang.org/x/tools/cmd/goimports@latest
+	@test -z "$$(goimports -l .)" || (echo "Files need import formatting. Run 'make fmt'" && goimports -l . && exit 1)
 
 .PHONY: vet
 vet:
@@ -85,6 +90,7 @@ lint-install:
 	go install github.com/kisielk/errcheck@latest
 	go install github.com/securego/gosec/v2/cmd/gosec@latest
 	go install github.com/mgechev/revive@latest
+	go install golang.org/x/tools/cmd/goimports@latest
 
 .PHONY: lint-advanced
 lint-advanced: lint
