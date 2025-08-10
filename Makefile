@@ -260,6 +260,25 @@ e2e-setup: kind-create install-argocd generate-env
 e2e-teardown: kind-delete
 	@echo "E2E test environment teardown complete"
 
+# Mock generation
+.PHONY: mockgen-install
+mockgen-install:
+	go install go.uber.org/mock/mockgen@latest
+
+.PHONY: generate-mocks
+generate-mocks:
+	@echo "Generating mocks..."
+	@which mockgen > /dev/null || $(MAKE) mockgen-install
+	@mkdir -p internal/argocd/client/mock
+	@mockgen -source=internal/argocd/client/interface.go -destination=internal/argocd/client/mock/mock_client.go -package=mock
+	@echo "Mocks generated successfully"
+
+.PHONY: clean-mocks
+clean-mocks:
+	@echo "Cleaning generated mocks..."
+	@rm -rf internal/argocd/client/mock
+	@echo "Mocks cleaned"
+
 # Testing
 .PHONY: test
 test:

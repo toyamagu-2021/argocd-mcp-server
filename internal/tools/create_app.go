@@ -8,9 +8,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CreateAppTool defines the create_application tool schema
@@ -56,31 +55,20 @@ var CreateAppTool = mcp.NewTool("create_application",
 
 // HandleCreateApplication processes create_application tool requests
 func HandleCreateApplication(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract required parameters
-	name := request.GetString("name", "")
-	if name == "" {
-		return mcp.NewToolResultError("Application name is required"), nil
+	// Extract parameters
+	params := CreateAppParams{
+		Name:           request.GetString("name", ""),
+		Namespace:      request.GetString("namespace", "argocd"),
+		Project:        request.GetString("project", "default"),
+		RepoURL:        request.GetString("repo_url", ""),
+		Path:           request.GetString("path", "."),
+		TargetRevision: request.GetString("target_revision", "HEAD"),
+		DestServer:     request.GetString("dest_server", "https://kubernetes.default.svc"),
+		DestNamespace:  request.GetString("dest_namespace", ""),
+		Upsert:         request.GetBool("upsert", false),
+		AutoSync:       request.GetBool("auto_sync", false),
+		SelfHeal:       request.GetBool("self_heal", false),
 	}
-
-	repoURL := request.GetString("repo_url", "")
-	if repoURL == "" {
-		return mcp.NewToolResultError("Repository URL is required"), nil
-	}
-
-	destNamespace := request.GetString("dest_namespace", "")
-	if destNamespace == "" {
-		return mcp.NewToolResultError("Destination namespace is required"), nil
-	}
-
-	// Extract optional parameters with defaults
-	namespace := request.GetString("namespace", "argocd")
-	project := request.GetString("project", "default")
-	path := request.GetString("path", ".")
-	targetRevision := request.GetString("target_revision", "HEAD")
-	destServer := request.GetString("dest_server", "https://kubernetes.default.svc")
-	upsert := request.GetBool("upsert", false)
-	autoSync := request.GetBool("auto_sync", false)
-	selfHeal := request.GetBool("self_heal", false)
 
 	// Create gRPC client
 	config := &client.Config{
@@ -98,41 +86,78 @@ func HandleCreateApplication(ctx context.Context, request mcp.CallToolRequest) (
 	}
 	defer argoClient.Close()
 
+	// Use the handler function with the real client
+	return createApplicationHandler(ctx, argoClient, params)
+}
+
+// CreateAppParams contains parameters for creating an application
+type CreateAppParams struct {
+	Name           string
+	Namespace      string
+	Project        string
+	RepoURL        string
+	Path           string
+	TargetRevision string
+	DestServer     string
+	DestNamespace  string
+	Upsert         bool
+	AutoSync       bool
+	SelfHeal       bool
+}
+
+// createApplicationHandler handles the core logic for creating an application.
+// This is separated out to enable testing with mocked clients.
+func createApplicationHandler(
+	ctx context.Context,
+	argoClient client.Interface,
+	params CreateAppParams,
+) (*mcp.CallToolResult, error) {
+	// Validate required parameters
+	if params.Name == "" {
+		return mcp.NewToolResultError("Application name is required"), nil
+	}
+	if params.RepoURL == "" {
+		return mcp.NewToolResultError("Repository URL is required"), nil
+	}
+	if params.DestNamespace == "" {
+		return mcp.NewToolResultError("Destination namespace is required"), nil
+	}
+
 	// Build the application spec
 	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      params.Name,
+			Namespace: params.Namespace,
 		},
 		Spec: v1alpha1.ApplicationSpec{
-			Project: project,
+			Project: params.Project,
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        repoURL,
-				Path:           path,
-				TargetRevision: targetRevision,
+				RepoURL:        params.RepoURL,
+				Path:           params.Path,
+				TargetRevision: params.TargetRevision,
 			},
 			Destination: v1alpha1.ApplicationDestination{
-				Server:    destServer,
-				Namespace: destNamespace,
+				Server:    params.DestServer,
+				Namespace: params.DestNamespace,
 			},
 		},
 	}
 
 	// Configure sync policy if auto_sync or self_heal is enabled
-	if autoSync || selfHeal {
+	if params.AutoSync || params.SelfHeal {
 		app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{}
 
-		if autoSync {
+		if params.AutoSync {
 			app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{}
 
-			if selfHeal {
+			if params.SelfHeal {
 				app.Spec.SyncPolicy.Automated.SelfHeal = true
 			}
 		}
 	}
 
 	// Create the application
-	createdApp, err := argoClient.CreateApplication(ctx, app, upsert)
+	createdApp, err := argoClient.CreateApplication(ctx, app, params.Upsert)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create application: %v", err)), nil
 	}

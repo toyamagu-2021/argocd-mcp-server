@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
@@ -51,16 +52,26 @@ func HandleListApplications(ctx context.Context, request mcp.CallToolRequest) (*
 	}
 	defer argoClient.Close()
 
+	// Use the handler function with the real client
+	return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector)
+}
+
+// listApplicationsHandler handles the core logic for listing applications.
+// This is separated out to enable testing with mocked clients.
+func listApplicationsHandler(
+	ctx context.Context,
+	argoClient client.Interface,
+	project, cluster, namespace, selector string,
+) (*mcp.CallToolResult, error) {
 	appList, err := argoClient.ListApplications(ctx, selector)
 	if err != nil {
-		// Return structured error information
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to list applications: %v", err)), nil
 	}
 
 	apps := appList.Items
 
 	// Filter by project, cluster, namespace if specified
-	var filteredApps []interface{}
+	var filteredApps []v1alpha1.Application
 	for _, app := range apps {
 		if project != "" && app.Spec.Project != project {
 			continue

@@ -27,11 +27,7 @@ func HandleDeleteApplication(ctx context.Context, request mcp.CallToolRequest) (
 	appName := request.GetString("name", "")
 	cascade := request.GetBool("cascade", true)
 
-	if appName == "" {
-		return mcp.NewToolResultError("Application name is required"), nil
-	}
-
-	// Create gRPC client and delete application
+	// Create gRPC client
 	config := &client.Config{
 		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
 		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
@@ -47,9 +43,24 @@ func HandleDeleteApplication(ctx context.Context, request mcp.CallToolRequest) (
 	}
 	defer argoClient.Close()
 
-	err = argoClient.DeleteApplication(ctx, appName, cascade)
+	// Use the handler function with the real client
+	return deleteApplicationHandler(ctx, argoClient, appName, cascade)
+}
+
+// deleteApplicationHandler handles the core logic for deleting an application.
+// This is separated out to enable testing with mocked clients.
+func deleteApplicationHandler(
+	ctx context.Context,
+	argoClient client.Interface,
+	appName string,
+	cascade bool,
+) (*mcp.CallToolResult, error) {
+	if appName == "" {
+		return mcp.NewToolResultError("Application name is required"), nil
+	}
+
+	err := argoClient.DeleteApplication(ctx, appName, cascade)
 	if err != nil {
-		// Return structured error information
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to delete application: %v", err)), nil
 	}
 

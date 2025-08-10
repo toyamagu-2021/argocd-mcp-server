@@ -32,11 +32,7 @@ func HandleSyncApplication(ctx context.Context, request mcp.CallToolRequest) (*m
 	prune := request.GetBool("prune", false)
 	dryRun := request.GetBool("dry_run", false)
 
-	if appName == "" {
-		return mcp.NewToolResultError("Application name is required"), nil
-	}
-
-	// Create gRPC client and sync application
+	// Create gRPC client
 	config := &client.Config{
 		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
 		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
@@ -52,10 +48,26 @@ func HandleSyncApplication(ctx context.Context, request mcp.CallToolRequest) (*m
 	}
 	defer argoClient.Close()
 
+	// Use the handler function with the real client
+	return syncApplicationHandler(ctx, argoClient, appName, prune, dryRun)
+}
+
+// syncApplicationHandler handles the core logic for syncing an application.
+// This is separated out to enable testing with mocked clients.
+func syncApplicationHandler(
+	ctx context.Context,
+	argoClient client.Interface,
+	appName string,
+	prune bool,
+	dryRun bool,
+) (*mcp.CallToolResult, error) {
+	if appName == "" {
+		return mcp.NewToolResultError("Application name is required"), nil
+	}
+
 	// Sync with empty revision to use latest
 	app, err := argoClient.SyncApplication(ctx, appName, "", prune, dryRun)
 	if err != nil {
-		// Return structured error information
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to sync application: %v", err)), nil
 	}
 
