@@ -71,9 +71,9 @@ jobs:
 
       - name: Run tests
         run: |
-          source .env
           make argocd-port-forward &
           make generate-env
+          source .env
           ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test-pretty
 
       - name: Run tests with coverage
