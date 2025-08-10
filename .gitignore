@@ -22,7 +22,7 @@ go.work.sum
 .env
 
 # Binary
-argocd-mcp-server
+/argocd-mcp-server
 
 # IDE
 .idea/
