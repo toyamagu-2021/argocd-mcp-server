@@ -72,7 +72,7 @@ jobs:
       - name: Run tests
         run: |
           make argocd-port-forward &
-          make generate-env
+          make generate-token
           source .env
           ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test-pretty
 
