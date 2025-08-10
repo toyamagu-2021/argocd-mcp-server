@@ -1,0 +1,384 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type mockApplicationService struct {
+	application.UnimplementedApplicationServiceServer
+}
+
+func (s *mockApplicationService) List(ctx context.Context, req *application.ApplicationQuery) (*v1alpha1.ApplicationList, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	apps := &v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app-1",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo1",
+						Path:           "manifests",
+						TargetRevision: "main",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "default",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.HealthStatus{
+						Status:  "Healthy",
+						Message: "All resources are healthy",
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status:   "Synced",
+						Revision: "abc123",
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app-2",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "production",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo2",
+						Path:           "charts/app",
+						TargetRevision: "v1.0.0",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://production.cluster.local",
+						Namespace: "prod",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.HealthStatus{
+						Status:  "Progressing",
+						Message: "Deployment is progressing",
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status:   "OutOfSync",
+						Revision: "def456",
+					},
+				},
+			},
+		},
+	}
+
+	if req.Name != nil && *req.Name != "" {
+		filtered := []v1alpha1.Application{}
+		for _, app := range apps.Items {
+			if app.Name == *req.Name {
+				filtered = append(filtered, app)
+			}
+		}
+		apps.Items = filtered
+	}
+
+	if len(req.Projects) > 0 {
+		filtered := []v1alpha1.Application{}
+		for _, app := range apps.Items {
+			for _, proj := range req.Projects {
+				if app.Spec.Project == proj {
+					filtered = append(filtered, app)
+					break
+				}
+			}
+		}
+		apps.Items = filtered
+	}
+
+	return apps, nil
+}
+
+func (s *mockApplicationService) Get(ctx context.Context, req *application.ApplicationQuery) (*v1alpha1.Application, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Name == nil || *req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+
+	switch *req.Name {
+	case "test-app-1":
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app-1",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/test/repo1",
+					Path:           "manifests",
+					TargetRevision: "main",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "default",
+				},
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune:    true,
+						SelfHeal: true,
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Health: v1alpha1.HealthStatus{
+					Status:  "Healthy",
+					Message: "All resources are healthy",
+				},
+				Sync: v1alpha1.SyncStatus{
+					Status:   "Synced",
+					Revision: "abc123",
+				},
+				Resources: []v1alpha1.ResourceStatus{
+					{
+						Name:      "test-deployment",
+						Kind:      "Deployment",
+						Namespace: "default",
+						Status:    "Synced",
+						Health: &v1alpha1.HealthStatus{
+							Status: "Healthy",
+						},
+					},
+				},
+			},
+		}, nil
+	case "test-app-2":
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app-2",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "production",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/test/repo2",
+					Path:           "charts/app",
+					TargetRevision: "v1.0.0",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://production.cluster.local",
+					Namespace: "prod",
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Health: v1alpha1.HealthStatus{
+					Status:  "Progressing",
+					Message: "Deployment is progressing",
+				},
+				Sync: v1alpha1.SyncStatus{
+					Status:   "OutOfSync",
+					Revision: "def456",
+				},
+			},
+		}, nil
+	default:
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", *req.Name))
+	}
+}
+
+func (s *mockApplicationService) Sync(ctx context.Context, req *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Name == nil || *req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+
+	if *req.Name != "test-app-1" && *req.Name != "test-app-2" {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", *req.Name))
+	}
+
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      *req.Name,
+			Namespace: "argocd",
+		},
+		Status: v1alpha1.ApplicationStatus{
+			OperationState: &v1alpha1.OperationState{
+				Phase:     "Running",
+				Message:   "Sync operation initiated",
+				StartedAt: metav1.NewTime(time.Now()),
+				Operation: v1alpha1.Operation{
+					Sync: &v1alpha1.SyncOperation{
+						Prune:  *req.Prune,
+						DryRun: *req.DryRun,
+					},
+				},
+			},
+		},
+	}
+
+	if *req.DryRun {
+		app.Status.OperationState.Phase = "Succeeded"
+		app.Status.OperationState.Message = "Dry run completed successfully"
+	}
+
+	return app, nil
+}
+
+func (s *mockApplicationService) Create(ctx context.Context, req *application.ApplicationCreateRequest) (*v1alpha1.Application, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Application == nil {
+		return nil, status.Error(codes.InvalidArgument, "application is required")
+	}
+
+	if req.Application.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+
+	// Create a new application based on the request
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Application.Name,
+			Namespace: "argocd",
+		},
+		Spec: req.Application.Spec,
+		Status: v1alpha1.ApplicationStatus{
+			Health: v1alpha1.HealthStatus{
+				Status:  "Healthy",
+				Message: "Application created successfully",
+			},
+			Sync: v1alpha1.SyncStatus{
+				Status:   "Synced",
+				Revision: "abc123",
+			},
+			OperationState: &v1alpha1.OperationState{
+				Phase:      "Succeeded",
+				Message:    "Application created successfully",
+				FinishedAt: &metav1.Time{Time: time.Now()},
+			},
+		},
+	}
+
+	return app, nil
+}
+
+func (s *mockApplicationService) Delete(ctx context.Context, req *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Name == nil || *req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+
+	if *req.Name != "test-app-1" && *req.Name != "test-app-2" {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", *req.Name))
+	}
+
+	return &application.ApplicationResponse{}, nil
+}
+
+func main() {
+	port := flag.String("port", "50051", "gRPC server port")
+	flag.Parse()
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", *port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	application.RegisterApplicationServiceServer(s, &mockApplicationService{})
+
+	// Setup signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+	// Start server in goroutine
+	serverErrChan := make(chan error, 1)
+	go func() {
+		log.Printf("Mock ArgoCD gRPC server listening on port %s", *port)
+		if err := s.Serve(lis); err != nil {
+			serverErrChan <- err
+		}
+	}()
+
+	// Wait for signal or server error
+	select {
+	case sig := <-sigChan:
+		log.Printf("Received signal %v, shutting down gracefully...", sig)
+	case err := <-serverErrChan:
+		log.Printf("Server error: %v", err)
+	}
+
+	// Graceful shutdown with timeout
+	stopped := make(chan struct{})
+	go func() {
+		s.GracefulStop()
+		close(stopped)
+	}()
+
+	// Wait for graceful stop or force stop after timeout
+	select {
+	case <-stopped:
+		log.Println("Server gracefully stopped")
+	case <-time.After(5 * time.Second):
+		log.Println("Graceful shutdown timeout, forcing stop")
+		s.Stop()
+	}
+}
