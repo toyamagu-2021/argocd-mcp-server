@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Config holds configuration parameters for the ArgoCD gRPC client
 type Config struct {
 	ServerAddr        string
 	AuthToken         string
@@ -21,6 +22,7 @@ type Config struct {
 	Timeout           time.Duration
 }
 
+// NewHTTPClient creates a new HTTP client with TLS configuration for gRPC-Web proxy
 func (c *Config) NewHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: c.Insecure,
@@ -46,6 +48,7 @@ func (c *Config) NewHTTPClient() *http.Client {
 	}
 }
 
+// Validate checks that required configuration parameters are present
 func (c *Config) Validate() error {
 	if c.ServerAddr == "" {
 		return ErrServerAddrRequired
