@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// Client provides a gRPC client for ArgoCD server operations
 type Client struct {
 	config     *Config
 	conn       *grpc.ClientConn
@@ -35,6 +36,7 @@ type Client struct {
 	repoClient    repositorypkg.RepositoryServiceClient
 }
 
+// New creates a new ArgoCD gRPC client with the provided configuration
 func New(config *Config) (*Client, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
@@ -131,6 +133,7 @@ func (c *Client) connect() error {
 	return nil
 }
 
+// Close closes the gRPC connection and any associated resources
 func (c *Client) Close() error {
 	var err error
 
@@ -153,6 +156,7 @@ func (c *Client) Close() error {
 
 // Application operations
 
+// GetApplication retrieves a single ArgoCD application by name
 func (c *Client) GetApplication(ctx context.Context, name string) (*v1alpha1.Application, error) {
 	req := &applicationpkg.ApplicationQuery{
 		Name: &name,
@@ -164,6 +168,7 @@ func (c *Client) GetApplication(ctx context.Context, name string) (*v1alpha1.App
 	return resp, nil
 }
 
+// ListApplications retrieves all ArgoCD applications with optional selector filtering
 func (c *Client) ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error) {
 	req := &applicationpkg.ApplicationQuery{}
 	if selector != "" {
@@ -176,6 +181,7 @@ func (c *Client) ListApplications(ctx context.Context, selector string) (*v1alph
 	return resp, nil
 }
 
+// CreateApplication creates a new ArgoCD application
 func (c *Client) CreateApplication(ctx context.Context, app *v1alpha1.Application, upsert bool) (*v1alpha1.Application, error) {
 	validate := true
 	req := &applicationpkg.ApplicationCreateRequest{
@@ -190,6 +196,7 @@ func (c *Client) CreateApplication(ctx context.Context, app *v1alpha1.Applicatio
 	return resp, nil
 }
 
+// UpdateApplication updates an existing ArgoCD application
 func (c *Client) UpdateApplication(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.Application, error) {
 	req := &applicationpkg.ApplicationUpdateRequest{
 		Application: app,
@@ -201,6 +208,7 @@ func (c *Client) UpdateApplication(ctx context.Context, app *v1alpha1.Applicatio
 	return resp, nil
 }
 
+// DeleteApplication deletes an ArgoCD application
 func (c *Client) DeleteApplication(ctx context.Context, name string, cascade bool) error {
 	req := &applicationpkg.ApplicationDeleteRequest{
 		Name:    &name,
@@ -213,6 +221,7 @@ func (c *Client) DeleteApplication(ctx context.Context, name string, cascade boo
 	return nil
 }
 
+// SyncApplication triggers a sync operation for an ArgoCD application
 func (c *Client) SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool) (*v1alpha1.Application, error) {
 	strategy := &v1alpha1.SyncStrategy{}
 	req := &applicationpkg.ApplicationSyncRequest{
@@ -232,6 +241,7 @@ func (c *Client) SyncApplication(ctx context.Context, name string, revision stri
 // GetApplicationManifests is not implemented yet
 // TODO: Fix the return type after checking the actual API
 
+// RollbackApplication rolls back an ArgoCD application to a previous revision
 func (c *Client) RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error) {
 	req := &applicationpkg.ApplicationRollbackRequest{
 		Name: &name,
@@ -246,6 +256,7 @@ func (c *Client) RollbackApplication(ctx context.Context, name string, id int64)
 
 // Cluster operations
 
+// ListClusters retrieves all ArgoCD clusters
 func (c *Client) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error) {
 	req := &clusterpkg.ClusterQuery{}
 	resp, err := c.clusterClient.List(ctx, req)
@@ -255,6 +266,7 @@ func (c *Client) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error
 	return resp, nil
 }
 
+// GetCluster retrieves a single ArgoCD cluster by server address
 func (c *Client) GetCluster(ctx context.Context, server string) (*v1alpha1.Cluster, error) {
 	// URL decode the server name
 	server = strings.ReplaceAll(server, "%2F", "/")
@@ -268,6 +280,7 @@ func (c *Client) GetCluster(ctx context.Context, server string) (*v1alpha1.Clust
 	return resp, nil
 }
 
+// CreateCluster creates a new ArgoCD cluster
 func (c *Client) CreateCluster(ctx context.Context, cluster *v1alpha1.Cluster, upsert bool) (*v1alpha1.Cluster, error) {
 	req := &clusterpkg.ClusterCreateRequest{
 		Cluster: cluster,
@@ -280,6 +293,7 @@ func (c *Client) CreateCluster(ctx context.Context, cluster *v1alpha1.Cluster, u
 	return resp, nil
 }
 
+// UpdateCluster updates an existing ArgoCD cluster
 func (c *Client) UpdateCluster(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 	req := &clusterpkg.ClusterUpdateRequest{
 		Cluster: cluster,
@@ -291,6 +305,7 @@ func (c *Client) UpdateCluster(ctx context.Context, cluster *v1alpha1.Cluster) (
 	return resp, nil
 }
 
+// DeleteCluster deletes an ArgoCD cluster by server address
 func (c *Client) DeleteCluster(ctx context.Context, server string) error {
 	req := &clusterpkg.ClusterQuery{
 		Server: server,
@@ -304,6 +319,7 @@ func (c *Client) DeleteCluster(ctx context.Context, server string) error {
 
 // Project operations
 
+// ListProjects retrieves all ArgoCD projects
 func (c *Client) ListProjects(ctx context.Context) (*v1alpha1.AppProjectList, error) {
 	req := &projectpkg.ProjectQuery{}
 	resp, err := c.projectClient.List(ctx, req)
@@ -313,6 +329,7 @@ func (c *Client) ListProjects(ctx context.Context) (*v1alpha1.AppProjectList, er
 	return resp, nil
 }
 
+// GetProject retrieves a single ArgoCD project by name
 func (c *Client) GetProject(ctx context.Context, name string) (*v1alpha1.AppProject, error) {
 	req := &projectpkg.ProjectQuery{
 		Name: name,
@@ -324,6 +341,7 @@ func (c *Client) GetProject(ctx context.Context, name string) (*v1alpha1.AppProj
 	return resp, nil
 }
 
+// CreateProject creates a new ArgoCD project
 func (c *Client) CreateProject(ctx context.Context, project *v1alpha1.AppProject, upsert bool) (*v1alpha1.AppProject, error) {
 	req := &projectpkg.ProjectCreateRequest{
 		Project: project,
@@ -336,6 +354,7 @@ func (c *Client) CreateProject(ctx context.Context, project *v1alpha1.AppProject
 	return resp, nil
 }
 
+// UpdateProject updates an existing ArgoCD project
 func (c *Client) UpdateProject(ctx context.Context, project *v1alpha1.AppProject) (*v1alpha1.AppProject, error) {
 	req := &projectpkg.ProjectUpdateRequest{
 		Project: project,
@@ -347,6 +366,7 @@ func (c *Client) UpdateProject(ctx context.Context, project *v1alpha1.AppProject
 	return resp, nil
 }
 
+// DeleteProject deletes an ArgoCD project by name
 func (c *Client) DeleteProject(ctx context.Context, name string) error {
 	req := &projectpkg.ProjectQuery{
 		Name: name,
@@ -360,6 +380,7 @@ func (c *Client) DeleteProject(ctx context.Context, name string) error {
 
 // Repository operations
 
+// ListRepositories retrieves all ArgoCD repositories
 func (c *Client) ListRepositories(ctx context.Context) (*v1alpha1.RepositoryList, error) {
 	req := &repositorypkg.RepoQuery{}
 	resp, err := c.repoClient.List(ctx, req)
@@ -369,6 +390,7 @@ func (c *Client) ListRepositories(ctx context.Context) (*v1alpha1.RepositoryList
 	return resp, nil
 }
 
+// GetRepository retrieves a single ArgoCD repository by URL
 func (c *Client) GetRepository(ctx context.Context, repo string) (*v1alpha1.Repository, error) {
 	req := &repositorypkg.RepoQuery{
 		Repo: repo,
@@ -380,6 +402,7 @@ func (c *Client) GetRepository(ctx context.Context, repo string) (*v1alpha1.Repo
 	return resp, nil
 }
 
+// CreateRepository creates a new ArgoCD repository
 func (c *Client) CreateRepository(ctx context.Context, repo *v1alpha1.Repository, upsert bool) (*v1alpha1.Repository, error) {
 	req := &repositorypkg.RepoCreateRequest{
 		Repo:   repo,
@@ -392,6 +415,7 @@ func (c *Client) CreateRepository(ctx context.Context, repo *v1alpha1.Repository
 	return resp, nil
 }
 
+// UpdateRepository updates an existing ArgoCD repository
 func (c *Client) UpdateRepository(ctx context.Context, repo *v1alpha1.Repository) (*v1alpha1.Repository, error) {
 	req := &repositorypkg.RepoUpdateRequest{
 		Repo: repo,
@@ -403,6 +427,7 @@ func (c *Client) UpdateRepository(ctx context.Context, repo *v1alpha1.Repository
 	return resp, nil
 }
 
+// DeleteRepository deletes an ArgoCD repository by URL
 func (c *Client) DeleteRepository(ctx context.Context, repo string) error {
 	req := &repositorypkg.RepoQuery{
 		Repo: repo,

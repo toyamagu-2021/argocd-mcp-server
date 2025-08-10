@@ -1,4 +1,4 @@
-package mock_argocd_e2e
+package mockargocde2e
 
 import (
 	"context"

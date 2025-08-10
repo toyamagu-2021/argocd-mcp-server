@@ -1,4 +1,4 @@
-package argocd_e2e
+package argocde2e
 
 import (
 	"context"
