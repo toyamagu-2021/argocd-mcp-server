@@ -69,6 +69,15 @@ jobs:
       - name: Install ArgoCD
         run: make install-argocd
 
+      - name: Install ArgoCD CLI
+        run: |
+          VERSION=${TAG} # Select desired TAG from https://github.com/argoproj/argo-cd/releases
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
+        env:
+          TAG: v2.14.4
+
       - name: Run tests
         run: |
           make argocd-port-forward &
