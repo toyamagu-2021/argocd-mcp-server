@@ -1,0 +1,415 @@
+package client
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/toyamagu-2021/argocd-mcp-server/internal/grpcwebproxy"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+type Client struct {
+	config     *Config
+	conn       *grpc.ClientConn
+	httpClient *http.Client
+
+	// gRPC-Web proxy support
+	grpcWebProxy *grpcwebproxy.GRPCWebProxy
+	proxyCloser  io.Closer
+
+	// Service clients
+	appClient     applicationpkg.ApplicationServiceClient
+	clusterClient clusterpkg.ClusterServiceClient
+	projectClient projectpkg.ProjectServiceClient
+	repoClient    repositorypkg.RepositoryServiceClient
+}
+
+func New(config *Config) (*Client, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
+	client := &Client{
+		config:     config,
+		httpClient: config.NewHTTPClient(),
+	}
+
+	if err := client.connect(); err != nil {
+		return nil, fmt.Errorf("failed to connect: %w", err)
+	}
+
+	return client, nil
+}
+
+func (c *Client) connect() error {
+	var opts []grpc.DialOption
+
+	// Add authentication
+	opts = append(opts, grpc.WithPerRPCCredentials(newJWTCredentials(c.config.AuthToken)))
+
+	var serverAddr string = c.config.ServerAddr
+
+	// Use gRPC-Web proxy if enabled
+	if c.config.GRPCWeb {
+		// Create gRPC-Web proxy
+		c.grpcWebProxy = grpcwebproxy.NewGRPCWebProxy(
+			c.config.ServerAddr,
+			c.config.PlainText,
+			c.httpClient,
+			c.config.GRPCWebRootPath,
+			c.config.Headers,
+		)
+
+		// Start proxy and get Unix socket address
+		addr, closer, err := c.grpcWebProxy.UseProxy()
+		if err != nil {
+			return fmt.Errorf("failed to start gRPC-Web proxy: %w", err)
+		}
+
+		c.proxyCloser = closer
+		// Unix socket addresses need the unix:// scheme for gRPC dialing
+		serverAddr = fmt.Sprintf("unix://%s", addr.String())
+
+		// Force Unix socket connection to be insecure
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else {
+		// Configure TLS for direct gRPC connection
+		if c.config.PlainText {
+			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		} else {
+			var tlsConfig *tls.Config
+			if c.config.Insecure {
+				tlsConfig = &tls.Config{
+					InsecureSkipVerify: true,
+				}
+			} else {
+				tlsConfig = &tls.Config{}
+			}
+
+			if c.config.ClientCertFile != "" && c.config.ClientCertKeyFile != "" {
+				cert, err := tls.LoadX509KeyPair(c.config.ClientCertFile, c.config.ClientCertKeyFile)
+				if err != nil {
+					return fmt.Errorf("failed to load client certificates: %w", err)
+				}
+				tlsConfig.Certificates = []tls.Certificate{cert}
+			}
+
+			opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+		}
+	}
+
+	// Add user agent
+	if c.config.UserAgent != "" {
+		opts = append(opts, grpc.WithUserAgent(c.config.UserAgent))
+	}
+
+	// Establish connection
+	conn, err := grpc.Dial(serverAddr, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to dial: %w", err)
+	}
+
+	c.conn = conn
+
+	// Initialize service clients
+	c.appClient = applicationpkg.NewApplicationServiceClient(conn)
+	c.clusterClient = clusterpkg.NewClusterServiceClient(conn)
+	c.projectClient = projectpkg.NewProjectServiceClient(conn)
+	c.repoClient = repositorypkg.NewRepositoryServiceClient(conn)
+
+	return nil
+}
+
+func (c *Client) Close() error {
+	var err error
+
+	// Close gRPC connection
+	if c.conn != nil {
+		if connErr := c.conn.Close(); connErr != nil {
+			err = connErr
+		}
+	}
+
+	// Close gRPC-Web proxy if running
+	if c.proxyCloser != nil {
+		if proxyErr := c.proxyCloser.Close(); proxyErr != nil && err == nil {
+			err = proxyErr
+		}
+	}
+
+	return err
+}
+
+// Application operations
+
+func (c *Client) GetApplication(ctx context.Context, name string) (*v1alpha1.Application, error) {
+	req := &applicationpkg.ApplicationQuery{
+		Name: &name,
+	}
+	resp, err := c.appClient.Get(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error) {
+	req := &applicationpkg.ApplicationQuery{}
+	if selector != "" {
+		req.Selector = &selector
+	}
+	resp, err := c.appClient.List(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list applications: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) CreateApplication(ctx context.Context, app *v1alpha1.Application, upsert bool) (*v1alpha1.Application, error) {
+	validate := true
+	req := &applicationpkg.ApplicationCreateRequest{
+		Application: app,
+		Upsert:      &upsert,
+		Validate:    &validate,
+	}
+	resp, err := c.appClient.Create(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create application: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) UpdateApplication(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.Application, error) {
+	req := &applicationpkg.ApplicationUpdateRequest{
+		Application: app,
+	}
+	resp, err := c.appClient.Update(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update application: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) DeleteApplication(ctx context.Context, name string, cascade bool) error {
+	req := &applicationpkg.ApplicationDeleteRequest{
+		Name:    &name,
+		Cascade: &cascade,
+	}
+	_, err := c.appClient.Delete(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to delete application: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool) (*v1alpha1.Application, error) {
+	strategy := &v1alpha1.SyncStrategy{}
+	req := &applicationpkg.ApplicationSyncRequest{
+		Name:     &name,
+		Revision: &revision,
+		Prune:    &prune,
+		DryRun:   &dryRun,
+		Strategy: strategy,
+	}
+	resp, err := c.appClient.Sync(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sync application: %w", err)
+	}
+	return resp, nil
+}
+
+// GetApplicationManifests is not implemented yet
+// TODO: Fix the return type after checking the actual API
+
+func (c *Client) RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error) {
+	req := &applicationpkg.ApplicationRollbackRequest{
+		Name: &name,
+		Id:   &id,
+	}
+	resp, err := c.appClient.Rollback(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to rollback application: %w", err)
+	}
+	return resp, nil
+}
+
+// Cluster operations
+
+func (c *Client) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error) {
+	req := &clusterpkg.ClusterQuery{}
+	resp, err := c.clusterClient.List(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list clusters: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) GetCluster(ctx context.Context, server string) (*v1alpha1.Cluster, error) {
+	// URL decode the server name
+	server = strings.ReplaceAll(server, "%2F", "/")
+	req := &clusterpkg.ClusterQuery{
+		Server: server,
+	}
+	resp, err := c.clusterClient.Get(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) CreateCluster(ctx context.Context, cluster *v1alpha1.Cluster, upsert bool) (*v1alpha1.Cluster, error) {
+	req := &clusterpkg.ClusterCreateRequest{
+		Cluster: cluster,
+		Upsert:  upsert,
+	}
+	resp, err := c.clusterClient.Create(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cluster: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) UpdateCluster(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+	req := &clusterpkg.ClusterUpdateRequest{
+		Cluster: cluster,
+	}
+	resp, err := c.clusterClient.Update(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update cluster: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) DeleteCluster(ctx context.Context, server string) error {
+	req := &clusterpkg.ClusterQuery{
+		Server: server,
+	}
+	_, err := c.clusterClient.Delete(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to delete cluster: %w", err)
+	}
+	return nil
+}
+
+// Project operations
+
+func (c *Client) ListProjects(ctx context.Context) (*v1alpha1.AppProjectList, error) {
+	req := &projectpkg.ProjectQuery{}
+	resp, err := c.projectClient.List(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list projects: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) GetProject(ctx context.Context, name string) (*v1alpha1.AppProject, error) {
+	req := &projectpkg.ProjectQuery{
+		Name: name,
+	}
+	resp, err := c.projectClient.Get(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) CreateProject(ctx context.Context, project *v1alpha1.AppProject, upsert bool) (*v1alpha1.AppProject, error) {
+	req := &projectpkg.ProjectCreateRequest{
+		Project: project,
+		Upsert:  upsert,
+	}
+	resp, err := c.projectClient.Create(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create project: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) UpdateProject(ctx context.Context, project *v1alpha1.AppProject) (*v1alpha1.AppProject, error) {
+	req := &projectpkg.ProjectUpdateRequest{
+		Project: project,
+	}
+	resp, err := c.projectClient.Update(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update project: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) DeleteProject(ctx context.Context, name string) error {
+	req := &projectpkg.ProjectQuery{
+		Name: name,
+	}
+	_, err := c.projectClient.Delete(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to delete project: %w", err)
+	}
+	return nil
+}
+
+// Repository operations
+
+func (c *Client) ListRepositories(ctx context.Context) (*v1alpha1.RepositoryList, error) {
+	req := &repositorypkg.RepoQuery{}
+	resp, err := c.repoClient.List(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list repositories: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) GetRepository(ctx context.Context, repo string) (*v1alpha1.Repository, error) {
+	req := &repositorypkg.RepoQuery{
+		Repo: repo,
+	}
+	resp, err := c.repoClient.Get(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) CreateRepository(ctx context.Context, repo *v1alpha1.Repository, upsert bool) (*v1alpha1.Repository, error) {
+	req := &repositorypkg.RepoCreateRequest{
+		Repo:   repo,
+		Upsert: upsert,
+	}
+	resp, err := c.repoClient.Create(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create repository: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) UpdateRepository(ctx context.Context, repo *v1alpha1.Repository) (*v1alpha1.Repository, error) {
+	req := &repositorypkg.RepoUpdateRequest{
+		Repo: repo,
+	}
+	resp, err := c.repoClient.Update(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update repository: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *Client) DeleteRepository(ctx context.Context, repo string) error {
+	req := &repositorypkg.RepoQuery{
+		Repo: repo,
+	}
+	_, err := c.repoClient.Delete(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to delete repository: %w", err)
+	}
+	return nil
+}
