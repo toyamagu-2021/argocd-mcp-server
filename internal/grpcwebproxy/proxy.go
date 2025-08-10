@@ -151,83 +151,78 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 	// Get metadata from context
 	md, _ := metadata.FromIncomingContext(ctx)
 
-	// Handle client streaming
-	for {
-		var msg []byte
-		if err := stream.RecvMsg(&msg); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
+	// Handle client streaming - process first message only for unary calls
+	var msg []byte
+	if err := stream.RecvMsg(&msg); err != nil {
+		if err == io.EOF {
+			return nil
 		}
+		return err
+	}
 
-		// Execute gRPC-Web request
-		resp, err := p.executeRequest(fullMethodName, msg, md)
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-		defer resp.Body.Close()
+	// Execute gRPC-Web request
+	resp, err := p.executeRequest(fullMethodName, msg, md)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	defer resp.Body.Close()
 
-		// Check response status
-		if resp.StatusCode != http.StatusOK {
-			// Check for gRPC status in headers even for non-200 responses
-			if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" {
-				grpcMessage := resp.Header.Get("Grpc-Message")
-				code, _ := strconv.Atoi(grpcStatus)
-				return status.Error(codes.Code(code), grpcMessage)
-			}
-			body, _ := io.ReadAll(resp.Body)
-			return status.Error(codes.Internal, fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)))
-		}
-
-		// Check for gRPC status in headers (for immediate errors)
-		if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" && grpcStatus != "0" {
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		// Check for gRPC status in headers even for non-200 responses
+		if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" {
 			grpcMessage := resp.Header.Get("Grpc-Message")
 			code, _ := strconv.Atoi(grpcStatus)
 			return status.Error(codes.Code(code), grpcMessage)
 		}
+		body, _ := io.ReadAll(resp.Body)
+		return status.Error(codes.Internal, fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)))
+	}
 
-		// Read and parse response frames
-		respBody, err := io.ReadAll(resp.Body)
+	// Check for gRPC status in headers (for immediate errors)
+	if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" && grpcStatus != "0" {
+		grpcMessage := resp.Header.Get("Grpc-Message")
+		code, _ := strconv.Atoi(grpcStatus)
+		return status.Error(codes.Code(code), grpcMessage)
+	}
+
+	// Read and parse response frames
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("failed to read response: %v", err))
+	}
+
+	// Send response frames back to client
+	reader := bytes.NewReader(respBody)
+	var trailerFrame []byte
+	for {
+		frame, isTrailer, err := parseFrame(reader)
 		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to read response: %v", err))
-		}
-
-		// Send response frames back to client
-		reader := bytes.NewReader(respBody)
-		var trailerFrame []byte
-		for {
-			frame, isTrailer, err := parseFrame(reader)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				return status.Error(codes.Internal, fmt.Sprintf("failed to parse frame: %v", err))
-			}
-
-			// Check if this is a trailer frame
-			if isTrailer {
-				// Store trailer for later processing
-				trailerFrame = frame
+			if err == io.EOF {
 				break
 			}
-
-			// Send data frame to client
-			if err := stream.SendMsg(frame); err != nil {
-				return err
-			}
+			return status.Error(codes.Internal, fmt.Sprintf("failed to parse frame: %v", err))
 		}
 
-		// Handle trailer if present
-		if trailerFrame != nil {
-			// Parse gRPC status from trailer
-			if grpcErr := parseGRPCTrailer(trailerFrame); grpcErr != nil {
-				return grpcErr
-			}
+		// Check if this is a trailer frame
+		if isTrailer {
+			// Store trailer for later processing
+			trailerFrame = frame
+			break
 		}
 
-		// For unary calls, break after first response
-		break
+		// Send data frame to client
+		if err := stream.SendMsg(frame); err != nil {
+			return err
+		}
+	}
+
+	// Handle trailer if present
+	if trailerFrame != nil {
+		// Parse gRPC status from trailer
+		if grpcErr := parseGRPCTrailer(trailerFrame); grpcErr != nil {
+			return grpcErr
+		}
 	}
 
 	return nil

@@ -108,6 +108,7 @@ func TestConfig_NewHTTPClient(t *testing.T) {
 			client := tt.config.NewHTTPClient()
 			if client == nil {
 				t.Error("NewHTTPClient() returned nil")
+				return
 			}
 
 			expectedTimeout := tt.config.Timeout

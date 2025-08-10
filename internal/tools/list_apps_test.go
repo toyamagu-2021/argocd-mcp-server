@@ -126,7 +126,7 @@ func TestListAppsTool_Schema(t *testing.T) {
 	}
 
 	// Check that we have properties defined
-	if ListAppsTool.InputSchema.Properties == nil || len(ListAppsTool.InputSchema.Properties) == 0 {
+	if len(ListAppsTool.InputSchema.Properties) == 0 {
 		t.Error("Tool schema should have properties defined")
 	}
 }

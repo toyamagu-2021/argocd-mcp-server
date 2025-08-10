@@ -65,6 +65,9 @@ lint: fmt-check vet
 	@echo "Running ineffassign..."
 	@which ineffassign > /dev/null || go install github.com/gordonklaus/ineffassign@latest
 	ineffassign ./...
+	@echo "Running errcheck..."
+	@which errcheck > /dev/null || go install github.com/kisielk/errcheck@latest
+	errcheck ./...
 	@echo "Running misspell..."
 	@which misspell > /dev/null || go install github.com/client9/misspell/cmd/misspell@latest
 	misspell -error .
@@ -79,6 +82,7 @@ lint-install:
 	go install golang.org/x/lint/golint@latest
 	go install github.com/gordonklaus/ineffassign@latest
 	go install github.com/client9/misspell/cmd/misspell@latest
+	go install github.com/kisielk/errcheck@latest
 	go install github.com/securego/gosec/v2/cmd/gosec@latest
 	go install github.com/mgechev/revive@latest
 
