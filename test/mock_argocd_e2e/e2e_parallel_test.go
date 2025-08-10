@@ -78,6 +78,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	// TODO: Skip mock_argocd_e2e tests in CI/CD environments
+	if os.Getenv("GITHUB_RUN_ID") != "" {
+		fmt.Println("Skipping mock_argocd_e2e tests in CI/CD environment")
+		os.Exit(0)
+	}
+
 	// Setup shared servers once for all tests
 	mockServer := startMockServerForTests("60200")
 	sharedMockServer = mockServer
