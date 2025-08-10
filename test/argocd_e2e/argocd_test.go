@@ -210,8 +210,8 @@ func TestRealArgoCD_Suite(t *testing.T) {
 func testInitialize(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initRequest := map[string]interface{}{
@@ -274,8 +274,8 @@ func testInitialize(t *testing.T) {
 func testListTools(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -331,8 +331,8 @@ func testListTools(t *testing.T) {
 func testListApplications(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -392,8 +392,8 @@ func testListApplications(t *testing.T) {
 func testInvalidAppName(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -431,8 +431,8 @@ func testInvalidAppName(t *testing.T) {
 func testWithTimeout(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -496,8 +496,8 @@ func testCreateApplication(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -595,8 +595,8 @@ func testGetCreatedApplication(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -677,8 +677,8 @@ func testListApplicationsWithCreated(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -752,8 +752,8 @@ func testSyncCreatedApplication(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -836,8 +836,8 @@ func testDeleteCreatedApplication(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -910,8 +910,8 @@ func testGetExistingApplication(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -981,8 +981,8 @@ func testSyncExistingApplicationDryRun(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServer(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1049,8 +1049,8 @@ func testSyncExistingApplicationDryRun(t *testing.T) {
 func testInitializeGRPCWeb(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initRequest := map[string]interface{}{
@@ -1101,8 +1101,8 @@ func testInitializeGRPCWeb(t *testing.T) {
 func testListToolsGRPCWeb(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1158,8 +1158,8 @@ func testListToolsGRPCWeb(t *testing.T) {
 func testListApplicationsGRPCWeb(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1219,8 +1219,8 @@ func testListApplicationsGRPCWeb(t *testing.T) {
 func testInvalidAppNameGRPCWeb(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1258,8 +1258,8 @@ func testInvalidAppNameGRPCWeb(t *testing.T) {
 func testWithTimeoutGRPCWeb(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1323,8 +1323,8 @@ func testCreateApplicationGRPCWeb(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1414,8 +1414,8 @@ func testGetCreatedApplicationGRPCWeb(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1496,8 +1496,8 @@ func testListApplicationsWithCreatedGRPCWeb(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1571,8 +1571,8 @@ func testSyncCreatedApplicationGRPCWeb(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1655,8 +1655,8 @@ func testDeleteCreatedApplicationGRPCWeb(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1729,8 +1729,8 @@ func testGetExistingApplicationGRPCWeb(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)
@@ -1800,8 +1800,8 @@ func testSyncExistingApplicationDryRunGRPCWeb(t *testing.T) {
 
 	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
 	defer func() {
-		mcpCmd.Process.Kill()
-		mcpCmd.Wait()
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
 	}()
 
 	initializeMCPConnection(t, stdin, stdout)

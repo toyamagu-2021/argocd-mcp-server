@@ -165,7 +165,7 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {

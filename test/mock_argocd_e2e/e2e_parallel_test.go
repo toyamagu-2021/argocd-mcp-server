@@ -24,7 +24,7 @@ type testServer struct {
 func (s *testServer) stop() {
 	if s.cmd != nil && s.cmd.Process != nil {
 		// Send SIGTERM for graceful shutdown
-		s.cmd.Process.Signal(os.Interrupt)
+		_ = s.cmd.Process.Signal(os.Interrupt)
 
 		// Give it time to shutdown gracefully
 		done := make(chan error, 1)
@@ -37,7 +37,7 @@ func (s *testServer) stop() {
 			// Process exited gracefully
 		case <-time.After(3 * time.Second):
 			// Force kill if graceful shutdown takes too long
-			s.cmd.Process.Kill()
+			_ = s.cmd.Process.Kill()
 			<-done
 		}
 	}
@@ -61,7 +61,7 @@ func isPortAvailable(port string) bool {
 	if err != nil {
 		return false
 	}
-	ln.Close()
+	_ = ln.Close()
 	return true
 }
 
@@ -93,8 +93,8 @@ func TestMain(m *testing.M) {
 
 	// Cleanup
 	if sharedMCPServer.cmd != nil && sharedMCPServer.cmd.Process != nil {
-		sharedMCPServer.cmd.Process.Kill()
-		sharedMCPServer.cmd.Wait()
+		_ = sharedMCPServer.cmd.Process.Kill()
+		_ = sharedMCPServer.cmd.Wait()
 	}
 	if sharedMockServer != nil {
 		sharedMockServer.stop()
@@ -118,7 +118,7 @@ func startMockServerForTests(port string) *testServer {
 	for i := 0; i < 50; i++ {
 		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%s", port))
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
