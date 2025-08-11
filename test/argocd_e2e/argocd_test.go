@@ -174,15 +174,17 @@ func TestRealArgoCD_Suite(t *testing.T) {
 			// These subtests will run sequentially in order
 			t.Run("01_CreateApplication", testCreateApplication)
 			t.Run("02_GetCreatedApplication", testGetCreatedApplication)
-			t.Run("03_GetCreatedApplicationManifests", testGetCreatedApplicationManifests)
-			t.Run("04_ListApplicationsWithCreated", testListApplicationsWithCreated)
-			t.Run("05_SyncCreatedApplication", testSyncCreatedApplication)
-			t.Run("06_DeleteCreatedApplication", testDeleteCreatedApplication)
+			t.Run("03_GetCreatedApplicationEvents", testGetCreatedApplicationEvents)
+			t.Run("04_GetCreatedApplicationManifests", testGetCreatedApplicationManifests)
+			t.Run("05_ListApplicationsWithCreated", testListApplicationsWithCreated)
+			t.Run("06_SyncCreatedApplication", testSyncCreatedApplication)
+			t.Run("07_DeleteCreatedApplication", testDeleteCreatedApplication)
 		})
 
 		// Tests that require existing application
 		if appName := os.Getenv("TEST_APP_NAME"); appName != "" {
 			t.Run("GetExistingApplication", testGetExistingApplication)
+			t.Run("GetExistingApplicationEvents", testGetExistingApplicationEvents)
 			t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifests)
 			t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRun)
 		}
@@ -208,15 +210,17 @@ func TestRealArgoCD_Suite(t *testing.T) {
 			// These subtests will run sequentially in order
 			t.Run("01_CreateApplication", testCreateApplicationGRPCWeb)
 			t.Run("02_GetCreatedApplication", testGetCreatedApplicationGRPCWeb)
-			t.Run("03_GetCreatedApplicationManifests", testGetCreatedApplicationManifestsGRPCWeb)
-			t.Run("04_ListApplicationsWithCreated", testListApplicationsWithCreatedGRPCWeb)
-			t.Run("05_SyncCreatedApplication", testSyncCreatedApplicationGRPCWeb)
-			t.Run("06_DeleteCreatedApplication", testDeleteCreatedApplicationGRPCWeb)
+			t.Run("03_GetCreatedApplicationEvents", testGetCreatedApplicationEventsGRPCWeb)
+			t.Run("04_GetCreatedApplicationManifests", testGetCreatedApplicationManifestsGRPCWeb)
+			t.Run("05_ListApplicationsWithCreated", testListApplicationsWithCreatedGRPCWeb)
+			t.Run("06_SyncCreatedApplication", testSyncCreatedApplicationGRPCWeb)
+			t.Run("07_DeleteCreatedApplication", testDeleteCreatedApplicationGRPCWeb)
 		})
 
 		// Tests that require existing application
 		if appName := os.Getenv("TEST_APP_NAME"); appName != "" {
 			t.Run("GetExistingApplication", testGetExistingApplicationGRPCWeb)
+			t.Run("GetExistingApplicationEvents", testGetExistingApplicationEventsGRPCWeb)
 			t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifestsGRPCWeb)
 			t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRunGRPCWeb)
 		}
@@ -1881,6 +1885,84 @@ func testSyncExistingApplicationDryRunGRPCWeb(t *testing.T) {
 }
 
 // Test get_application_manifests for existing application
+func testGetExistingApplicationEvents(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_events",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Logf("Error response: %v", errObj)
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "permission") {
+			t.Skip("No permission to get application events on this ArgoCD server")
+		}
+		t.Fatalf("Error calling get_application_events: %v", errObj["message"])
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Parse JSON to validate structure
+	var eventsResp map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &eventsResp); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	// Check for expected fields in events response
+	if _, ok := eventsResp["items"]; !ok {
+		t.Error("expected response to contain items field")
+	}
+
+	t.Logf("Successfully retrieved events for application %s", appName)
+	t.Logf("Response snippet: %.500s...", text)
+}
+
 func testGetExistingApplicationManifests(t *testing.T) {
 	appName := os.Getenv("TEST_APP_NAME")
 	if appName == "" {
@@ -1962,6 +2044,90 @@ func testGetExistingApplicationManifests(t *testing.T) {
 }
 
 // Test get_application_manifests for created application
+func testGetCreatedApplicationEvents(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e"
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_events",
+			"arguments": map[string]interface{}{
+				"name": testAppName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		errorMsg := fmt.Sprintf("%v", errObj["message"])
+		t.Logf("Error response: %v", errObj)
+
+		if strings.Contains(errorMsg, "not found") {
+			t.Skip("Application not found - create test must run first")
+		}
+
+		if strings.Contains(errorMsg, "permission") {
+			t.Skip("No permission to get application events on this ArgoCD server")
+		}
+
+		t.Fatalf("Error calling get_application_events: %v", errorMsg)
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Parse JSON to validate structure
+	var eventsResp map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &eventsResp); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	t.Logf("Successfully retrieved events for created application %s", testAppName)
+	t.Logf("Response snippet: %.500s...", text)
+}
+
 func testGetCreatedApplicationManifests(t *testing.T) {
 	testMutex.Lock()
 	defer testMutex.Unlock()
@@ -2046,6 +2212,80 @@ func testGetCreatedApplicationManifests(t *testing.T) {
 	t.Logf("Response snippet: %.500s...", text)
 }
 
+// gRPC-Web test for get_application_events
+func testGetExistingApplicationEventsGRPCWeb(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_events",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Logf("Error response: %v", errObj)
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "permission") {
+			t.Skip("No permission to get application events on this ArgoCD server")
+		}
+		t.Fatalf("Error calling get_application_events: %v", errObj["message"])
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Parse JSON to validate structure
+	var eventsResp map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &eventsResp); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	t.Logf("Successfully retrieved events for application %s via gRPC-Web", appName)
+	t.Logf("Response snippet: %.500s...", text)
+}
+
 // gRPC-Web test for get_application_manifests
 func testGetExistingApplicationManifestsGRPCWeb(t *testing.T) {
 	appName := os.Getenv("TEST_APP_NAME")
@@ -2117,6 +2357,102 @@ func testGetExistingApplicationManifestsGRPCWeb(t *testing.T) {
 	}
 
 	t.Logf("Successfully retrieved manifests for application %s via gRPC-Web", appName)
+	t.Logf("Response snippet: %.500s...", text)
+}
+
+// gRPC-Web test for get_application_events for created application
+func testGetCreatedApplicationEventsGRPCWeb(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e-grpcweb"
+	}
+
+	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_events",
+			"arguments": map[string]interface{}{
+				"name": testAppName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		errorMsg := fmt.Sprintf("%v", errObj["message"])
+		t.Logf("Error response: %v", errObj)
+
+		if strings.Contains(errorMsg, "not found") {
+			t.Skip("Application not found - create test must run first")
+		}
+
+		if strings.Contains(errorMsg, "permission") {
+			t.Skip("No permission to get application events on this ArgoCD server")
+		}
+
+		t.Fatalf("Error calling get_application_events: %v", errorMsg)
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Check if the response is an error message
+	if strings.Contains(text, "Failed to get application events") {
+		t.Logf("Error in text response: %s", text)
+
+		if strings.Contains(text, "PermissionDenied") || strings.Contains(text, "permission denied") {
+			t.Skip("No permission to get application events via gRPC-Web on this ArgoCD server")
+		}
+
+		t.Fatalf("Unexpected error in response: %s", text)
+	}
+
+	// Parse JSON to validate structure
+	var eventsResp map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &eventsResp); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	t.Logf("Successfully retrieved events for created application %s via gRPC-Web", testAppName)
 	t.Logf("Response snippet: %.500s...", text)
 }
 

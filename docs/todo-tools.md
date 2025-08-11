@@ -6,6 +6,7 @@
 - [x] list_application - Lists ArgoCD applications with filtering options
 - [x] get_application - Retrieves detailed application information  
 - [x] get_application_manifests - Gets rendered manifests for an application
+- [x] get_application_events - Gets Kubernetes events for resources
 - [x] create_application - Creates a new ArgoCD application
 - [x] sync_application - Triggers application sync with prune/dry-run options
 - [x] delete_application - Deletes applications with cascade control
@@ -25,7 +26,6 @@
 - [ ] get_application_resource_tree - Gets resource hierarchy
 - [ ] terminate_operation - Terminates running sync/refresh operations
 - [ ] get_application_logs - Gets logs for application resources
-- [ ] get_application_events - Gets Kubernetes events for resources
 
 ### Projects (Complete)
 - [ ] update_project - Updates existing project

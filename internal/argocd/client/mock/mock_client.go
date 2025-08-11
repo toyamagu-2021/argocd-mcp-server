@@ -186,6 +186,21 @@ func (mr *MockInterfaceMockRecorder) GetApplication(ctx, name any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplication", reflect.TypeOf((*MockInterface)(nil).GetApplication), ctx, name)
 }
 
+// GetApplicationEvents mocks base method.
+func (m *MockInterface) GetApplicationEvents(ctx context.Context, name, resourceNamespace, resourceName, resourceUID, appNamespace, project string) (any, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetApplicationEvents", ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project)
+	ret0, _ := ret[0].(any)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetApplicationEvents indicates an expected call of GetApplicationEvents.
+func (mr *MockInterfaceMockRecorder) GetApplicationEvents(ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationEvents", reflect.TypeOf((*MockInterface)(nil).GetApplicationEvents), ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project)
+}
+
 // GetApplicationManifests mocks base method.
 func (m *MockInterface) GetApplicationManifests(ctx context.Context, name, revision string) (any, error) {
 	m.ctrl.T.Helper()

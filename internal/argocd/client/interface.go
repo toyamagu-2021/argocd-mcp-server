@@ -19,6 +19,7 @@ type Interface interface {
 	SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool) (*v1alpha1.Application, error)
 	RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error)
 	GetApplicationManifests(ctx context.Context, name string, revision string) (interface{}, error)
+	GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error)
 
 	// Cluster operations
 	ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error)

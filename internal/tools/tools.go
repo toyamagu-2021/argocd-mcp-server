@@ -15,6 +15,9 @@ func RegisterAll(s *server.MCPServer) {
 	// Register get_application_manifests tool
 	s.AddTool(GetAppManifestsTool, HandleGetApplicationManifests)
 
+	// Register get_application_events tool
+	s.AddTool(GetAppEventsTool, HandleGetApplicationEvents)
+
 	// Register create_application tool
 	s.AddTool(CreateAppTool, HandleCreateApplication)
 
