@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "argocd-mcp-server": {
+      "command": "/your-path/dit/argocd-mcp-server",
+      "env": {}
+    }
+  }
+}

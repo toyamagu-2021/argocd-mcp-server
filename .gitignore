@@ -21,9 +21,6 @@ go.work.sum
 # env file
 .env
 
-# Binary
-/argocd-mcp-server
-
 # IDE
 *.swp
 *.swo
@@ -39,3 +36,4 @@ EOF < /dev/null
 .env.*
 
 /dist
+.mcp.json
