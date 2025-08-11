@@ -237,10 +237,18 @@ This is a Model Context Protocol (MCP) server that exposes ArgoCD operations as 
 
 ## MCP Tools Available
 
-- `list_application`: Lists ArgoCD applications with filtering options
+### Application Management
+- `list_application`: Lists ArgoCD applications with filtering options (project, cluster, namespace, selector, detailed mode)
 - `get_application`: Retrieves detailed application information
+- `get_application_manifests`: Gets rendered Kubernetes manifests for an application
+- `get_application_events`: Gets Kubernetes events for resources belonging to an application
 - `create_application`: Creates a new ArgoCD application with source and destination configuration
 - `sync_application`: Triggers application sync with prune/dry-run options
 - `delete_application`: Deletes applications with cascade control
+
+### Project Management
+- `list_project`: Lists all ArgoCD projects
+- `get_project`: Retrieves detailed project information
+- `create_project`: Creates new ArgoCD project with access controls and deployment restrictions
 
 Each tool accepts structured JSON arguments and returns formatted responses via the MCP protocol.
