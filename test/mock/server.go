@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	repository "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -332,6 +333,67 @@ func (s *mockApplicationService) Delete(ctx context.Context, req *application.Ap
 	}
 
 	return &application.ApplicationResponse{}, nil
+}
+
+func (s *mockApplicationService) GetManifests(ctx context.Context, req *application.ApplicationManifestQuery) (*repository.ManifestResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Name == nil || *req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+
+	// Return mock manifests based on application name
+	switch *req.Name {
+	case "test-app-1", "test-app-2", "test-app-new":
+		return &repository.ManifestResponse{
+			Manifests: []string{
+				`apiVersion: v1
+kind: Service
+metadata:
+  name: test-service
+  namespace: default
+spec:
+  selector:
+    app: test
+  ports:
+  - port: 80
+    targetPort: 8080`,
+				`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: nginx:latest
+        ports:
+        - containerPort: 8080`,
+			},
+			Namespace: "default",
+			Server:    "https://kubernetes.default.svc",
+			Revision:  "abc123",
+		}, nil
+	default:
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", *req.Name))
+	}
 }
 
 type mockProjectService struct {

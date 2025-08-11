@@ -37,6 +37,5 @@ EOF < /dev/null
 # .env
 .env
 .env.*
-.mcp.json
 
 /dist

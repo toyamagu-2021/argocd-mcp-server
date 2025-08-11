@@ -4,10 +4,18 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 
 ## Features
 
+### Application Management
 - `list_application` - List ArgoCD applications with optional filtering by project, cluster, namespace, and label selectors
 - `get_application` - Retrieve detailed information about a specific ArgoCD application
+- `get_application_manifests` - Get rendered Kubernetes manifests for an application
+- `create_application` - Create a new ArgoCD application with source and destination configuration
 - `sync_application` - Trigger a sync operation for an application with optional prune and dry-run modes
 - `delete_application` - Delete an ArgoCD application with optional cascade control
+
+### Project Management
+- `list_project` - List all ArgoCD projects
+- `get_project` - Retrieve detailed project information by name
+- `create_project` - Create new ArgoCD project with access controls
 
 ## Prerequisites
 
@@ -79,6 +87,22 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
     "name": "get_application",
     "arguments": {
       "name": "my-app"
+    }
+  }
+}
+```
+
+#### Get Application Manifests
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "get_application_manifests",
+    "arguments": {
+      "name": "my-app",
+      "revision": "main"
     }
   }
 }
