@@ -35,4 +35,10 @@ func RegisterAll(s *server.MCPServer) {
 
 	// Register create_project tool
 	s.AddTool(CreateProjectTool, HandleCreateProject)
+
+	// Register list_cluster tool
+	s.AddTool(ListClusterTool, HandleListCluster)
+
+	// Register get_cluster tool
+	s.AddTool(GetClusterTool, HandleGetCluster)
 }
