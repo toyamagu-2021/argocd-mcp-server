@@ -69,7 +69,6 @@ func (p *GRPCWebProxy) executeRequest(fullMethodName string, msg []byte, md meta
 	}
 
 	requestURL := fmt.Sprintf("%s://%s%s%s", schema, p.serverAddr, rootPath, fullMethodName)
-	
 
 	// Create request with framed message
 	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
@@ -87,7 +86,7 @@ func (p *GRPCWebProxy) executeRequest(fullMethodName string, msg []byte, md meta
 			req.Header.Add(k, val)
 		}
 	}
-	
+
 	// Force correct content-type (must be set after to override any from metadata)
 	req.Header.Set("content-type", "application/grpc-web+proto")
 
@@ -98,7 +97,6 @@ func (p *GRPCWebProxy) executeRequest(fullMethodName string, msg []byte, md meta
 			req.Header.Set(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
 		}
 	}
-	
 
 	// Execute request
 	resp, err := p.httpClient.Do(req)
@@ -172,7 +170,7 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
-		
+
 		// Check for gRPC status in headers even for non-200 responses
 		if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" {
 			grpcMessage := resp.Header.Get("Grpc-Message")
@@ -180,17 +178,17 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 			return status.Error(codes.Code(code), grpcMessage)
 		}
 		body, _ := io.ReadAll(resp.Body)
-		
+
 		// Check if response is gzipped
 		if resp.Header.Get("Content-Encoding") == "gzip" || (len(body) > 2 && body[0] == 0x1f && body[1] == 0x8b) {
 			if reader, err := gzip.NewReader(bytes.NewReader(body)); err == nil {
 				if decompressed, err := io.ReadAll(reader); err == nil {
 					body = decompressed
 				}
-				reader.Close()
+				_ = reader.Close()
 			}
 		}
-		
+
 		return status.Error(codes.Internal, fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)))
 	}
 

@@ -20,4 +20,10 @@ func RegisterAll(s *server.MCPServer) {
 
 	// Register delete_application tool
 	s.AddTool(DeleteAppTool, HandleDeleteApplication)
+
+	// Register list_project tool
+	s.AddTool(ListProjectsTool, HandleListProjects)
+
+	// Register get_project tool
+	s.AddTool(GetProjectTool, HandleGetProject)
 }
