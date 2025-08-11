@@ -1,9 +1,11 @@
 {
-  "deny": [
-    "Read:*.env",
-    "Read:**/.env",
-    "Read:.env.*",
-    "Read:**/.env.*",
-    "Read:**/.mcp.json"
-  ]
+  "permissions": {
+    "deny": [
+      "Read:*.env",
+      "Read:**/.env",
+      "Read:.env.*",
+      "Read:**/.env.*",
+      "Read:**/.mcp.json"
+    ]
+  }
 }
