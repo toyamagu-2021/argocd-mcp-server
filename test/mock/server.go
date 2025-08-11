@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -741,6 +742,96 @@ func (s *mockProjectService) Create(ctx context.Context, req *project.ProjectCre
 	return createdProject, nil
 }
 
+type mockClusterService struct {
+	cluster.UnimplementedClusterServiceServer
+}
+
+func (s *mockClusterService) List(ctx context.Context, req *cluster.ClusterQuery) (*v1alpha1.ClusterList, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	clusters := &v1alpha1.ClusterList{
+		Items: []v1alpha1.Cluster{
+			{
+				Server: "https://kubernetes.default.svc",
+				Name:   "in-cluster",
+				Config: v1alpha1.ClusterConfig{
+					TLSClientConfig: v1alpha1.TLSClientConfig{
+						Insecure: false,
+					},
+				},
+				ServerVersion: "1.28",
+			},
+			{
+				Server: "https://external-cluster.example.com",
+				Name:   "external-cluster",
+				Config: v1alpha1.ClusterConfig{
+					TLSClientConfig: v1alpha1.TLSClientConfig{
+						Insecure: true,
+					},
+				},
+				ServerVersion: "1.27",
+			},
+		},
+	}
+
+	return clusters, nil
+}
+
+func (s *mockClusterService) Get(ctx context.Context, req *cluster.ClusterQuery) (*v1alpha1.Cluster, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Server == "" {
+		return nil, status.Error(codes.InvalidArgument, "server is required")
+	}
+
+	// Mock clusters
+	clusters := map[string]*v1alpha1.Cluster{
+		"https://kubernetes.default.svc": {
+			Server: "https://kubernetes.default.svc",
+			Name:   "in-cluster",
+			Config: v1alpha1.ClusterConfig{
+				TLSClientConfig: v1alpha1.TLSClientConfig{
+					Insecure: false,
+				},
+			},
+			ServerVersion: "1.28",
+		},
+		"https://external-cluster.example.com": {
+			Server: "https://external-cluster.example.com",
+			Name:   "external-cluster",
+			Config: v1alpha1.ClusterConfig{
+				TLSClientConfig: v1alpha1.TLSClientConfig{
+					Insecure: true,
+				},
+			},
+			ServerVersion: "1.27",
+		},
+	}
+
+	cluster, exists := clusters[req.Server]
+	if !exists {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("cluster %s not found", req.Server))
+	}
+
+	return cluster, nil
+}
+
 func main() {
 	port := flag.String("port", "50051", "gRPC server port")
 	flag.Parse()
@@ -753,6 +844,7 @@ func main() {
 	s := grpc.NewServer()
 	application.RegisterApplicationServiceServer(s, &mockApplicationService{})
 	project.RegisterProjectServiceServer(s, &mockProjectService{})
+	cluster.RegisterClusterServiceServer(s, &mockClusterService{})
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
