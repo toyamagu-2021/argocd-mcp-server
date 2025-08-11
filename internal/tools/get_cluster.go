@@ -10,6 +10,7 @@ import (
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
+// GetClusterTool provides MCP tool for retrieving cluster details from ArgoCD
 var GetClusterTool = mcp.NewTool("get_cluster",
 	mcp.WithDescription("Retrieves detailed information about a specific ArgoCD cluster"),
 	mcp.WithString("server",
@@ -18,6 +19,7 @@ var GetClusterTool = mcp.NewTool("get_cluster",
 	),
 )
 
+// HandleGetCluster handles MCP tool requests for retrieving cluster information
 func HandleGetCluster(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	server := request.GetString("server", "")
 	if server == "" {

@@ -10,10 +10,12 @@ import (
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
+// ListClusterTool provides MCP tool for listing all ArgoCD clusters
 var ListClusterTool = mcp.NewTool("list_cluster",
 	mcp.WithDescription("Lists all ArgoCD clusters configured in the system"),
 )
 
+// HandleListCluster handles MCP tool requests for listing ArgoCD clusters
 func HandleListCluster(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	config := &client.Config{
 		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
