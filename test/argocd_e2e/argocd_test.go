@@ -163,6 +163,11 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("InvalidAppName", testInvalidAppName)
 		t.Run("WithTimeout", testWithTimeout)
 
+		// Project tests
+		t.Run("ListProjects", testListProjects)
+		t.Run("GetProject", testGetProject)
+		t.Run("InvalidProjectName", testInvalidProjectName)
+
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {
 			// These subtests will run sequentially in order
@@ -188,6 +193,11 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("ListApplications", testListApplicationsGRPCWeb)
 		t.Run("InvalidAppName", testInvalidAppNameGRPCWeb)
 		t.Run("WithTimeout", testWithTimeoutGRPCWeb)
+
+		// Project tests
+		t.Run("ListProjects", testListProjectsGRPCWeb)
+		t.Run("GetProject", testGetProjectGRPCWeb)
+		t.Run("InvalidProjectName", testInvalidProjectNameGRPCWeb)
 
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {
@@ -298,7 +308,7 @@ func testListTools(t *testing.T) {
 		t.Fatalf("expected tools to be an array, got %T", result["tools"])
 	}
 
-	expectedTools := []string{"list_application", "get_application", "create_application", "sync_application", "delete_application"}
+	expectedTools := []string{"list_application", "get_application", "create_application", "sync_application", "delete_application", "list_project", "get_project"}
 	toolNames := make([]string, 0)
 
 	for _, tool := range tools {
@@ -1125,7 +1135,7 @@ func testListToolsGRPCWeb(t *testing.T) {
 		t.Fatalf("expected tools to be an array, got %T", result["tools"])
 	}
 
-	expectedTools := []string{"list_application", "get_application", "create_application", "sync_application", "delete_application"}
+	expectedTools := []string{"list_application", "get_application", "create_application", "sync_application", "delete_application", "list_project", "get_project"}
 	toolNames := make([]string, 0)
 
 	for _, tool := range tools {

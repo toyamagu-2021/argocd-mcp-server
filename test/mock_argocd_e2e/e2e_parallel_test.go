@@ -99,8 +99,23 @@ func TestMain(m *testing.M) {
 
 	// Cleanup
 	if sharedMCPServer.cmd != nil && sharedMCPServer.cmd.Process != nil {
-		_ = sharedMCPServer.cmd.Process.Kill()
-		_ = sharedMCPServer.cmd.Wait()
+		// Send SIGTERM for graceful shutdown
+		_ = sharedMCPServer.cmd.Process.Signal(os.Interrupt)
+
+		// Give it time to shutdown gracefully
+		done := make(chan error, 1)
+		go func() {
+			done <- sharedMCPServer.cmd.Wait()
+		}()
+
+		select {
+		case <-done:
+			// Process exited gracefully
+		case <-time.After(3 * time.Second):
+			// Force kill if graceful shutdown takes too long
+			_ = sharedMCPServer.cmd.Process.Kill()
+			<-done
+		}
 	}
 	if sharedMockServer != nil {
 		sharedMockServer.stop()
@@ -145,6 +160,7 @@ func startSharedMCPServer(port string) {
 		fmt.Sprintf("ARGOCD_SERVER=localhost:%s", port),
 		"ARGOCD_INSECURE=true",
 		"ARGOCD_PLAINTEXT=true",
+		"ARGOCD_GRPC_WEB=false", // Explicitly disable gRPC-Web
 		"LOG_LEVEL=debug",
 	)
 

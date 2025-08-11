@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -333,6 +334,211 @@ func (s *mockApplicationService) Delete(ctx context.Context, req *application.Ap
 	return &application.ApplicationResponse{}, nil
 }
 
+type mockProjectService struct {
+	project.UnimplementedProjectServiceServer
+}
+
+func (s *mockProjectService) List(ctx context.Context, req *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	projects := &v1alpha1.AppProjectList{
+		Items: []v1alpha1.AppProject{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.AppProjectSpec{
+					Description: "Default project",
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+					ClusterResourceWhitelist: []metav1.GroupKind{
+						{
+							Group: "*",
+							Kind:  "*",
+						},
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "production",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.AppProjectSpec{
+					Description: "Production project",
+					SourceRepos: []string{
+						"https://github.com/production/*",
+						"https://gitlab.com/production/*",
+					},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "https://production.cluster.local",
+							Namespace: "prod-*",
+						},
+					},
+					ClusterResourceWhitelist: []metav1.GroupKind{
+						{
+							Group: "apps",
+							Kind:  "Deployment",
+						},
+						{
+							Group: "",
+							Kind:  "Service",
+						},
+						{
+							Group: "",
+							Kind:  "ConfigMap",
+						},
+					},
+					Roles: []v1alpha1.ProjectRole{
+						{
+							Name: "admin",
+							Policies: []string{
+								"p, proj:production:admin, applications, *, production/*, allow",
+							},
+						},
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "development",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.AppProjectSpec{
+					Description: "Development project",
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "dev-*",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return projects, nil
+}
+
+func (s *mockProjectService) Get(ctx context.Context, req *project.ProjectQuery) (*v1alpha1.AppProject, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "project name is required")
+	}
+
+	switch req.Name {
+	case "default":
+		return &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Description: "Default project",
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				ClusterResourceWhitelist: []metav1.GroupKind{
+					{
+						Group: "*",
+						Kind:  "*",
+					},
+				},
+			},
+		}, nil
+	case "production":
+		return &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "production",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Description: "Production project",
+				SourceRepos: []string{
+					"https://github.com/production/*",
+					"https://gitlab.com/production/*",
+				},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "https://production.cluster.local",
+						Namespace: "prod-*",
+					},
+				},
+				ClusterResourceWhitelist: []metav1.GroupKind{
+					{
+						Group: "apps",
+						Kind:  "Deployment",
+					},
+					{
+						Group: "",
+						Kind:  "Service",
+					},
+					{
+						Group: "",
+						Kind:  "ConfigMap",
+					},
+				},
+				Roles: []v1alpha1.ProjectRole{
+					{
+						Name: "admin",
+						Policies: []string{
+							"p, proj:production:admin, applications, *, production/*, allow",
+						},
+					},
+				},
+			},
+		}, nil
+	case "development":
+		return &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "development",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Description: "Development project",
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "dev-*",
+					},
+				},
+			},
+		}, nil
+	default:
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("project %s not found", req.Name))
+	}
+}
+
 func main() {
 	port := flag.String("port", "50051", "gRPC server port")
 	flag.Parse()
@@ -344,6 +550,7 @@ func main() {
 
 	s := grpc.NewServer()
 	application.RegisterApplicationServiceServer(s, &mockApplicationService{})
+	project.RegisterProjectServiceServer(s, &mockProjectService{})
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
