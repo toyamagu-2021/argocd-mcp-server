@@ -9,6 +9,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `get_application` - Retrieve detailed information about a specific ArgoCD application
 - `get_application_manifests` - Get rendered Kubernetes manifests for an application
 - `get_application_events` - Get Kubernetes events for resources belonging to an application
+- `get_application_logs` - Retrieve logs from pods in an ArgoCD application
 - `create_application` - Create a new ArgoCD application with source and destination configuration
 - `sync_application` - Trigger a sync operation for an application with optional prune and dry-run modes
 - `delete_application` - Delete an ArgoCD application with optional cascade control
@@ -126,11 +127,30 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 }
 ```
 
-#### Create Application
+#### Get Application Logs
 ```json
 {
   "jsonrpc": "2.0",
   "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "get_application_logs",
+    "arguments": {
+      "name": "my-app",
+      "pod_name": "my-app-deployment-abc123",
+      "container": "main",
+      "tail_lines": 100,
+      "since_seconds": 3600
+    }
+  }
+}
+```
+
+#### Create Application
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
   "method": "tools/call",
   "params": {
     "name": "create_application",
@@ -153,7 +173,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 8,
+  "id": 9,
   "method": "tools/call",
   "params": {
     "name": "sync_application",
@@ -170,7 +190,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 9,
+  "id": 10,
   "method": "tools/call",
   "params": {
     "name": "delete_application",
@@ -186,7 +206,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 10,
+  "id": 11,
   "method": "tools/call",
   "params": {
     "name": "list_project",
@@ -199,7 +219,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 11,
+  "id": 12,
   "method": "tools/call",
   "params": {
     "name": "get_project",
@@ -214,7 +234,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 12,
+  "id": 13,
   "method": "tools/call",
   "params": {
     "name": "create_project",
