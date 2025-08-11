@@ -1,0 +1,100 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: argocd-mcp-server
+    main: ./cmd/argocd-mcp-server
+    binary: argocd-mcp-server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+
+archives:
+  - id: argocd-mcp-server
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - '^refactor:'
+      - '^style:'
+      - '^Merge pull request'
+  groups:
+    - title: 'Features'
+      regexp: '^feat'
+    - title: 'Bug Fixes'
+      regexp: '^fix'
+    - title: 'Performance Improvements'
+      regexp: '^perf'
+    - title: 'Breaking Changes'
+      regexp: '^BREAKING CHANGE'
+    - title: 'Other changes'
+
+release:
+  github:
+    owner: toyamagu-2021
+    name: argocd-mcp-server
+  prerelease: auto
+  draft: false
+  name_template: "{{.ProjectName}} v{{.Version}}"
+  footer: |
+    ## Installation
+    
+    Download the appropriate binary for your platform from the assets below.
+    
+    ### macOS/Linux
+    ```bash
+    # Download and extract (replace OS and ARCH)
+    tar -xzf argocd-mcp-server_<OS>_<ARCH>.tar.gz
+    
+    # Make executable
+    chmod +x argocd-mcp-server
+    
+    # Move to PATH (optional)
+    sudo mv argocd-mcp-server /usr/local/bin/
+    ```
+    
+    ### Windows
+    ```powershell
+    # Extract the zip file and add to PATH
+    ```
