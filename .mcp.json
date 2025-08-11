@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "argocd-mcp-server": {
+      "command": "/Users/tomoki-yamaguchi/github.com/toyamagu-2021/argocd-mcp-server/argocd-mcp-server",
+      "env": {}
+    }
+  }
+}

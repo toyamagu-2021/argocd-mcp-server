@@ -238,8 +238,34 @@ func (c *Client) SyncApplication(ctx context.Context, name string, revision stri
 	return resp, nil
 }
 
-// GetApplicationManifests is not implemented yet
-// TODO: Fix the return type after checking the actual API
+// GetApplicationManifests retrieves the rendered manifests of an ArgoCD application
+func (c *Client) GetApplicationManifests(ctx context.Context, name string, revision string) (interface{}, error) {
+	// First get the application to retrieve its namespace and project
+	// This is required for proper authorization in gRPC-Web mode
+	appReq := &applicationpkg.ApplicationQuery{
+		Name: &name,
+	}
+	app, err := c.appClient.Get(ctx, appReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application details: %w", err)
+	}
+
+	// Now request manifests with the proper namespace and project
+	namespace := app.ObjectMeta.Namespace
+	project := app.Spec.Project
+
+	req := &applicationpkg.ApplicationManifestQuery{
+		Name:         &name,
+		Revision:     &revision,
+		AppNamespace: &namespace,
+		Project:      &project,
+	}
+	resp, err := c.appClient.GetManifests(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application manifests: %w", err)
+	}
+	return resp, nil
+}
 
 // RollbackApplication rolls back an ArgoCD application to a previous revision
 func (c *Client) RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error) {
