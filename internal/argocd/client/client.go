@@ -267,6 +267,57 @@ func (c *Client) GetApplicationManifests(ctx context.Context, name string, revis
 	return resp, nil
 }
 
+// GetApplicationEvents retrieves Kubernetes events for resources belonging to an ArgoCD application
+func (c *Client) GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error) {
+	// Build the query with optional filters
+	req := &applicationpkg.ApplicationResourceEventsQuery{
+		Name: &name,
+	}
+
+	// Add optional filters if provided
+	if resourceNamespace != "" {
+		req.ResourceNamespace = &resourceNamespace
+	}
+	if resourceName != "" {
+		req.ResourceName = &resourceName
+	}
+	if resourceUID != "" {
+		req.ResourceUID = &resourceUID
+	}
+	if appNamespace != "" {
+		req.AppNamespace = &appNamespace
+	}
+	if project != "" {
+		req.Project = &project
+	}
+
+	// If appNamespace or project not provided, get them from the application
+	if appNamespace == "" || project == "" {
+		appReq := &applicationpkg.ApplicationQuery{
+			Name: &name,
+		}
+		app, err := c.appClient.Get(ctx, appReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get application details: %w", err)
+		}
+
+		if appNamespace == "" {
+			namespace := app.ObjectMeta.Namespace
+			req.AppNamespace = &namespace
+		}
+		if project == "" {
+			projectName := app.Spec.Project
+			req.Project = &projectName
+		}
+	}
+
+	resp, err := c.appClient.ListResourceEvents(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application events: %w", err)
+	}
+	return resp, nil
+}
+
 // RollbackApplication rolls back an ArgoCD application to a previous revision
 func (c *Client) RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error) {
 	req := &applicationpkg.ApplicationRollbackRequest{

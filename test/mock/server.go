@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -394,6 +395,91 @@ spec:
 	default:
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", *req.Name))
 	}
+}
+
+func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *application.ApplicationResourceEventsQuery) (*v1.EventList, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	// Return mock events for any application
+	events := &v1.EventList{
+		Items: []v1.Event{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test-event-1",
+					Namespace:         "default",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-10 * time.Minute)},
+				},
+				InvolvedObject: v1.ObjectReference{
+					Kind:      "Pod",
+					Name:      "test-pod-1",
+					Namespace: "default",
+				},
+				Type:    "Normal",
+				Reason:  "Scheduled",
+				Message: "Successfully assigned default/test-pod-1 to node-1",
+				Source: v1.EventSource{
+					Component: "default-scheduler",
+				},
+				FirstTimestamp: metav1.Time{Time: time.Now().Add(-10 * time.Minute)},
+				LastTimestamp:  metav1.Time{Time: time.Now().Add(-10 * time.Minute)},
+				Count:          1,
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test-event-2",
+					Namespace:         "default",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-5 * time.Minute)},
+				},
+				InvolvedObject: v1.ObjectReference{
+					Kind:      "Pod",
+					Name:      "test-pod-1",
+					Namespace: "default",
+				},
+				Type:    "Normal",
+				Reason:  "Pulled",
+				Message: "Container image \"nginx:latest\" already present on machine",
+				Source: v1.EventSource{
+					Component: "kubelet",
+					Host:      "node-1",
+				},
+				FirstTimestamp: metav1.Time{Time: time.Now().Add(-5 * time.Minute)},
+				LastTimestamp:  metav1.Time{Time: time.Now().Add(-5 * time.Minute)},
+				Count:          1,
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test-event-3",
+					Namespace:         "default",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-4 * time.Minute)},
+				},
+				InvolvedObject: v1.ObjectReference{
+					Kind:      "Pod",
+					Name:      "test-pod-1",
+					Namespace: "default",
+				},
+				Type:    "Normal",
+				Reason:  "Created",
+				Message: "Created container test",
+				Source: v1.EventSource{
+					Component: "kubelet",
+					Host:      "node-1",
+				},
+				FirstTimestamp: metav1.Time{Time: time.Now().Add(-4 * time.Minute)},
+				LastTimestamp:  metav1.Time{Time: time.Now().Add(-4 * time.Minute)},
+				Count:          1,
+			},
+		},
+	}
+
+	return events, nil
 }
 
 type mockProjectService struct {
