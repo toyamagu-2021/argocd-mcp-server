@@ -228,8 +228,13 @@ func testGetClusterNotFound(t *testing.T) {
 		t.Fatalf("expected text to be a string, got %T", textContent["text"])
 	}
 
-	if !strings.Contains(errorText, "not found") && !strings.Contains(errorText, "NotFound") {
-		t.Errorf("expected error message to contain 'not found', got: %s", errorText)
+	// ArgoCD may return either "not found" or "permission denied" for non-existent clusters
+	// depending on the authorization model to avoid information disclosure
+	if !strings.Contains(errorText, "not found") && 
+		!strings.Contains(errorText, "NotFound") && 
+		!strings.Contains(errorText, "permission denied") &&
+		!strings.Contains(errorText, "PermissionDenied") {
+		t.Errorf("expected error message to contain 'not found' or 'permission denied', got: %s", errorText)
 	}
 
 	t.Logf("Successfully handled non-existent cluster error")
