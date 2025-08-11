@@ -3,10 +3,16 @@ package client
 import (
 	"context"
 
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 //go:generate mockgen -source=interface.go -destination=mock/mock_client.go -package=mock
+
+// LogStream is an interface for receiving log entries
+type LogStream interface {
+	Recv() (*applicationpkg.LogEntry, error)
+}
 
 // Interface defines the contract for ArgoCD client operations
 type Interface interface {
@@ -20,6 +26,7 @@ type Interface interface {
 	RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error)
 	GetApplicationManifests(ctx context.Context, name string, revision string) (interface{}, error)
 	GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error)
+	GetApplicationLogs(ctx context.Context, name string, podName string, container string, namespace string, resourceName string, kind string, group string, tailLines int64, sinceSeconds *int64, follow bool, previous bool, filter string, appNamespace string, project string) (LogStream, error)
 
 	// Cluster operations
 	ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error)

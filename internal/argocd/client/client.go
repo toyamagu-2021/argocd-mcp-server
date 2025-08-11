@@ -331,6 +331,76 @@ func (c *Client) RollbackApplication(ctx context.Context, name string, id int64)
 	return resp, nil
 }
 
+// GetApplicationLogs retrieves logs from pods in an ArgoCD application
+func (c *Client) GetApplicationLogs(ctx context.Context, name string, podName string, container string, namespace string, resourceName string, kind string, group string, tailLines int64, sinceSeconds *int64, follow bool, previous bool, filter string, appNamespace string, project string) (LogStream, error) {
+	// Build the query
+	req := &applicationpkg.ApplicationPodLogsQuery{
+		Name:      &name,
+		TailLines: &tailLines,
+		Follow:    &follow,
+		Previous:  &previous,
+	}
+
+	// Add optional parameters
+	if podName != "" {
+		req.PodName = &podName
+	}
+	if container != "" {
+		req.Container = &container
+	}
+	if namespace != "" {
+		req.Namespace = &namespace
+	}
+	if resourceName != "" {
+		req.ResourceName = &resourceName
+	}
+	if kind != "" {
+		req.Kind = &kind
+	}
+	if group != "" {
+		req.Group = &group
+	}
+	if filter != "" {
+		req.Filter = &filter
+	}
+	if sinceSeconds != nil {
+		req.SinceSeconds = sinceSeconds
+	}
+
+	// If appNamespace or project not provided, get them from the application
+	if appNamespace == "" || project == "" {
+		appReq := &applicationpkg.ApplicationQuery{
+			Name: &name,
+		}
+		app, err := c.appClient.Get(ctx, appReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get application for logs: %w", err)
+		}
+		if appNamespace == "" {
+			appNamespace = app.ObjectMeta.Namespace
+		}
+		if project == "" {
+			project = app.Spec.Project
+		}
+	}
+
+	// Set namespace and project for proper authorization
+	if appNamespace != "" {
+		req.AppNamespace = &appNamespace
+	}
+	if project != "" {
+		req.Project = &project
+	}
+
+	// Get the log stream
+	stream, err := c.appClient.PodLogs(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application logs: %w", err)
+	}
+
+	return stream, nil
+}
+
 // Cluster operations
 
 // ListClusters retrieves all ArgoCD clusters

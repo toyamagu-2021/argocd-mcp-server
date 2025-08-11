@@ -13,9 +13,50 @@ import (
 	context "context"
 	reflect "reflect"
 
+	application "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	client "github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	gomock "go.uber.org/mock/gomock"
 )
+
+// MockLogStream is a mock of LogStream interface.
+type MockLogStream struct {
+	ctrl     *gomock.Controller
+	recorder *MockLogStreamMockRecorder
+	isgomock struct{}
+}
+
+// MockLogStreamMockRecorder is the mock recorder for MockLogStream.
+type MockLogStreamMockRecorder struct {
+	mock *MockLogStream
+}
+
+// NewMockLogStream creates a new mock instance.
+func NewMockLogStream(ctrl *gomock.Controller) *MockLogStream {
+	mock := &MockLogStream{ctrl: ctrl}
+	mock.recorder = &MockLogStreamMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockLogStream) EXPECT() *MockLogStreamMockRecorder {
+	return m.recorder
+}
+
+// Recv mocks base method.
+func (m *MockLogStream) Recv() (*application.LogEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Recv")
+	ret0, _ := ret[0].(*application.LogEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Recv indicates an expected call of Recv.
+func (mr *MockLogStreamMockRecorder) Recv() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockLogStream)(nil).Recv))
+}
 
 // MockInterface is a mock of Interface interface.
 type MockInterface struct {
@@ -199,6 +240,21 @@ func (m *MockInterface) GetApplicationEvents(ctx context.Context, name, resource
 func (mr *MockInterfaceMockRecorder) GetApplicationEvents(ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationEvents", reflect.TypeOf((*MockInterface)(nil).GetApplicationEvents), ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project)
+}
+
+// GetApplicationLogs mocks base method.
+func (m *MockInterface) GetApplicationLogs(ctx context.Context, name, podName, container, namespace, resourceName, kind, group string, tailLines int64, sinceSeconds *int64, follow, previous bool, filter, appNamespace, project string) (client.LogStream, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetApplicationLogs", ctx, name, podName, container, namespace, resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter, appNamespace, project)
+	ret0, _ := ret[0].(client.LogStream)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetApplicationLogs indicates an expected call of GetApplicationLogs.
+func (mr *MockInterfaceMockRecorder) GetApplicationLogs(ctx, name, podName, container, namespace, resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter, appNamespace, project any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationLogs", reflect.TypeOf((*MockInterface)(nil).GetApplicationLogs), ctx, name, podName, container, namespace, resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter, appNamespace, project)
 }
 
 // GetApplicationManifests mocks base method.
