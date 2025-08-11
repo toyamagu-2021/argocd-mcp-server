@@ -539,6 +539,60 @@ func (s *mockProjectService) Get(ctx context.Context, req *project.ProjectQuery)
 	}
 }
 
+func (s *mockProjectService) Create(ctx context.Context, req *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Project == nil {
+		return nil, status.Error(codes.InvalidArgument, "project is required")
+	}
+
+	if req.Project.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "project name is required")
+	}
+
+	// Check if project already exists (for non-upsert)
+	if !req.Upsert {
+		existingProjects := []string{"default", "production", "development"}
+		for _, existing := range existingProjects {
+			if req.Project.Name == existing {
+				return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("project %s already exists", req.Project.Name))
+			}
+		}
+	}
+
+	// Return the created/updated project
+	createdProject := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Project.Name,
+			Namespace: "argocd",
+		},
+		Spec: req.Project.Spec,
+	}
+
+	// Set defaults if not provided
+	if len(createdProject.Spec.SourceRepos) == 0 {
+		createdProject.Spec.SourceRepos = []string{"*"}
+	}
+	if len(createdProject.Spec.Destinations) == 0 {
+		createdProject.Spec.Destinations = []v1alpha1.ApplicationDestination{
+			{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "*",
+			},
+		}
+	}
+
+	return createdProject, nil
+}
+
 func main() {
 	port := flag.String("port", "50051", "gRPC server port")
 	flag.Parse()

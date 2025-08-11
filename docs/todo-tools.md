@@ -12,6 +12,7 @@
 ### Projects
 - [x] list_project - Lists all ArgoCD projects
 - [x] get_project - Retrieves detailed project information by name
+- [x] create_project - Creates new ArgoCD project with access controls
 
 ## 📋 TODO - Priority 1 (Core Functionality)
 
@@ -27,7 +28,6 @@
 - [ ] get_application_events - Gets Kubernetes events for resources
 
 ### Projects (Complete)
-- [ ] create_project - Creates new ArgoCD project
 - [ ] update_project - Updates existing project
 - [ ] delete_project - Deletes a project
 - [ ] patch_project - Partial updates to project spec
