@@ -255,11 +255,11 @@ generate-token-api: check-context
 .PHONY: argocd-port-forward
 argocd-port-forward: check-context
 	@echo "Port forwarding ArgoCD server to localhost:8080"
-	@$(KUBECTL) port-forward svc/argocd-server -n $(ARGOCD_NAMESPACE) 8080:443
+	@$(KUBECTL) port-forward svc/argocd-server -n $(ARGOCD_NAMESPACE) 8080:443 &
 
 # Setup E2E test environment (create cluster and install ArgoCD)
 .PHONY: e2e-setup
-e2e-setup: kind-create install-argocd generate-env
+e2e-setup: kind-create install-argocd argocd-port-forward generate-env generate-token
 	@echo "E2E test environment setup complete"
 	@echo "Environment variables saved to .env file"
 	@echo "ArgoCD is accessible via port-forward: make argocd-port-forward"

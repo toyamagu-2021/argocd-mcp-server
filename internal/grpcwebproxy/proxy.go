@@ -2,6 +2,7 @@ package grpcwebproxy
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -68,6 +69,7 @@ func (p *GRPCWebProxy) executeRequest(fullMethodName string, msg []byte, md meta
 	}
 
 	requestURL := fmt.Sprintf("%s://%s%s%s", schema, p.serverAddr, rootPath, fullMethodName)
+	
 
 	// Create request with framed message
 	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
@@ -75,19 +77,19 @@ func (p *GRPCWebProxy) executeRequest(fullMethodName string, msg []byte, md meta
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set headers
-	req.Header.Set("content-type", "application/grpc-web+proto")
-
-	// Copy metadata to headers, skipping special gRPC headers
+	// Copy metadata to headers first, skipping special gRPC headers
 	for k, v := range md {
-		// Skip special gRPC headers that start with ":"
-		if strings.HasPrefix(k, ":") {
+		// Skip special gRPC headers that start with ":" and content-type
+		if strings.HasPrefix(k, ":") || k == "content-type" {
 			continue
 		}
 		for _, val := range v {
 			req.Header.Add(k, val)
 		}
 	}
+	
+	// Force correct content-type (must be set after to override any from metadata)
+	req.Header.Set("content-type", "application/grpc-web+proto")
 
 	// Add custom headers
 	for _, h := range p.headers {
@@ -96,6 +98,7 @@ func (p *GRPCWebProxy) executeRequest(fullMethodName string, msg []byte, md meta
 			req.Header.Set(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
 		}
 	}
+	
 
 	// Execute request
 	resp, err := p.httpClient.Do(req)
@@ -169,6 +172,7 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
+		
 		// Check for gRPC status in headers even for non-200 responses
 		if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" {
 			grpcMessage := resp.Header.Get("Grpc-Message")
@@ -176,6 +180,17 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 			return status.Error(codes.Code(code), grpcMessage)
 		}
 		body, _ := io.ReadAll(resp.Body)
+		
+		// Check if response is gzipped
+		if resp.Header.Get("Content-Encoding") == "gzip" || (len(body) > 2 && body[0] == 0x1f && body[1] == 0x8b) {
+			if reader, err := gzip.NewReader(bytes.NewReader(body)); err == nil {
+				if decompressed, err := io.ReadAll(reader); err == nil {
+					body = decompressed
+				}
+				reader.Close()
+			}
+		}
+		
 		return status.Error(codes.Internal, fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)))
 	}
 
