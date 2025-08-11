@@ -8,6 +8,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `list_application` - List ArgoCD applications with optional filtering by project, cluster, namespace, and label selectors
 - `get_application` - Retrieve detailed information about a specific ArgoCD application
 - `get_application_manifests` - Get rendered Kubernetes manifests for an application
+- `get_application_events` - Get Kubernetes events for resources belonging to an application
 - `create_application` - Create a new ArgoCD application with source and destination configuration
 - `sync_application` - Trigger a sync operation for an application with optional prune and dry-run modes
 - `delete_application` - Delete an ArgoCD application with optional cascade control
@@ -15,7 +16,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 ### Project Management
 - `list_project` - List all ArgoCD projects
 - `get_project` - Retrieve detailed project information by name
-- `create_project` - Create new ArgoCD project with access controls
+- `create_project` - Create new ArgoCD project with access controls and deployment restrictions
 
 ## Prerequisites
 
@@ -108,11 +109,51 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 }
 ```
 
+#### Get Application Events
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "get_application_events",
+    "arguments": {
+      "name": "my-app",
+      "resource_namespace": "default",
+      "resource_name": "my-deployment"
+    }
+  }
+}
+```
+
+#### Create Application
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "create_application",
+    "arguments": {
+      "name": "my-app",
+      "repo_url": "https://github.com/myorg/myrepo.git",
+      "path": "manifests",
+      "dest_namespace": "default",
+      "dest_server": "https://kubernetes.default.svc",
+      "project": "default",
+      "target_revision": "main",
+      "auto_sync": true,
+      "self_heal": true
+    }
+  }
+}
+```
+
 #### Sync Application
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 5,
+  "id": 8,
   "method": "tools/call",
   "params": {
     "name": "sync_application",
@@ -129,13 +170,63 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 6,
+  "id": 9,
   "method": "tools/call",
   "params": {
     "name": "delete_application",
     "arguments": {
       "name": "my-app",
       "cascade": true
+    }
+  }
+}
+```
+
+#### List Projects
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/call",
+  "params": {
+    "name": "list_project",
+    "arguments": {}
+  }
+}
+```
+
+#### Get Project Details
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "tools/call",
+  "params": {
+    "name": "get_project",
+    "arguments": {
+      "name": "my-project"
+    }
+  }
+}
+```
+
+#### Create Project
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "create_project",
+    "arguments": {
+      "name": "my-project",
+      "description": "My ArgoCD project",
+      "source_repos": "https://github.com/myorg/*",
+      "destination_namespace": "*",
+      "destination_server": "https://kubernetes.default.svc",
+      "namespace_resource_whitelist": "apps:Deployment,:Service,networking.k8s.io:Ingress",
+      "cluster_resource_whitelist": "",
+      "upsert": false
     }
   }
 }
@@ -183,13 +274,14 @@ Structured logging is implemented using logrus:
 
 - **sync_application**: Use `dry_run: true` to preview changes before actual sync
 - **delete_application**: Use `cascade: false` to preserve cluster resources when deleting only the ArgoCD application
-- Always verify application names before performing destructive operations
+- **create_project**: Use `upsert: true` to update existing projects instead of failing on conflict
+- Always verify application and project names before performing destructive operations
 
 ## Future Enhancements
 
-- Add `create_application` tool for creating new applications
 - Add `rollback_application` tool for rolling back to previous versions
 - Add `get_application_resources` tool to list managed resources
+- Add cluster management tools (`list_cluster`, `get_cluster`)
 - Add support for application sets
 - Implement caching for frequently accessed data
 - Add webhook support for real-time notifications
