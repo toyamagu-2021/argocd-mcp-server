@@ -167,6 +167,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("ListProjects", testListProjects)
 		t.Run("GetProject", testGetProject)
 		t.Run("InvalidProjectName", testInvalidProjectName)
+		t.Run("CreateProject", testCreateProject)
 
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {
@@ -198,6 +199,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("ListProjects", testListProjectsGRPCWeb)
 		t.Run("GetProject", testGetProjectGRPCWeb)
 		t.Run("InvalidProjectName", testInvalidProjectNameGRPCWeb)
+		t.Run("CreateProject", testCreateProjectGRPCWeb)
 
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {

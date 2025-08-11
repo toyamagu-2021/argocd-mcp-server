@@ -26,4 +26,7 @@ func RegisterAll(s *server.MCPServer) {
 
 	// Register get_project tool
 	s.AddTool(GetProjectTool, HandleGetProject)
+
+	// Register create_project tool
+	s.AddTool(CreateProjectTool, HandleCreateProject)
 }
