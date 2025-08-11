@@ -243,4 +243,3 @@ func TestParallel_GetClusterMissingParameter(t *testing.T) {
 
 	t.Logf("Successfully handled missing parameter error")
 }
-

@@ -252,4 +252,3 @@ func testGetClusterNotFoundGRPCWeb(t *testing.T) {
 	t.Setenv("ARGOCD_GRPC_WEB", "true")
 	testGetClusterNotFound(t)
 }
-
