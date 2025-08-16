@@ -185,6 +185,20 @@ func (mr *MockInterfaceMockRecorder) DeleteApplication(ctx, name, cascade any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplication", reflect.TypeOf((*MockInterface)(nil).DeleteApplication), ctx, name, cascade)
 }
 
+// DeleteApplicationSet mocks base method.
+func (m *MockInterface) DeleteApplicationSet(ctx context.Context, name, appsetNamespace string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteApplicationSet", ctx, name, appsetNamespace)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteApplicationSet indicates an expected call of DeleteApplicationSet.
+func (mr *MockInterfaceMockRecorder) DeleteApplicationSet(ctx, name, appsetNamespace any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplicationSet", reflect.TypeOf((*MockInterface)(nil).DeleteApplicationSet), ctx, name, appsetNamespace)
+}
+
 // DeleteCluster mocks base method.
 func (m *MockInterface) DeleteCluster(ctx context.Context, server string) error {
 	m.ctrl.T.Helper()
