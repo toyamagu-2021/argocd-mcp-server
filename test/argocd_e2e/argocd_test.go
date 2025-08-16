@@ -176,6 +176,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("ListApplicationSets", testListApplicationSets)
 		t.Run("ListApplicationSetsWithProject", testListApplicationSetsWithProject)
 		t.Run("GetApplicationSet", testGetApplicationSet)
+		t.Run("CreateApplicationSet", testCreateApplicationSet)
 		t.Run("GetApplicationSetMissingName", testGetApplicationSetMissingName)
 
 		// Application lifecycle tests (must run in order)
@@ -220,6 +221,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		// ApplicationSet tests
 		t.Run("ListApplicationSets", testListApplicationSetsGRPCWeb)
 		t.Run("GetApplicationSet", testGetApplicationSetGRPCWeb)
+		t.Run("CreateApplicationSet", testCreateApplicationSetGRPCWeb)
 
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {

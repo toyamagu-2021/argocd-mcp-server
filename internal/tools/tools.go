@@ -50,4 +50,7 @@ func RegisterAll(s *server.MCPServer) {
 
 	// Register get_applicationset tool
 	s.AddTool(GetApplicationSetTool, HandleGetApplicationSet)
+
+	// Register create_applicationset tool
+	s.AddTool(CreateApplicationSetTool, HandleCreateApplicationSet)
 }

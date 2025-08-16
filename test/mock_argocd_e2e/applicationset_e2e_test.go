@@ -274,3 +274,302 @@ func TestParallel_ListApplicationSetsInvalidSelector(t *testing.T) {
 		}
 	}
 }
+
+func TestParallel_CreateApplicationSet(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "create_applicationset",
+			"arguments": map[string]interface{}{
+				"name":       "test-created-appset",
+				"namespace":  "argocd",
+				"project":    "default",
+				"generators": `[{"list":{"elements":[{"cluster":"test-cluster","url":"https://test.cluster.local"}]}}]`,
+				"template": `{
+					"metadata": {
+						"name": "{{cluster}}-app"
+					},
+					"spec": {
+						"project": "default",
+						"source": {
+							"repoURL": "https://github.com/test/repo",
+							"targetRevision": "HEAD",
+							"path": "manifests"
+						},
+						"destination": {
+							"server": "{{url}}",
+							"namespace": "default"
+						},
+						"syncPolicy": {
+							"syncOptions": [
+								"CreateNamespace=true"
+							]
+						}
+					}
+				}`,
+				"dry_run": false,
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	// Verify response
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	// Check if it's an error or success
+	if isError, _ := result["isError"].(bool); isError {
+		content := result["content"].([]interface{})
+		if len(content) > 0 {
+			textContent := content[0].(map[string]interface{})
+			text := textContent["text"].(string)
+			t.Errorf("ApplicationSet creation failed: %s", text)
+		}
+	} else {
+		// Verify content structure
+		content, ok := result["content"].([]interface{})
+		if !ok || len(content) == 0 {
+			t.Fatal("expected content array")
+		}
+
+		textContent, ok := content[0].(map[string]interface{})
+		if !ok {
+			t.Fatal("expected text content")
+		}
+
+		text, ok := textContent["text"].(string)
+		if !ok {
+			t.Fatal("expected text string")
+		}
+
+		// Parse the ApplicationSet from response
+		var appSet v1alpha1.ApplicationSet
+		if err := json.Unmarshal([]byte(text), &appSet); err != nil {
+			t.Fatalf("failed to unmarshal ApplicationSet: %v", err)
+		}
+
+		// Verify ApplicationSet fields
+		if appSet.Name != "test-created-appset" {
+			t.Errorf("expected ApplicationSet name 'test-created-appset', got %s", appSet.Name)
+		}
+
+		if appSet.Namespace != "argocd" {
+			t.Errorf("expected namespace 'argocd', got %s", appSet.Namespace)
+		}
+
+		t.Logf("Successfully created ApplicationSet (dry run): %s", appSet.Name)
+	}
+}
+
+func TestParallel_CreateApplicationSetWithUpsert(t *testing.T) {
+	t.Parallel()
+
+	// Try to create an existing ApplicationSet with upsert
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "create_applicationset",
+			"arguments": map[string]interface{}{
+				"name":       "test-appset-1", // This already exists in mock
+				"namespace":  "argocd",
+				"project":    "default",
+				"generators": `[{"list":{"elements":[{"cluster":"updated"}]}}]`,
+				"template": `{
+					"metadata": {
+						"name": "{{cluster}}-app"
+					},
+					"spec": {
+						"project": "default",
+						"source": {
+							"repoURL": "https://github.com/updated/repo",
+							"targetRevision": "HEAD",
+							"path": "updated"
+						},
+						"destination": {
+							"server": "https://kubernetes.default.svc",
+							"namespace": "updated"
+						}
+					}
+				}`,
+				"upsert":  true,
+				"dry_run": true,
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	// Verify response
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	// Should succeed with upsert
+	if isError, _ := result["isError"].(bool); isError {
+		content := result["content"].([]interface{})
+		if len(content) > 0 {
+			textContent := content[0].(map[string]interface{})
+			text := textContent["text"].(string)
+			t.Errorf("ApplicationSet upsert failed: %s", text)
+		}
+	} else {
+		t.Log("Successfully upserted ApplicationSet")
+	}
+}
+
+func TestParallel_CreateApplicationSetAlreadyExists(t *testing.T) {
+	t.Parallel()
+
+	// Try to create an existing ApplicationSet without upsert
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "create_applicationset",
+			"arguments": map[string]interface{}{
+				"name":       "test-appset-1", // This already exists in mock
+				"namespace":  "argocd",
+				"project":    "default",
+				"generators": `[{"list":{"elements":[{"cluster":"test"}]}}]`,
+				"template": `{
+					"metadata": {
+						"name": "{{cluster}}-app"
+					},
+					"spec": {
+						"project": "default",
+						"source": {
+							"repoURL": "https://github.com/test/repo",
+							"targetRevision": "HEAD",
+							"path": "manifests"
+						},
+						"destination": {
+							"server": "https://kubernetes.default.svc",
+							"namespace": "default"
+						}
+					}
+				}`,
+				"upsert": false,
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	// Verify response
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	// Should fail with already exists error
+	if isError, _ := result["isError"].(bool); !isError {
+		t.Error("expected error for already existing ApplicationSet")
+	} else {
+		content := result["content"].([]interface{})
+		if len(content) > 0 {
+			textContent := content[0].(map[string]interface{})
+			text := textContent["text"].(string)
+			if !strings.Contains(text, "already exists") {
+				t.Errorf("expected 'already exists' error, got: %s", text)
+			} else {
+				t.Log("Got expected 'already exists' error")
+			}
+		}
+	}
+}
+
+func TestParallel_CreateApplicationSetMissingRequiredFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		arguments     map[string]interface{}
+		expectedError string
+	}{
+		{
+			name: "missing name",
+			arguments: map[string]interface{}{
+				"generators": `[{"list":{"elements":[{"cluster":"test"}]}}]`,
+				"template":   `{"metadata":{"name":"test"},"spec":{}}`,
+			},
+			expectedError: "name is required",
+		},
+		{
+			name: "missing generators",
+			arguments: map[string]interface{}{
+				"name":     "test-appset",
+				"template": `{"metadata":{"name":"test"},"spec":{}}`,
+			},
+			expectedError: "generators is required",
+		},
+		{
+			name: "missing template",
+			arguments: map[string]interface{}{
+				"name":       "test-appset",
+				"generators": `[{"list":{"elements":[{"cluster":"test"}]}}]`,
+			},
+			expectedError: "template is required",
+		},
+		{
+			name: "invalid generators JSON",
+			arguments: map[string]interface{}{
+				"name":       "test-appset",
+				"generators": `invalid json`,
+				"template":   `{"metadata":{"name":"test"},"spec":{}}`,
+			},
+			expectedError: "Failed to parse generators",
+		},
+		{
+			name: "invalid template JSON",
+			arguments: map[string]interface{}{
+				"name":       "test-appset",
+				"generators": `[{"list":{"elements":[{"cluster":"test"}]}}]`,
+				"template":   `invalid json`,
+			},
+			expectedError: "Failed to parse template",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			callToolRequest := map[string]interface{}{
+				"jsonrpc": "2.0",
+				"method":  "tools/call",
+				"params": map[string]interface{}{
+					"name":      "create_applicationset",
+					"arguments": tt.arguments,
+				},
+			}
+
+			response := sendSharedRequest(t, callToolRequest)
+
+			// Verify response
+			result, ok := response["result"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("expected result to be a map, got %T", response["result"])
+			}
+
+			// Should be an error
+			if isError, _ := result["isError"].(bool); !isError {
+				t.Errorf("expected error for %s", tt.name)
+			} else {
+				content := result["content"].([]interface{})
+				if len(content) > 0 {
+					textContent := content[0].(map[string]interface{})
+					text := textContent["text"].(string)
+					if !strings.Contains(text, tt.expectedError) {
+						t.Errorf("expected error containing '%s', got: %s", tt.expectedError, text)
+					}
+				}
+			}
+		})
+	}
+}

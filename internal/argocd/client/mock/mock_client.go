@@ -111,6 +111,21 @@ func (mr *MockInterfaceMockRecorder) CreateApplication(ctx, app, upsert any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateApplication", reflect.TypeOf((*MockInterface)(nil).CreateApplication), ctx, app, upsert)
 }
 
+// CreateApplicationSet mocks base method.
+func (m *MockInterface) CreateApplicationSet(ctx context.Context, appSet *v1alpha1.ApplicationSet, upsert, dryRun bool) (*v1alpha1.ApplicationSet, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateApplicationSet", ctx, appSet, upsert, dryRun)
+	ret0, _ := ret[0].(*v1alpha1.ApplicationSet)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateApplicationSet indicates an expected call of CreateApplicationSet.
+func (mr *MockInterfaceMockRecorder) CreateApplicationSet(ctx, appSet, upsert, dryRun any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateApplicationSet", reflect.TypeOf((*MockInterface)(nil).CreateApplicationSet), ctx, appSet, upsert, dryRun)
+}
+
 // CreateCluster mocks base method.
 func (m *MockInterface) CreateCluster(ctx context.Context, cluster *v1alpha1.Cluster, upsert bool) (*v1alpha1.Cluster, error) {
 	m.ctrl.T.Helper()

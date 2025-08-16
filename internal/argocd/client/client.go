@@ -616,3 +616,17 @@ func (c *Client) GetApplicationSet(ctx context.Context, name string) (*v1alpha1.
 	}
 	return resp, nil
 }
+
+// CreateApplicationSet creates a new ArgoCD ApplicationSet
+func (c *Client) CreateApplicationSet(ctx context.Context, appSet *v1alpha1.ApplicationSet, upsert bool, dryRun bool) (*v1alpha1.ApplicationSet, error) {
+	req := &applicationsetpkg.ApplicationSetCreateRequest{
+		Applicationset: appSet,
+		Upsert:         upsert,
+		DryRun:         dryRun,
+	}
+	resp, err := c.appSetClient.Create(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create applicationset: %w", err)
+	}
+	return resp, nil
+}

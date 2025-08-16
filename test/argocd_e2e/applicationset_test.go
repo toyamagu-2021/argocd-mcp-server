@@ -98,6 +98,90 @@ func testListApplicationSetsWithProject(t *testing.T) {
 	}
 }
 
+// testCreateApplicationSet tests the create_applicationset tool
+func testCreateApplicationSet(t *testing.T) {
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	// Create a test ApplicationSet
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "create_applicationset",
+			"arguments": map[string]interface{}{
+				"name":       "test-appset-e2e",
+				"namespace":  "argocd",
+				"project":    "default",
+				"generators": `[{"list":{"elements":[{"cluster":"in-cluster","url":"https://kubernetes.default.svc"}]}}]`,
+				"template": `{
+					"metadata": {
+						"name": "{{cluster}}-guestbook"
+					},
+					"spec": {
+						"project": "default",
+						"source": {
+							"repoURL": "https://github.com/argoproj/argocd-example-apps",
+							"targetRevision": "HEAD",
+							"path": "guestbook"
+						},
+						"destination": {
+							"server": "{{url}}",
+							"namespace": "guestbook"
+						},
+						"syncPolicy": {
+							"syncOptions": [
+								"CreateNamespace=true"
+							]
+						}
+					}
+				}`,
+				"dry_run": true, // Use dry run to avoid actually creating the resource
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	// Verify response structure
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	// Check if it's a success or error result
+	if isError, _ := result["isError"].(bool); isError {
+		content := result["content"].([]interface{})
+		if len(content) > 0 {
+			textContent := content[0].(map[string]interface{})
+			text := textContent["text"].(string)
+			// Check if it's a permission error (expected in some environments)
+			if strings.Contains(text, "permission denied") || strings.Contains(text, "forbidden") {
+				t.Logf("Permission denied for ApplicationSet creation (expected in restricted environments)")
+			} else {
+				t.Errorf("ApplicationSet creation failed: %s", text)
+			}
+		}
+	} else {
+		// Verify content exists
+		if content, ok := result["content"].([]interface{}); ok && len(content) > 0 {
+			t.Logf("Successfully created ApplicationSet (dry run)")
+		}
+	}
+}
+
+// testCreateApplicationSetGRPCWeb tests the create_applicationset tool with gRPC-Web
+func testCreateApplicationSetGRPCWeb(t *testing.T) {
+	t.Setenv("ARGOCD_GRPC_WEB", "true")
+	testCreateApplicationSet(t)
+}
+
 // testGetApplicationSet tests the get_applicationset tool
 func testGetApplicationSet(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServer(t)
@@ -116,7 +200,7 @@ func testGetApplicationSet(t *testing.T) {
 		"params": map[string]interface{}{
 			"name": "get_applicationset",
 			"arguments": map[string]interface{}{
-				"name": "test-appset",
+				"name": "in-cluster-guestbook",
 			},
 		},
 	}
