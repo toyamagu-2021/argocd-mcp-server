@@ -19,6 +19,7 @@
 ### ApplicationSets
 - [x] list_applicationset - Lists ArgoCD ApplicationSets with filtering options
 - [x] get_applicationset - Retrieves detailed ApplicationSet information
+- [x] create_applicationset - Creates a new ApplicationSet with generators and template
 
 ### Clusters
 - [x] list_cluster - Lists managed Kubernetes clusters
@@ -41,7 +42,6 @@
 - [ ] patch_project - Partial updates to project spec
 
 ### ApplicationSets (Extended)
-- [ ] create_applicationset - Creates a new ApplicationSet
 - [ ] update_applicationset - Updates existing ApplicationSet configuration
 - [ ] delete_applicationset - Deletes an ApplicationSet
 

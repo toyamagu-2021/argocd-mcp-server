@@ -904,6 +904,41 @@ func (s *mockApplicationSetService) Get(ctx context.Context, req *applicationset
 	}
 }
 
+func (s *mockApplicationSetService) Create(ctx context.Context, req *applicationset.ApplicationSetCreateRequest) (*v1alpha1.ApplicationSet, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Applicationset == nil {
+		return nil, status.Error(codes.InvalidArgument, "applicationset is required")
+	}
+
+	if req.Applicationset.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "applicationset name is required")
+	}
+
+	// Check if ApplicationSet already exists (for non-upsert mode)
+	if !req.Upsert {
+		if req.Applicationset.Name == "test-appset-1" || req.Applicationset.Name == "test-appset-2" {
+			return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("applicationset %s already exists", req.Applicationset.Name))
+		}
+	}
+
+	// For dry run, just return the input ApplicationSet
+	if req.DryRun {
+		return req.Applicationset, nil
+	}
+
+	// Return the created ApplicationSet
+	return req.Applicationset, nil
+}
+
 type mockClusterService struct {
 	cluster.UnimplementedClusterServiceServer
 }
