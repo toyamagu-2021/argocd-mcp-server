@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -742,6 +743,167 @@ func (s *mockProjectService) Create(ctx context.Context, req *project.ProjectCre
 	return createdProject, nil
 }
 
+type mockApplicationSetService struct {
+	applicationset.UnimplementedApplicationSetServiceServer
+}
+
+func (s *mockApplicationSetService) List(ctx context.Context, req *applicationset.ApplicationSetListQuery) (*v1alpha1.ApplicationSetList, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	appSets := &v1alpha1.ApplicationSetList{
+		Items: []v1alpha1.ApplicationSet{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset-1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
+					},
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "default",
+							Source: &v1alpha1.ApplicationSource{
+								RepoURL:        "https://github.com/test/appset-repo",
+								Path:           "manifests",
+								TargetRevision: "main",
+							},
+							Destination: v1alpha1.ApplicationDestination{
+								Server:    "https://kubernetes.default.svc",
+								Namespace: "default",
+							},
+						},
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset-2",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "prod",
+					},
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "production",
+							Source: &v1alpha1.ApplicationSource{
+								RepoURL:        "https://github.com/test/prod-appset",
+								Path:           "charts",
+								TargetRevision: "v1.0.0",
+							},
+							Destination: v1alpha1.ApplicationDestination{
+								Server:    "https://production.cluster.local",
+								Namespace: "prod",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Filter by project if specified
+	if len(req.Projects) > 0 {
+		var filtered []v1alpha1.ApplicationSet
+		for _, appSet := range appSets.Items {
+			for _, project := range req.Projects {
+				if appSet.Spec.Template.Spec.Project == project {
+					filtered = append(filtered, appSet)
+					break
+				}
+			}
+		}
+		appSets.Items = filtered
+	}
+
+	return appSets, nil
+}
+
+func (s *mockApplicationSetService) Get(ctx context.Context, req *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "applicationset name is required")
+	}
+
+	// Mock data for specific ApplicationSets
+	switch req.Name {
+	case "test-appset-1":
+		return &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset-1",
+				Namespace: "argocd",
+				Labels: map[string]string{
+					"env": "dev",
+				},
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/test/appset-repo",
+							Path:           "manifests",
+							TargetRevision: "main",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+		}, nil
+	case "test-appset-2":
+		return &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset-2",
+				Namespace: "argocd",
+				Labels: map[string]string{
+					"env": "prod",
+				},
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "production",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/test/prod-appset",
+							Path:           "charts",
+							TargetRevision: "v1.0.0",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://production.cluster.local",
+							Namespace: "prod",
+						},
+					},
+				},
+			},
+		}, nil
+	default:
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("applicationset %s not found", req.Name))
+	}
+}
+
 type mockClusterService struct {
 	cluster.UnimplementedClusterServiceServer
 }
@@ -843,6 +1005,7 @@ func main() {
 
 	s := grpc.NewServer()
 	application.RegisterApplicationServiceServer(s, &mockApplicationService{})
+	applicationset.RegisterApplicationSetServiceServer(s, &mockApplicationSetService{})
 	project.RegisterProjectServiceServer(s, &mockProjectService{})
 	cluster.RegisterClusterServiceServer(s, &mockClusterService{})
 
