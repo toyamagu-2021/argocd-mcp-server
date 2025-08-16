@@ -65,6 +65,49 @@ func isPortAvailable(port string) bool {
 	return true
 }
 
+func killProcessOnPort(port string) {
+	// Use lsof to find the process using the port with more details
+	cmd := exec.Command("lsof", "-n", "-i", fmt.Sprintf(":%s", port))
+	output, err := cmd.Output()
+	if err != nil {
+		// No process found or lsof not available
+		return
+	}
+	
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "COMMAND") {
+			continue
+		}
+		
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		
+		// Check if the process is our mock server (go run command for server.go)
+		processName := fields[0]
+		pid := fields[1]
+		
+		// Only kill if it's a Go process (likely our test server)
+		// This helps avoid killing unrelated services
+		if processName == "go" || processName == "server" {
+			// Get more info about the process to confirm it's our test server
+			psCmd := exec.Command("ps", "-p", pid, "-o", "command=")
+			psOutput, err := psCmd.Output()
+			if err == nil {
+				cmdLine := strings.TrimSpace(string(psOutput))
+				// Check if it's running our mock server
+				if strings.Contains(cmdLine, "mock/server.go") || strings.Contains(cmdLine, "server -port "+port) {
+					fmt.Printf("Killing existing E2E test server on port %s (PID: %s)\n", port, pid)
+					killCmd := exec.Command("kill", "-9", pid)
+					_ = killCmd.Run()
+				}
+			}
+		}
+	}
+}
+
 var (
 	sharedMockServer *testServer
 	sharedMCPServer  struct {
@@ -125,6 +168,12 @@ func TestMain(m *testing.M) {
 }
 
 func startMockServerForTests(port string) *testServer {
+	// Kill any existing process using the port
+	killProcessOnPort(port)
+	
+	// Wait a bit for the port to be fully released
+	time.Sleep(100 * time.Millisecond)
+	
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cmd := exec.CommandContext(ctx, "go", "run", "../mock/server.go", "-port", port)
