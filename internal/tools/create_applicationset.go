@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CreateApplicationSetTool provides an MCP tool for creating ApplicationSets in ArgoCD
 var CreateApplicationSetTool = mcp.NewTool("create_applicationset",
 	mcp.WithDescription("Create a new ApplicationSet in ArgoCD"),
 	mcp.WithString("name",
@@ -49,6 +50,7 @@ var CreateApplicationSetTool = mcp.NewTool("create_applicationset",
 	),
 )
 
+// HandleCreateApplicationSet processes the creation of an ApplicationSet in ArgoCD
 func HandleCreateApplicationSet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	name := request.GetString("name", "")
 	if name == "" {

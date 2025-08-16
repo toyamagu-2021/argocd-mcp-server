@@ -172,12 +172,25 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("InvalidProjectName", testInvalidProjectName)
 		t.Run("CreateProject", testCreateProject)
 
-		// ApplicationSet tests
+		// ApplicationSet tests (standalone tests)
 		t.Run("ListApplicationSets", testListApplicationSets)
 		t.Run("ListApplicationSetsWithProject", testListApplicationSetsWithProject)
 		t.Run("GetApplicationSet", testGetApplicationSet)
 		t.Run("CreateApplicationSet", testCreateApplicationSet)
 		t.Run("GetApplicationSetMissingName", testGetApplicationSetMissingName)
+		t.Run("DeleteApplicationSet", testDeleteApplicationSet)
+		t.Run("DeleteApplicationSetWithNamespace", testDeleteApplicationSetWithNamespace)
+		t.Run("DeleteApplicationSetMissingName", testDeleteApplicationSetMissingName)
+
+		// ApplicationSet lifecycle tests (must run in order)
+		t.Run("ApplicationSetLifecycle", func(t *testing.T) {
+			// These subtests will run sequentially in order
+			t.Run("01_CreateApplicationSet", testApplicationSetLifecycle01Create)
+			t.Run("02_ListApplicationSets", testApplicationSetLifecycle02List)
+			t.Run("03_GetApplicationSet", testApplicationSetLifecycle03Get)
+			t.Run("04_SyncGeneratedApp", testApplicationSetLifecycle04SyncGeneratedApp)
+			t.Run("05_DeleteApplicationSet", testApplicationSetLifecycle05Delete)
+		})
 
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {
@@ -218,10 +231,21 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("InvalidProjectName", testInvalidProjectNameGRPCWeb)
 		t.Run("CreateProject", testCreateProjectGRPCWeb)
 
-		// ApplicationSet tests
+		// ApplicationSet tests (standalone tests)
 		t.Run("ListApplicationSets", testListApplicationSetsGRPCWeb)
 		t.Run("GetApplicationSet", testGetApplicationSetGRPCWeb)
 		t.Run("CreateApplicationSet", testCreateApplicationSetGRPCWeb)
+		t.Run("DeleteApplicationSet", testDeleteApplicationSetGRPCWeb)
+
+		// ApplicationSet lifecycle tests (must run in order)
+		t.Run("ApplicationSetLifecycle", func(t *testing.T) {
+			// These subtests will run sequentially in order
+			t.Run("01_CreateApplicationSet", testApplicationSetLifecycle01CreateGRPCWeb)
+			t.Run("02_ListApplicationSets", testApplicationSetLifecycle02ListGRPCWeb)
+			t.Run("03_GetApplicationSet", testApplicationSetLifecycle03GetGRPCWeb)
+			t.Run("04_SyncGeneratedApp", testApplicationSetLifecycle04SyncGeneratedAppGRPCWeb)
+			t.Run("05_DeleteApplicationSet", testApplicationSetLifecycle05DeleteGRPCWeb)
+		})
 
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {

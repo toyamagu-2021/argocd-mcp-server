@@ -53,6 +53,7 @@ type Interface interface {
 	ListApplicationSets(ctx context.Context, project string) (*v1alpha1.ApplicationSetList, error)
 	GetApplicationSet(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error)
 	CreateApplicationSet(ctx context.Context, appSet *v1alpha1.ApplicationSet, upsert bool, dryRun bool) (*v1alpha1.ApplicationSet, error)
+	DeleteApplicationSet(ctx context.Context, name string, appsetNamespace string) error
 
 	// Connection management
 	Close() error

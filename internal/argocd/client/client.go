@@ -630,3 +630,16 @@ func (c *Client) CreateApplicationSet(ctx context.Context, appSet *v1alpha1.Appl
 	}
 	return resp, nil
 }
+
+// DeleteApplicationSet deletes an ArgoCD ApplicationSet
+func (c *Client) DeleteApplicationSet(ctx context.Context, name string, appsetNamespace string) error {
+	req := &applicationsetpkg.ApplicationSetDeleteRequest{
+		Name:            name,
+		AppsetNamespace: appsetNamespace,
+	}
+	_, err := c.appSetClient.Delete(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to delete applicationset: %w", err)
+	}
+	return nil
+}

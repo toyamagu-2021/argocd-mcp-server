@@ -73,22 +73,22 @@ func killProcessOnPort(port string) {
 		// No process found or lsof not available
 		return
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		if line == "" || strings.HasPrefix(line, "COMMAND") {
 			continue
 		}
-		
+
 		fields := strings.Fields(line)
 		if len(fields) < 2 {
 			continue
 		}
-		
+
 		// Check if the process is our mock server (go run command for server.go)
 		processName := fields[0]
 		pid := fields[1]
-		
+
 		// Only kill if it's a Go process (likely our test server)
 		// This helps avoid killing unrelated services
 		if processName == "go" || processName == "server" {
@@ -170,10 +170,10 @@ func TestMain(m *testing.M) {
 func startMockServerForTests(port string) *testServer {
 	// Kill any existing process using the port
 	killProcessOnPort(port)
-	
+
 	// Wait a bit for the port to be fully released
 	time.Sleep(100 * time.Millisecond)
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cmd := exec.CommandContext(ctx, "go", "run", "../mock/server.go", "-port", port)
