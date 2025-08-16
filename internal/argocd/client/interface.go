@@ -49,6 +49,10 @@ type Interface interface {
 	UpdateRepository(ctx context.Context, repo *v1alpha1.Repository) (*v1alpha1.Repository, error)
 	DeleteRepository(ctx context.Context, repo string) error
 
+	// ApplicationSet operations
+	ListApplicationSets(ctx context.Context, project string) (*v1alpha1.ApplicationSetList, error)
+	GetApplicationSet(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error)
+
 	// Connection management
 	Close() error
 }

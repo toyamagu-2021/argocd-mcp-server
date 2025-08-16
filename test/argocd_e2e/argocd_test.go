@@ -172,6 +172,12 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("InvalidProjectName", testInvalidProjectName)
 		t.Run("CreateProject", testCreateProject)
 
+		// ApplicationSet tests
+		t.Run("ListApplicationSets", testListApplicationSets)
+		t.Run("ListApplicationSetsWithProject", testListApplicationSetsWithProject)
+		t.Run("GetApplicationSet", testGetApplicationSet)
+		t.Run("GetApplicationSetMissingName", testGetApplicationSetMissingName)
+
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {
 			// These subtests will run sequentially in order
@@ -210,6 +216,10 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("GetClusterNotFound", testGetClusterNotFoundGRPCWeb)
 		t.Run("InvalidProjectName", testInvalidProjectNameGRPCWeb)
 		t.Run("CreateProject", testCreateProjectGRPCWeb)
+
+		// ApplicationSet tests
+		t.Run("ListApplicationSets", testListApplicationSetsGRPCWeb)
+		t.Run("GetApplicationSet", testGetApplicationSetGRPCWeb)
 
 		// Application lifecycle tests (must run in order)
 		t.Run("ApplicationLifecycle", func(t *testing.T) {

@@ -272,6 +272,21 @@ func (mr *MockInterfaceMockRecorder) GetApplicationManifests(ctx, name, revision
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationManifests", reflect.TypeOf((*MockInterface)(nil).GetApplicationManifests), ctx, name, revision)
 }
 
+// GetApplicationSet mocks base method.
+func (m *MockInterface) GetApplicationSet(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetApplicationSet", ctx, name)
+	ret0, _ := ret[0].(*v1alpha1.ApplicationSet)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetApplicationSet indicates an expected call of GetApplicationSet.
+func (mr *MockInterfaceMockRecorder) GetApplicationSet(ctx, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationSet", reflect.TypeOf((*MockInterface)(nil).GetApplicationSet), ctx, name)
+}
+
 // GetCluster mocks base method.
 func (m *MockInterface) GetCluster(ctx context.Context, server string) (*v1alpha1.Cluster, error) {
 	m.ctrl.T.Helper()
@@ -315,6 +330,21 @@ func (m *MockInterface) GetRepository(ctx context.Context, repo string) (*v1alph
 func (mr *MockInterfaceMockRecorder) GetRepository(ctx, repo any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRepository", reflect.TypeOf((*MockInterface)(nil).GetRepository), ctx, repo)
+}
+
+// ListApplicationSets mocks base method.
+func (m *MockInterface) ListApplicationSets(ctx context.Context, project string) (*v1alpha1.ApplicationSetList, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListApplicationSets", ctx, project)
+	ret0, _ := ret[0].(*v1alpha1.ApplicationSetList)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListApplicationSets indicates an expected call of ListApplicationSets.
+func (mr *MockInterfaceMockRecorder) ListApplicationSets(ctx, project any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListApplicationSets", reflect.TypeOf((*MockInterface)(nil).ListApplicationSets), ctx, project)
 }
 
 // ListApplications mocks base method.

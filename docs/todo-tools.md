@@ -16,6 +16,14 @@
 - [x] get_project - Retrieves detailed project information by name
 - [x] create_project - Creates new ArgoCD project with access controls
 
+### ApplicationSets
+- [x] list_applicationset - Lists ArgoCD ApplicationSets with filtering options
+- [x] get_applicationset - Retrieves detailed ApplicationSet information
+
+### Clusters
+- [x] list_cluster - Lists managed Kubernetes clusters
+- [x] get_cluster - Gets cluster details and connection info
+
 ## 📋 TODO - Priority 1 (Core Functionality)
 
 ### Applications (Extended)
@@ -32,6 +40,11 @@
 - [ ] delete_project - Deletes a project
 - [ ] patch_project - Partial updates to project spec
 
+### ApplicationSets (Extended)
+- [ ] create_applicationset - Creates a new ApplicationSet
+- [ ] update_applicationset - Updates existing ApplicationSet configuration
+- [ ] delete_applicationset - Deletes an ApplicationSet
+
 ## 📋 TODO - Priority 2 (Essential Management)
 
 ### Repositories
@@ -42,9 +55,7 @@
 - [ ] delete_repository - Removes repository connection
 - [ ] validate_repository - Tests repository connection
 
-### Clusters
-- [ ] list_clusters - Lists managed Kubernetes clusters
-- [ ] get_cluster - Gets cluster details and connection info
+### Clusters (Extended)
 - [ ] create_cluster - Registers new cluster
 - [ ] update_cluster - Updates cluster configuration
 - [ ] delete_cluster - Removes cluster registration
@@ -97,8 +108,8 @@
 
 ## Next Steps
 
-1. Complete integration of list_projects and get_project tools
-2. Add tests for the new project tools
-3. Implement remaining project CRUD operations
-4. Move to application extended operations
-5. Implement repository management tools
+1. Implement remaining ApplicationSet CRUD operations (create, update, delete)
+2. Complete remaining project operations (update, delete, patch)
+3. Move to application extended operations (update, patch, refresh, rollback)
+4. Implement repository management tools
+5. Complete cluster management operations

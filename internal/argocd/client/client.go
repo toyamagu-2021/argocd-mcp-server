@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
@@ -31,6 +32,7 @@ type Client struct {
 
 	// Service clients
 	appClient     applicationpkg.ApplicationServiceClient
+	appSetClient  applicationsetpkg.ApplicationSetServiceClient
 	clusterClient clusterpkg.ClusterServiceClient
 	projectClient projectpkg.ProjectServiceClient
 	repoClient    repositorypkg.RepositoryServiceClient
@@ -126,6 +128,7 @@ func (c *Client) connect() error {
 
 	// Initialize service clients
 	c.appClient = applicationpkg.NewApplicationServiceClient(conn)
+	c.appSetClient = applicationsetpkg.NewApplicationSetServiceClient(conn)
 	c.clusterClient = clusterpkg.NewClusterServiceClient(conn)
 	c.projectClient = projectpkg.NewProjectServiceClient(conn)
 	c.repoClient = repositorypkg.NewRepositoryServiceClient(conn)
@@ -584,4 +587,32 @@ func (c *Client) DeleteRepository(ctx context.Context, repo string) error {
 		return fmt.Errorf("failed to delete repository: %w", err)
 	}
 	return nil
+}
+
+// ListApplicationSets lists all ArgoCD ApplicationSets, optionally filtered by project
+func (c *Client) ListApplicationSets(ctx context.Context, project string) (*v1alpha1.ApplicationSetList, error) {
+	req := &applicationsetpkg.ApplicationSetListQuery{}
+
+	// Add project filter if specified
+	if project != "" {
+		req.Projects = []string{project}
+	}
+
+	resp, err := c.appSetClient.List(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list applicationsets: %w", err)
+	}
+	return resp, nil
+}
+
+// GetApplicationSet retrieves an ArgoCD ApplicationSet by name
+func (c *Client) GetApplicationSet(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error) {
+	req := &applicationsetpkg.ApplicationSetGetQuery{
+		Name: name,
+	}
+	resp, err := c.appSetClient.Get(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get applicationset: %w", err)
+	}
+	return resp, nil
 }
