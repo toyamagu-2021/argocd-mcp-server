@@ -212,19 +212,41 @@ generate-token: check-context
 	@command -v argocd >/dev/null 2>&1 || brew install argocd
 	@echo "Logging in to ArgoCD..."
 	@ARGOCD_PASSWORD=$$($(KUBECTL) -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d); \
-	argocd login localhost:8080 --username admin --password $$ARGOCD_PASSWORD --insecure
-	@echo "Generating token..."
-	@TOKEN=$$(argocd account generate-token --account admin --insecure); \
-	if [ -n "$$TOKEN" ]; then \
-		cp .env .env.bak 2>/dev/null || true; \
-		if grep -q "^ARGOCD_AUTH_TOKEN=" .env 2>/dev/null; then \
-			sed -i.tmp "s/^ARGOCD_AUTH_TOKEN=.*/ARGOCD_AUTH_TOKEN=$$TOKEN/" .env && rm -f .env.tmp; \
-		else \
-			echo "ARGOCD_AUTH_TOKEN=$$TOKEN" >> .env; \
-		fi; \
-		echo "✅ Token generated and saved to .env file"; \
+	if argocd login localhost:8080 --username admin --password $$ARGOCD_PASSWORD --insecure; then \
+		echo "Login successful!"; \
+		echo "Waiting for ArgoCD server to stabilize..."; \
+		sleep 3; \
+		echo "Generating token..."; \
+		for i in $$(seq 1 10); do \
+			echo "Token generation attempt $$i/10..."; \
+			TOKEN=$$(argocd account generate-token --account admin --insecure 2>&1); \
+			if echo "$$TOKEN" | grep -q "^ey"; then \
+				cp .env .env.bak 2>/dev/null || true; \
+				if grep -q "^ARGOCD_AUTH_TOKEN=" .env 2>/dev/null; then \
+					sed -i.tmp "s/^ARGOCD_AUTH_TOKEN=.*/ARGOCD_AUTH_TOKEN=$$TOKEN/" .env && rm -f .env.tmp; \
+				else \
+					echo "ARGOCD_AUTH_TOKEN=$$TOKEN" >> .env; \
+				fi; \
+				echo "✅ Token generated and saved to .env file"; \
+				exit 0; \
+			else \
+				echo "Failed to generate token: $$TOKEN"; \
+				if echo "$$TOKEN" | grep -q "rpc error"; then \
+					echo "ArgoCD server not ready, waiting 5 seconds..."; \
+					sleep 5; \
+				else \
+					echo "Unexpected error, waiting 2 seconds..."; \
+					sleep 2; \
+				fi; \
+			fi; \
+		done; \
+		echo "❌ Failed to generate token after 10 attempts"; \
+		exit 1; \
 	else \
-		echo "❌ Failed to generate token"; \
+		echo "❌ Failed to login to ArgoCD"; \
+		echo "Please ensure:"; \
+		echo "  1. ArgoCD is running (check with: kubectl get pods -n argocd)"; \
+		echo "  2. ArgoCD is accessible at localhost:8080"; \
 		exit 1; \
 	fi
 
