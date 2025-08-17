@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -29,9 +30,18 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Cleanup
+	// Close stdin/stdout pipes first to signal MCP server to shutdown
+	if sharedMCPServer.stdin != nil {
+		_ = sharedMCPServer.stdin.Close()
+	}
+	if sharedMCPServer.stdout != nil {
+		_ = sharedMCPServer.stdout.Close()
+	}
+	
 	if sharedMCPServer.cmd != nil && sharedMCPServer.cmd.Process != nil {
-		// Send SIGTERM for graceful shutdown
-		_ = sharedMCPServer.cmd.Process.Signal(os.Interrupt)
+		// Kill the entire process group to ensure all child processes are terminated
+		pgid, _ := syscall.Getpgid(sharedMCPServer.cmd.Process.Pid)
+		_ = syscall.Kill(-pgid, syscall.SIGTERM)
 
 		// Give it time to shutdown gracefully
 		done := make(chan error, 1)
@@ -43,8 +53,8 @@ func TestMain(m *testing.M) {
 		case <-done:
 			// Process exited gracefully
 		case <-time.After(3 * time.Second):
-			// Force kill if graceful shutdown takes too long
-			_ = sharedMCPServer.cmd.Process.Kill()
+			// Force kill the entire process group if graceful shutdown takes too long
+			_ = syscall.Kill(-pgid, syscall.SIGKILL)
 			<-done
 		}
 	}
