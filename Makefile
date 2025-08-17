@@ -330,12 +330,14 @@ test-coverage-pretty:
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 
-# Run E2E tests (placeholder - add your test commands here)
+# Run E2E tests with parallel execution for independent tests
 .PHONY: e2e-test
-e2e-test:
-	@echo "Running E2E tests..."
-	# Add your E2E test commands here
-	# Example: go test -v ./test/e2e/...
+e2e-test: check-env
+	@echo "Running E2E tests with parallel execution (up to 8 concurrent tests)..."
+	ARGOCD_SERVER=$(ARGOCD_SERVER) \
+	ARGOCD_AUTH_TOKEN=$(ARGOCD_AUTH_TOKEN) \
+	ARGOCD_INSECURE=$(ARGOCD_INSECURE) \
+	go test -v -run TestRealArgoCD_Suite ./test/argocd_e2e -parallel 8 -timeout 30m
 
 # Complete E2E test flow: setup, test, teardown
 .PHONY: e2e
@@ -388,7 +390,7 @@ help:
 	@echo "E2E Testing:"
 	@echo "  e2e-setup          - Create Kind cluster, install ArgoCD, and generate .env"
 	@echo "  e2e-teardown       - Delete Kind cluster"
-	@echo "  e2e-test           - Run E2E tests"
+	@echo "  e2e-test           - Run E2E tests with parallel execution (default)"
 	@echo "  e2e                - Run complete E2E flow (setup, test, teardown)"
 	@echo ""
 	@echo "E2E Utilities:"

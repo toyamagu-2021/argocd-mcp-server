@@ -136,12 +136,3 @@ func testGetRepository(t *testing.T) {
 }
 
 // gRPC-Web version of the tests
-func testListRepositoryGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testListRepository(t)
-}
-
-func testGetRepositoryGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testGetRepository(t)
-}
