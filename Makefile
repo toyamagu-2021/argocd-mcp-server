@@ -1,5 +1,11 @@
 # ArgoCD MCP Server Makefile
 
+# Version information
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+DATE ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
+
 # Go parameters
 GOCMD=go
 GOBUILD=$(GOCMD) build
@@ -21,7 +27,7 @@ EXPECTED_CONTEXT := kind-$(CLUSTER_NAME)
 # Build
 .PHONY: build
 build:
-	$(GOBUILD) -o $(BINARY_NAME) $(BINARY_PATH)
+	$(GOBUILD) -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) $(BINARY_PATH)
 
 # Clean
 .PHONY: clean
