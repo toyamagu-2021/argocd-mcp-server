@@ -55,7 +55,6 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-
 func TestParallel_Initialize(t *testing.T) {
 	t.Parallel()
 
@@ -131,7 +130,6 @@ func TestParallel_ListTools(t *testing.T) {
 	}
 }
 
-
 func TestParallel_ConcurrentRequests(t *testing.T) {
 	t.Parallel()
 
@@ -198,4 +196,3 @@ func TestParallel_ConcurrentRequests(t *testing.T) {
 		t.Error(err)
 	}
 }
-

@@ -218,56 +218,56 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("gRPC-Web", func(t *testing.T) {
 			// Basic connectivity tests (can run in any order)
 			t.Run("Initialize", testInitializeGRPCWeb)
-		t.Run("ListTools", testListToolsGRPCWeb)
-		t.Run("ListApplications", testListApplicationsGRPCWeb)
-		t.Run("InvalidAppName", testInvalidAppNameGRPCWeb)
-		t.Run("WithTimeout", testWithTimeoutGRPCWeb)
+			t.Run("ListTools", testListToolsGRPCWeb)
+			t.Run("ListApplications", testListApplicationsGRPCWeb)
+			t.Run("InvalidAppName", testInvalidAppNameGRPCWeb)
+			t.Run("WithTimeout", testWithTimeoutGRPCWeb)
 
-		// Project tests
-		t.Run("ListProjects", testListProjectsGRPCWeb)
-		t.Run("GetProject", testGetProjectGRPCWeb)
-		t.Run("ListClusters", testListClustersGRPCWeb)
-		t.Run("GetCluster", testGetClusterGRPCWeb)
-		t.Run("GetClusterNotFound", testGetClusterNotFoundGRPCWeb)
-		t.Run("InvalidProjectName", testInvalidProjectNameGRPCWeb)
-		t.Run("CreateProject", testCreateProjectGRPCWeb)
+			// Project tests
+			t.Run("ListProjects", testListProjectsGRPCWeb)
+			t.Run("GetProject", testGetProjectGRPCWeb)
+			t.Run("ListClusters", testListClustersGRPCWeb)
+			t.Run("GetCluster", testGetClusterGRPCWeb)
+			t.Run("GetClusterNotFound", testGetClusterNotFoundGRPCWeb)
+			t.Run("InvalidProjectName", testInvalidProjectNameGRPCWeb)
+			t.Run("CreateProject", testCreateProjectGRPCWeb)
 
-		// ApplicationSet tests (standalone tests)
-		t.Run("ListApplicationSets", testListApplicationSetsGRPCWeb)
-		t.Run("GetApplicationSet", testGetApplicationSetGRPCWeb)
-		t.Run("CreateApplicationSet", testCreateApplicationSetGRPCWeb)
-		t.Run("DeleteApplicationSet", testDeleteApplicationSetGRPCWeb)
+			// ApplicationSet tests (standalone tests)
+			t.Run("ListApplicationSets", testListApplicationSetsGRPCWeb)
+			t.Run("GetApplicationSet", testGetApplicationSetGRPCWeb)
+			t.Run("CreateApplicationSet", testCreateApplicationSetGRPCWeb)
+			t.Run("DeleteApplicationSet", testDeleteApplicationSetGRPCWeb)
 
-		// ApplicationSet lifecycle tests (must run in order)
-		t.Run("ApplicationSetLifecycle", func(t *testing.T) {
-			// These subtests will run sequentially in order
-			t.Run("01_CreateApplicationSet", testApplicationSetLifecycle01CreateGRPCWeb)
-			t.Run("02_ListApplicationSets", testApplicationSetLifecycle02ListGRPCWeb)
-			t.Run("03_GetApplicationSet", testApplicationSetLifecycle03GetGRPCWeb)
-			t.Run("04_SyncGeneratedApp", testApplicationSetLifecycle04SyncGeneratedAppGRPCWeb)
-			t.Run("05_DeleteApplicationSet", testApplicationSetLifecycle05DeleteGRPCWeb)
+			// ApplicationSet lifecycle tests (must run in order)
+			t.Run("ApplicationSetLifecycle", func(t *testing.T) {
+				// These subtests will run sequentially in order
+				t.Run("01_CreateApplicationSet", testApplicationSetLifecycle01CreateGRPCWeb)
+				t.Run("02_ListApplicationSets", testApplicationSetLifecycle02ListGRPCWeb)
+				t.Run("03_GetApplicationSet", testApplicationSetLifecycle03GetGRPCWeb)
+				t.Run("04_SyncGeneratedApp", testApplicationSetLifecycle04SyncGeneratedAppGRPCWeb)
+				t.Run("05_DeleteApplicationSet", testApplicationSetLifecycle05DeleteGRPCWeb)
+			})
+
+			// Application lifecycle tests (must run in order)
+			t.Run("ApplicationLifecycle", func(t *testing.T) {
+				// These subtests will run sequentially in order
+				t.Run("01_CreateApplication", testCreateApplicationGRPCWeb)
+				t.Run("02_GetCreatedApplication", testGetCreatedApplicationGRPCWeb)
+				t.Run("03_GetCreatedApplicationEvents", testGetCreatedApplicationEventsGRPCWeb)
+				t.Run("04_GetCreatedApplicationManifests", testGetCreatedApplicationManifestsGRPCWeb)
+				t.Run("05_ListApplicationsWithCreated", testListApplicationsWithCreatedGRPCWeb)
+				t.Run("06_SyncCreatedApplication", testSyncCreatedApplicationGRPCWeb)
+				t.Run("07_DeleteCreatedApplication", testDeleteCreatedApplicationGRPCWeb)
+			})
+
+			// Tests that require existing application
+			if appName := os.Getenv("TEST_APP_NAME"); appName != "" {
+				t.Run("GetExistingApplication", testGetExistingApplicationGRPCWeb)
+				t.Run("GetExistingApplicationEvents", testGetExistingApplicationEventsGRPCWeb)
+				t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifestsGRPCWeb)
+				t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRunGRPCWeb)
+			}
 		})
-
-		// Application lifecycle tests (must run in order)
-		t.Run("ApplicationLifecycle", func(t *testing.T) {
-			// These subtests will run sequentially in order
-			t.Run("01_CreateApplication", testCreateApplicationGRPCWeb)
-			t.Run("02_GetCreatedApplication", testGetCreatedApplicationGRPCWeb)
-			t.Run("03_GetCreatedApplicationEvents", testGetCreatedApplicationEventsGRPCWeb)
-			t.Run("04_GetCreatedApplicationManifests", testGetCreatedApplicationManifestsGRPCWeb)
-			t.Run("05_ListApplicationsWithCreated", testListApplicationsWithCreatedGRPCWeb)
-			t.Run("06_SyncCreatedApplication", testSyncCreatedApplicationGRPCWeb)
-			t.Run("07_DeleteCreatedApplication", testDeleteCreatedApplicationGRPCWeb)
-		})
-
-		// Tests that require existing application
-		if appName := os.Getenv("TEST_APP_NAME"); appName != "" {
-			t.Run("GetExistingApplication", testGetExistingApplicationGRPCWeb)
-			t.Run("GetExistingApplicationEvents", testGetExistingApplicationEventsGRPCWeb)
-			t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifestsGRPCWeb)
-			t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRunGRPCWeb)
-		}
-	})
 	}
 }
 
