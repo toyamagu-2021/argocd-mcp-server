@@ -27,6 +27,10 @@
 - [x] list_cluster - Lists managed Kubernetes clusters
 - [x] get_cluster - Gets cluster details and connection info
 
+### Repositories
+- [x] list_repository - Lists configured Git repositories
+- [x] get_repository - Gets repository details and connection status
+
 ## 📋 TODO - Priority 1 (Core Functionality)
 
 ### Applications (Extended)
@@ -47,9 +51,7 @@
 
 ## 📋 TODO - Priority 2 (Essential Management)
 
-### Repositories
-- [ ] list_repositories - Lists configured Git repositories
-- [ ] get_repository - Gets repository details and connection status
+### Repositories (Extended)
 - [ ] create_repository - Adds new repository connection
 - [ ] update_repository - Updates repository configuration
 - [ ] delete_repository - Removes repository connection
