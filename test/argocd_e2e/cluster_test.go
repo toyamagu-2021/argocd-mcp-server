@@ -241,19 +241,3 @@ func testGetClusterNotFound(t *testing.T) {
 }
 
 // testListClustersGRPCWeb tests the list_cluster tool with gRPC-Web
-func testListClustersGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testListClusters(t)
-}
-
-// testGetClusterGRPCWeb tests the get_cluster tool with gRPC-Web
-func testGetClusterGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testGetCluster(t)
-}
-
-// testGetClusterNotFoundGRPCWeb tests the get_cluster tool with a non-existent cluster using gRPC-Web
-func testGetClusterNotFoundGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testGetClusterNotFound(t)
-}

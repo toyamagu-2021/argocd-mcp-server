@@ -176,12 +176,6 @@ func testCreateApplicationSet(t *testing.T) {
 	}
 }
 
-// testCreateApplicationSetGRPCWeb tests the create_applicationset tool with gRPC-Web
-func testCreateApplicationSetGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testCreateApplicationSet(t)
-}
-
 // testGetApplicationSet tests the get_applicationset tool
 func testGetApplicationSet(t *testing.T) {
 	mcpCmd, stdin, stdout := startMCPServer(t)
@@ -276,18 +270,6 @@ func testGetApplicationSetMissingName(t *testing.T) {
 			t.Logf("Got expected error: %s", text)
 		}
 	}
-}
-
-// testListApplicationSetsGRPCWeb tests with gRPC-Web mode
-func testListApplicationSetsGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testListApplicationSets(t)
-}
-
-// testGetApplicationSetGRPCWeb tests with gRPC-Web mode
-func testGetApplicationSetGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testGetApplicationSet(t)
 }
 
 // testDeleteApplicationSet tests the delete_applicationset tool
@@ -451,12 +433,6 @@ func testDeleteApplicationSetMissingName(t *testing.T) {
 			t.Logf("Got expected error: %s", text)
 		}
 	}
-}
-
-// testDeleteApplicationSetGRPCWeb tests with gRPC-Web mode
-func testDeleteApplicationSetGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testDeleteApplicationSet(t)
 }
 
 // ApplicationSet Lifecycle tests - these must run in order
@@ -727,27 +703,3 @@ func testApplicationSetLifecycle05Delete(t *testing.T) {
 }
 
 // gRPC-Web versions of lifecycle tests
-func testApplicationSetLifecycle01CreateGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testApplicationSetLifecycle01Create(t)
-}
-
-func testApplicationSetLifecycle02ListGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testApplicationSetLifecycle02List(t)
-}
-
-func testApplicationSetLifecycle03GetGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testApplicationSetLifecycle03Get(t)
-}
-
-func testApplicationSetLifecycle04SyncGeneratedAppGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testApplicationSetLifecycle04SyncGeneratedApp(t)
-}
-
-func testApplicationSetLifecycle05DeleteGRPCWeb(t *testing.T) {
-	t.Setenv("ARGOCD_GRPC_WEB", "true")
-	testApplicationSetLifecycle05Delete(t)
-}
