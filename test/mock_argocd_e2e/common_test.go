@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -23,8 +24,9 @@ type testServer struct {
 
 func (s *testServer) stop() {
 	if s.cmd != nil && s.cmd.Process != nil {
-		// Send SIGTERM for graceful shutdown
-		_ = s.cmd.Process.Signal(os.Interrupt)
+		// Kill the entire process group to ensure all child processes are terminated
+		pgid, _ := syscall.Getpgid(s.cmd.Process.Pid)
+		_ = syscall.Kill(-pgid, syscall.SIGTERM)
 
 		// Give it time to shutdown gracefully
 		done := make(chan error, 1)
@@ -36,8 +38,8 @@ func (s *testServer) stop() {
 		case <-done:
 			// Process exited gracefully
 		case <-time.After(3 * time.Second):
-			// Force kill if graceful shutdown takes too long
-			_ = s.cmd.Process.Kill()
+			// Force kill the entire process group if graceful shutdown takes too long
+			_ = syscall.Kill(-pgid, syscall.SIGKILL)
 			<-done
 		}
 	}
@@ -132,6 +134,8 @@ func startMockServerForTests(port string) *testServer {
 	cmd := exec.CommandContext(ctx, "go", "run", "../mock/server.go", "-port", port)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Set process group ID to enable killing all child processes
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	if err := cmd.Start(); err != nil {
 		panic(fmt.Sprintf("failed to start mock server: %v", err))
@@ -165,6 +169,9 @@ func startSharedMCPServer(port string) {
 		"ARGOCD_GRPC_WEB=false", // Explicitly disable gRPC-Web
 		"LOG_LEVEL=debug",
 	)
+
+	// Set process group ID to enable killing all child processes
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
