@@ -15,6 +15,9 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    ignore:
+      # https://github.com/argoproj/gitops-engine/issues/729
+      - dependency-name: "github.com/argoproj/gitops-engine"
     groups:
       argocd:
         patterns:
