@@ -214,7 +214,7 @@ generate-token: check-context
 	@ARGOCD_PASSWORD=$$($(KUBECTL) -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d); \
 	argocd login localhost:8080 --username admin --password $$ARGOCD_PASSWORD --insecure
 	@echo "Generating token..."
-	@TOKEN=$$(argocd account generate-token --account admin); \
+	@TOKEN=$$(argocd account generate-token --account admin --insecure); \
 	if [ -n "$$TOKEN" ]; then \
 		cp .env .env.bak 2>/dev/null || true; \
 		if grep -q "^ARGOCD_AUTH_TOKEN=" .env 2>/dev/null; then \
