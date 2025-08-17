@@ -13,6 +13,7 @@ import (
 // ListProjectsTool defines the list_project tool schema
 var ListProjectsTool = mcp.NewTool("list_project",
 	mcp.WithDescription("Lists all ArgoCD projects. Use name_only=true to get just project names for a compact view."),
+	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithBoolean("name_only",
 		mcp.Description("If true, returns only project names. Useful for getting a quick list of project names."),
 	),

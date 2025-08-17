@@ -15,6 +15,7 @@ import (
 // GetApplicationLogsToolDefinition defines the schema for the get_application_logs tool
 var GetApplicationLogsToolDefinition = mcp.NewTool("get_application_logs",
 	mcp.WithDescription("Retrieves logs from pods in an ArgoCD application. Returns log entries from the specified pod or container."),
+	mcp.WithDestructiveHintAnnotation(false),
 	// Required parameters
 	mcp.WithString("name",
 		mcp.Required(),

@@ -15,6 +15,7 @@ import (
 // ListApplicationSetTool defines the list_applicationset tool schema
 var ListApplicationSetTool = mcp.NewTool("list_applicationset",
 	mcp.WithDescription("Lists all ArgoCD ApplicationSets with optional filters"),
+	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("project",
 		mcp.Description("Filter ApplicationSets by project name."),
 	),

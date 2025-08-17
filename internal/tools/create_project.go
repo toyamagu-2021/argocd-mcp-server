@@ -17,6 +17,7 @@ import (
 // CreateProjectTool defines the create_project tool schema
 var CreateProjectTool = mcp.NewTool("create_project",
 	mcp.WithDescription("Creates a new ArgoCD project with specified configuration. Projects provide logical grouping of applications with access controls and deployment restrictions."),
+	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the project to create. Must be unique within the ArgoCD instance."),

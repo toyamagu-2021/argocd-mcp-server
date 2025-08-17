@@ -13,6 +13,7 @@ import (
 // GetRepositoryTool defines the get_repository tool schema
 var GetRepositoryTool = mcp.NewTool("get_repository",
 	mcp.WithDescription("Retrieves detailed information about a specific Git repository configured in ArgoCD."),
+	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("repo",
 		mcp.Required(),
 		mcp.Description("The URL of the repository to retrieve."),

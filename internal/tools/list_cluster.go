@@ -14,6 +14,7 @@ import (
 // ListClusterTool provides MCP tool for listing all ArgoCD clusters
 var ListClusterTool = mcp.NewTool("list_cluster",
 	mcp.WithDescription("Lists all ArgoCD clusters configured in the system. Use name_only=true to get just cluster names and servers for a compact view."),
+	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithBoolean("detailed",
 		mcp.Description("If true, returns complete cluster details including all configuration data (can be very large). If false (default), returns only essential fields. Recommended: keep this as false to avoid fetching excessive data."),
 	),

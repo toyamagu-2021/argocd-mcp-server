@@ -13,6 +13,7 @@ import (
 // GetClusterTool provides MCP tool for retrieving cluster details from ArgoCD
 var GetClusterTool = mcp.NewTool("get_cluster",
 	mcp.WithDescription("Retrieves detailed information about a specific ArgoCD cluster"),
+	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("server",
 		mcp.Required(),
 		mcp.Description("The server URL of the cluster to retrieve (e.g., https://kubernetes.default.svc)"),

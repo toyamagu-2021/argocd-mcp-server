@@ -13,6 +13,7 @@ import (
 // GetApplicationSetTool defines the get_applicationset tool schema
 var GetApplicationSetTool = mcp.NewTool("get_applicationset",
 	mcp.WithDescription("Gets detailed information about a specific ArgoCD ApplicationSet"),
+	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the ApplicationSet to retrieve."),
