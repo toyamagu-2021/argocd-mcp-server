@@ -171,6 +171,19 @@ func (c *Client) GetApplication(ctx context.Context, name string) (*v1alpha1.App
 	return resp, nil
 }
 
+// RefreshApplication refreshes an ArgoCD application by fetching the latest state
+func (c *Client) RefreshApplication(ctx context.Context, name string, refreshType string) (*v1alpha1.Application, error) {
+	req := &applicationpkg.ApplicationQuery{
+		Name:    &name,
+		Refresh: &refreshType,
+	}
+	resp, err := c.appClient.Get(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh application: %w", err)
+	}
+	return resp, nil
+}
+
 // ListApplications retrieves all ArgoCD applications with optional selector filtering
 func (c *Client) ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error) {
 	req := &applicationpkg.ApplicationQuery{}
@@ -330,6 +343,38 @@ func (c *Client) RollbackApplication(ctx context.Context, name string, id int64)
 	resp, err := c.appClient.Rollback(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to rollback application: %w", err)
+	}
+	return resp, nil
+}
+
+// GetApplicationResourceTree retrieves the resource tree structure of an ArgoCD application
+func (c *Client) GetApplicationResourceTree(ctx context.Context, name string, appNamespace string, project string) (*v1alpha1.ApplicationTree, error) {
+	// If appNamespace or project not provided, get them from the application
+	if appNamespace == "" || project == "" {
+		appReq := &applicationpkg.ApplicationQuery{
+			Name: &name,
+		}
+		app, err := c.appClient.Get(ctx, appReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get application details: %w", err)
+		}
+		if appNamespace == "" {
+			appNamespace = app.ObjectMeta.Namespace
+		}
+		if project == "" {
+			project = app.Spec.Project
+		}
+	}
+
+	req := &applicationpkg.ResourcesQuery{
+		ApplicationName: &name,
+		AppNamespace:    &appNamespace,
+		Project:         &project,
+	}
+
+	resp, err := c.appClient.ResourceTree(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application resource tree: %w", err)
 	}
 	return resp, nil
 }

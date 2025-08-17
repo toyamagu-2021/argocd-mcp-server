@@ -200,8 +200,9 @@ func TestRealArgoCD_Suite(t *testing.T) {
 			t.Run("03_GetCreatedApplicationEvents", testGetCreatedApplicationEvents)
 			t.Run("04_GetCreatedApplicationManifests", testGetCreatedApplicationManifests)
 			t.Run("05_ListApplicationsWithCreated", testListApplicationsWithCreated)
-			t.Run("06_SyncCreatedApplication", testSyncCreatedApplication)
-			t.Run("07_DeleteCreatedApplication", testDeleteCreatedApplication)
+			t.Run("06_RefreshCreatedApplication", testRefreshCreatedApplication)
+			t.Run("07_SyncCreatedApplication", testSyncCreatedApplication)
+			t.Run("08_DeleteCreatedApplication", testDeleteCreatedApplication)
 		})
 
 		// Tests that require existing application
@@ -209,6 +210,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 			t.Run("GetExistingApplication", testGetExistingApplication)
 			t.Run("GetExistingApplicationEvents", testGetExistingApplicationEvents)
 			t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifests)
+			t.Run("GetExistingApplicationResourceTree", testGetExistingApplicationResourceTree)
 			t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRun)
 		}
 	})
@@ -256,8 +258,9 @@ func TestRealArgoCD_Suite(t *testing.T) {
 				t.Run("03_GetCreatedApplicationEvents", testGetCreatedApplicationEventsGRPCWeb)
 				t.Run("04_GetCreatedApplicationManifests", testGetCreatedApplicationManifestsGRPCWeb)
 				t.Run("05_ListApplicationsWithCreated", testListApplicationsWithCreatedGRPCWeb)
-				t.Run("06_SyncCreatedApplication", testSyncCreatedApplicationGRPCWeb)
-				t.Run("07_DeleteCreatedApplication", testDeleteCreatedApplicationGRPCWeb)
+				t.Run("06_RefreshCreatedApplication", testRefreshCreatedApplicationGRPCWeb)
+				t.Run("07_SyncCreatedApplication", testSyncCreatedApplicationGRPCWeb)
+				t.Run("08_DeleteCreatedApplication", testDeleteCreatedApplicationGRPCWeb)
 			})
 
 			// Tests that require existing application
@@ -265,6 +268,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 				t.Run("GetExistingApplication", testGetExistingApplicationGRPCWeb)
 				t.Run("GetExistingApplicationEvents", testGetExistingApplicationEventsGRPCWeb)
 				t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifestsGRPCWeb)
+				t.Run("GetExistingApplicationResourceTree", testGetExistingApplicationResourceTreeGRPCWeb)
 				t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRunGRPCWeb)
 			}
 		})
@@ -799,6 +803,113 @@ func testListApplicationsWithCreated(t *testing.T) {
 
 	t.Logf("Successfully listed applications from real ArgoCD server")
 	t.Logf("Response snippet: %.500s...", text)
+}
+
+func testRefreshCreatedApplication(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e"
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	// Test normal refresh
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "refresh_application",
+			"arguments": map[string]interface{}{
+				"name": testAppName,
+				"hard": false,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		errorMsg := fmt.Sprintf("%v", errObj["message"])
+		t.Logf("Error response: %v", errObj)
+
+		if strings.Contains(errorMsg, "not found") {
+			t.Skip("Application not found - create test must run first")
+		}
+		t.Fatalf("refresh_application failed: %v", errorMsg)
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok || len(content) == 0 {
+		t.Fatalf("expected content to be non-empty array, got %v", result["content"])
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	var app map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &app); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	metadata, ok := app["metadata"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected metadata to be a map, got %T", app["metadata"])
+	}
+
+	name, ok := metadata["name"].(string)
+	if !ok || name != testAppName {
+		t.Fatalf("expected name to be %s, got %v", testAppName, metadata["name"])
+	}
+
+	t.Logf("Successfully refreshed application %s", testAppName)
+
+	// Test hard refresh
+	callToolRequestHard := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      3,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "refresh_application",
+			"arguments": map[string]interface{}{
+				"name": testAppName,
+				"hard": true,
+			},
+		},
+	}
+
+	responseHard := sendRequest(t, stdin, stdout, callToolRequestHard)
+
+	if errObj, ok := responseHard["error"].(map[string]interface{}); ok {
+		t.Fatalf("hard refresh_application failed: %v", errObj["message"])
+	}
+
+	t.Logf("Successfully performed hard refresh on application %s", testAppName)
 }
 
 func testSyncCreatedApplication(t *testing.T) {
@@ -1618,6 +1729,113 @@ func testListApplicationsWithCreatedGRPCWeb(t *testing.T) {
 
 	t.Logf("Successfully listed applications via gRPC-Web")
 	t.Logf("Response snippet: %.500s...", text)
+}
+
+func testRefreshCreatedApplicationGRPCWeb(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e-grpcweb"
+	}
+
+	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	// Test normal refresh
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "refresh_application",
+			"arguments": map[string]interface{}{
+				"name": testAppName,
+				"hard": false,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		errorMsg := fmt.Sprintf("%v", errObj["message"])
+		t.Logf("Error response: %v", errObj)
+
+		if strings.Contains(errorMsg, "not found") {
+			t.Skip("Application not found - create test must run first")
+		}
+		t.Fatalf("refresh_application failed: %v", errorMsg)
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok || len(content) == 0 {
+		t.Fatalf("expected content to be non-empty array, got %v", result["content"])
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	var app map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &app); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	metadata, ok := app["metadata"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected metadata to be a map, got %T", app["metadata"])
+	}
+
+	name, ok := metadata["name"].(string)
+	if !ok || name != testAppName {
+		t.Fatalf("expected name to be %s, got %v", testAppName, metadata["name"])
+	}
+
+	t.Logf("Successfully refreshed application %s via gRPC-Web", testAppName)
+
+	// Test hard refresh
+	callToolRequestHard := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      3,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "refresh_application",
+			"arguments": map[string]interface{}{
+				"name": testAppName,
+				"hard": true,
+			},
+		},
+	}
+
+	responseHard := sendRequest(t, stdin, stdout, callToolRequestHard)
+
+	if errObj, ok := responseHard["error"].(map[string]interface{}); ok {
+		t.Fatalf("hard refresh_application failed: %v", errObj["message"])
+	}
+
+	t.Logf("Successfully performed hard refresh on application %s via gRPC-Web", testAppName)
 }
 
 func testSyncCreatedApplicationGRPCWeb(t *testing.T) {
@@ -2601,5 +2819,182 @@ func testGetCreatedApplicationManifestsGRPCWeb(t *testing.T) {
 	}
 
 	t.Logf("Successfully retrieved manifests for created application %s via gRPC-Web", testAppName)
+	t.Logf("Response snippet: %.500s...", text)
+}
+func testGetExistingApplicationResourceTree(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Logf("Error response: %v", errObj)
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "permission") {
+			t.Skip("No permission to get application resource tree on this ArgoCD server")
+		}
+		t.Fatalf("Error calling get_application_resource_tree: %v", errObj["message"])
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Parse JSON to validate structure
+	var tree map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &tree); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	// Check for expected fields in resource tree response
+	if _, ok := tree["nodes"]; !ok && tree["nodes"] != nil {
+		t.Error("expected response to contain nodes field")
+	}
+
+	t.Logf("Successfully retrieved resource tree for application %s", appName)
+
+	// Check if there are nodes in the tree
+	if nodes, ok := tree["nodes"].([]interface{}); ok {
+		t.Logf("Resource tree contains %d nodes", len(nodes))
+
+		// Check for orphaned nodes if they exist
+		if orphaned, ok := tree["orphanedNodes"].([]interface{}); ok && len(orphaned) > 0 {
+			t.Logf("Resource tree contains %d orphaned nodes", len(orphaned))
+		}
+	}
+
+	t.Logf("Response snippet: %.500s...", text)
+}
+
+func testGetExistingApplicationResourceTreeGRPCWeb(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Logf("Error response: %v", errObj)
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "permission") {
+			t.Skip("No permission to get application resource tree on this ArgoCD server")
+		}
+		t.Fatalf("Error calling get_application_resource_tree via gRPC-Web: %v", errObj["message"])
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Parse JSON to validate structure
+	var tree map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &tree); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	// Check for expected fields in resource tree response
+	if _, ok := tree["nodes"]; !ok && tree["nodes"] != nil {
+		t.Error("expected response to contain nodes field")
+	}
+
+	t.Logf("Successfully retrieved resource tree for application %s via gRPC-Web", appName)
+
+	// Check if there are nodes in the tree
+	if nodes, ok := tree["nodes"].([]interface{}); ok {
+		t.Logf("Resource tree contains %d nodes", len(nodes))
+
+		// Check for orphaned nodes if they exist
+		if orphaned, ok := tree["orphanedNodes"].([]interface{}); ok && len(orphaned) > 0 {
+			t.Logf("Resource tree contains %d orphaned nodes", len(orphaned))
+		}
+	}
+
 	t.Logf("Response snippet: %.500s...", text)
 }

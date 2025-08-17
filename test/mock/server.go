@@ -143,6 +143,35 @@ func (s *mockApplicationService) Get(ctx context.Context, req *application.Appli
 	}
 
 	switch *req.Name {
+	case "empty-app":
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "empty-app",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/test/empty",
+					Path:           "empty",
+					TargetRevision: "main",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "default",
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Health: v1alpha1.HealthStatus{
+					Status:  "Unknown",
+					Message: "No resources",
+				},
+				Sync: v1alpha1.SyncStatus{
+					Status:   "Unknown",
+					Revision: "",
+				},
+			},
+		}, nil
 	case "test-app-1":
 		return &v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
@@ -482,6 +511,159 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 	}
 
 	return events, nil
+}
+
+func (s *mockApplicationService) ResourceTree(ctx context.Context, req *application.ResourcesQuery) (*v1alpha1.ApplicationTree, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.ApplicationName == nil || *req.ApplicationName == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+
+	// Return different trees based on application name
+	switch *req.ApplicationName {
+	case "test-app-1":
+		return &v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{
+				{
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "Service",
+						Namespace: "default",
+						Name:      "test-service",
+						UID:       "service-uid-1",
+					},
+					Health: &v1alpha1.HealthStatus{
+						Status:  "Healthy",
+						Message: "Service is healthy",
+					},
+				},
+				{
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "apps",
+						Version:   "v1",
+						Kind:      "Deployment",
+						Namespace: "default",
+						Name:      "test-deployment",
+						UID:       "deployment-uid-1",
+					},
+					ParentRefs: []v1alpha1.ResourceRef{
+						{
+							Group:     "",
+							Version:   "v1",
+							Kind:      "Service",
+							Namespace: "default",
+							Name:      "test-service",
+							UID:       "service-uid-1",
+						},
+					},
+					Health: &v1alpha1.HealthStatus{
+						Status:  "Healthy",
+						Message: "Deployment has minimum availability",
+					},
+					Images: []string{"nginx:latest"},
+				},
+				{
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "Pod",
+						Namespace: "default",
+						Name:      "test-deployment-abc123",
+						UID:       "pod-uid-1",
+					},
+					ParentRefs: []v1alpha1.ResourceRef{
+						{
+							Group:     "apps",
+							Version:   "v1",
+							Kind:      "Deployment",
+							Namespace: "default",
+							Name:      "test-deployment",
+							UID:       "deployment-uid-1",
+						},
+					},
+					Health: &v1alpha1.HealthStatus{
+						Status:  "Healthy",
+						Message: "Pod is running",
+					},
+				},
+			},
+			OrphanedNodes: []v1alpha1.ResourceNode{
+				{
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: "default",
+						Name:      "orphaned-config",
+						UID:       "config-uid-1",
+					},
+				},
+			},
+		}, nil
+
+	case "test-app-2":
+		return &v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{
+				{
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "apps",
+						Version:   "v1",
+						Kind:      "StatefulSet",
+						Namespace: "prod",
+						Name:      "database",
+						UID:       "statefulset-uid-1",
+					},
+					Health: &v1alpha1.HealthStatus{
+						Status:  "Progressing",
+						Message: "StatefulSet is updating",
+					},
+				},
+				{
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "PersistentVolumeClaim",
+						Namespace: "prod",
+						Name:      "database-pvc-0",
+						UID:       "pvc-uid-1",
+					},
+					ParentRefs: []v1alpha1.ResourceRef{
+						{
+							Group:     "apps",
+							Version:   "v1",
+							Kind:      "StatefulSet",
+							Namespace: "prod",
+							Name:      "database",
+							UID:       "statefulset-uid-1",
+						},
+					},
+				},
+			},
+			OrphanedNodes: []v1alpha1.ResourceNode{},
+		}, nil
+
+	case "empty-app":
+		// Return an empty tree for testing - explicitly set empty slices
+		emptyNodes := make([]v1alpha1.ResourceNode, 0)
+		emptyOrphaned := make([]v1alpha1.ResourceNode, 0)
+		return &v1alpha1.ApplicationTree{
+			Nodes:         emptyNodes,
+			OrphanedNodes: emptyOrphaned,
+		}, nil
+
+	default:
+		return nil, status.Errorf(codes.NotFound, "application %s not found", *req.ApplicationName)
+	}
 }
 
 type mockProjectService struct {

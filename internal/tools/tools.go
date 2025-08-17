@@ -21,11 +21,17 @@ func RegisterAll(s *server.MCPServer) {
 	// Register get_application_logs tool
 	s.AddTool(GetApplicationLogsToolDefinition, HandleGetApplicationLogs)
 
+	// Register get_application_resource_tree tool
+	s.AddTool(GetApplicationResourceTreeTool, HandleGetApplicationResourceTree)
+
 	// Register create_application tool
 	s.AddTool(CreateAppTool, HandleCreateApplication)
 
 	// Register sync_application tool
 	s.AddTool(SyncAppTool, HandleSyncApplication)
+
+	// Register refresh_application tool
+	s.AddTool(RefreshAppTool, HandleRefreshApplication)
 
 	// Register delete_application tool
 	s.AddTool(DeleteAppTool, HandleDeleteApplication)
