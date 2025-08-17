@@ -621,18 +621,18 @@ func TestParallel_GetApplicationResourceTree_Empty(t *testing.T) {
 	// For empty trees, ArgoCD returns {} because of omitempty JSON tags
 	// or it might return explicit empty arrays
 	isEmptyObject := text == "{}" || text == "{\n}" || text == "{ }"
-	hasEmptyNodes := strings.Contains(text, `"nodes":[]`) || 
-		strings.Contains(text, `"nodes": []`) || 
+	hasEmptyNodes := strings.Contains(text, `"nodes":[]`) ||
+		strings.Contains(text, `"nodes": []`) ||
 		strings.Contains(text, `"nodes": [`)
-	hasEmptyOrphaned := strings.Contains(text, `"orphanedNodes":[]`) || 
-		strings.Contains(text, `"orphanedNodes": []`) || 
+	hasEmptyOrphaned := strings.Contains(text, `"orphanedNodes":[]`) ||
+		strings.Contains(text, `"orphanedNodes": []`) ||
 		strings.Contains(text, `"orphanedNodes": [`)
-		
+
 	// Either empty object or has explicit empty arrays is valid
 	if !isEmptyObject && !hasEmptyNodes {
 		t.Errorf("expected response to be empty object or contain empty nodes array, got: %s", text)
 	}
-	
+
 	// If it has nodes field, check orphaned too
 	if hasEmptyNodes && !hasEmptyOrphaned && !isEmptyObject {
 		t.Errorf("expected response to contain empty orphanedNodes array when nodes is present, got: %s", text)

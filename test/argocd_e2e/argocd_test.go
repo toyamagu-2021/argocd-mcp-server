@@ -2896,17 +2896,17 @@ func testGetExistingApplicationResourceTree(t *testing.T) {
 	}
 
 	t.Logf("Successfully retrieved resource tree for application %s", appName)
-	
+
 	// Check if there are nodes in the tree
 	if nodes, ok := tree["nodes"].([]interface{}); ok {
 		t.Logf("Resource tree contains %d nodes", len(nodes))
-		
+
 		// Check for orphaned nodes if they exist
 		if orphaned, ok := tree["orphanedNodes"].([]interface{}); ok && len(orphaned) > 0 {
 			t.Logf("Resource tree contains %d orphaned nodes", len(orphaned))
 		}
 	}
-	
+
 	t.Logf("Response snippet: %.500s...", text)
 }
 
@@ -2985,16 +2985,16 @@ func testGetExistingApplicationResourceTreeGRPCWeb(t *testing.T) {
 	}
 
 	t.Logf("Successfully retrieved resource tree for application %s via gRPC-Web", appName)
-	
+
 	// Check if there are nodes in the tree
 	if nodes, ok := tree["nodes"].([]interface{}); ok {
 		t.Logf("Resource tree contains %d nodes", len(nodes))
-		
+
 		// Check for orphaned nodes if they exist
 		if orphaned, ok := tree["orphanedNodes"].([]interface{}); ok && len(orphaned) > 0 {
 			t.Logf("Resource tree contains %d orphaned nodes", len(orphaned))
 		}
 	}
-	
+
 	t.Logf("Response snippet: %.500s...", text)
 }
