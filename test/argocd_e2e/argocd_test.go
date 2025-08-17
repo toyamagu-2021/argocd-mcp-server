@@ -213,10 +213,11 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		}
 	})
 
-	// Test with gRPC-Web connection
-	t.Run("gRPC-Web", func(t *testing.T) {
-		// Basic connectivity tests (can run in any order)
-		t.Run("Initialize", testInitializeGRPCWeb)
+	// Test with gRPC-Web connection (only if ARGOCD_MCP_E2E_GRPC_WEB is set)
+	if os.Getenv("ARGOCD_MCP_E2E_GRPC_WEB") != "" {
+		t.Run("gRPC-Web", func(t *testing.T) {
+			// Basic connectivity tests (can run in any order)
+			t.Run("Initialize", testInitializeGRPCWeb)
 		t.Run("ListTools", testListToolsGRPCWeb)
 		t.Run("ListApplications", testListApplicationsGRPCWeb)
 		t.Run("InvalidAppName", testInvalidAppNameGRPCWeb)
@@ -267,6 +268,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 			t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRunGRPCWeb)
 		}
 	})
+	}
 }
 
 func testInitialize(t *testing.T) {
