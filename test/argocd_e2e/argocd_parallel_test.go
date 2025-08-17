@@ -107,6 +107,12 @@ func TestRealArgoCD_Suite(t *testing.T) {
 					testGetRepository(t)
 				})
 
+				// Session tests (read-only)
+				t.Run("GetUserInfo", func(t *testing.T) {
+					t.Parallel()
+					testGetUserInfo(t)
+				})
+
 				// ApplicationSet tests (read-only)
 				t.Run("ListApplicationSets", func(t *testing.T) {
 					t.Parallel()

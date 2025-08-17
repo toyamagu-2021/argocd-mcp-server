@@ -68,4 +68,7 @@ func RegisterAll(s *server.MCPServer) {
 
 	// Register get_repository tool
 	s.AddTool(GetRepositoryTool, HandleGetRepository)
+
+	// Register get_user_info tool
+	s.AddTool(GetUserInfoTool, HandleGetUserInfo)
 }

@@ -16,6 +16,7 @@ import (
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/grpcwebproxy"
 	"google.golang.org/grpc"
@@ -64,6 +65,7 @@ type Client struct {
 	clusterClient clusterpkg.ClusterServiceClient
 	projectClient projectpkg.ProjectServiceClient
 	repoClient    repositorypkg.RepositoryServiceClient
+	sessionClient sessionpkg.SessionServiceClient
 }
 
 // New creates a new ArgoCD gRPC client with the provided configuration
@@ -166,6 +168,7 @@ func (c *Client) connect() error {
 	c.clusterClient = clusterpkg.NewClusterServiceClient(conn)
 	c.projectClient = projectpkg.NewProjectServiceClient(conn)
 	c.repoClient = repositorypkg.NewRepositoryServiceClient(conn)
+	c.sessionClient = sessionpkg.NewSessionServiceClient(conn)
 
 	return nil
 }
@@ -721,4 +724,14 @@ func (c *Client) DeleteApplicationSet(ctx context.Context, name string, appsetNa
 		return fmt.Errorf("failed to delete applicationset: %w", err)
 	}
 	return nil
+}
+
+// GetUserInfo gets the current user's information
+func (c *Client) GetUserInfo(ctx context.Context) (*sessionpkg.GetUserInfoResponse, error) {
+	req := &sessionpkg.GetUserInfoRequest{}
+	resp, err := c.sessionClient.GetUserInfo(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	return resp, nil
 }

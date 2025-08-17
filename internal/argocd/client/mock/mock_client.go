@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	application "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	session "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	client "github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	gomock "go.uber.org/mock/gomock"
@@ -374,6 +375,21 @@ func (m *MockInterface) GetRepository(ctx context.Context, repo string) (*v1alph
 func (mr *MockInterfaceMockRecorder) GetRepository(ctx, repo any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRepository", reflect.TypeOf((*MockInterface)(nil).GetRepository), ctx, repo)
+}
+
+// GetUserInfo mocks base method.
+func (m *MockInterface) GetUserInfo(ctx context.Context) (*session.GetUserInfoResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserInfo", ctx)
+	ret0, _ := ret[0].(*session.GetUserInfoResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserInfo indicates an expected call of GetUserInfo.
+func (mr *MockInterfaceMockRecorder) GetUserInfo(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserInfo", reflect.TypeOf((*MockInterface)(nil).GetUserInfo), ctx)
 }
 
 // ListApplicationSets mocks base method.

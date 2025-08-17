@@ -4,6 +4,7 @@ import (
 	"context"
 
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -56,6 +57,9 @@ type Interface interface {
 	GetApplicationSet(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error)
 	CreateApplicationSet(ctx context.Context, appSet *v1alpha1.ApplicationSet, upsert bool, dryRun bool) (*v1alpha1.ApplicationSet, error)
 	DeleteApplicationSet(ctx context.Context, name string, appsetNamespace string) error
+
+	// Session operations
+	GetUserInfo(ctx context.Context) (*sessionpkg.GetUserInfoResponse, error)
 
 	// Connection management
 	Close() error
