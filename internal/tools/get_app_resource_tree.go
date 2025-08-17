@@ -13,6 +13,7 @@ import (
 // GetApplicationResourceTreeTool defines the tool for retrieving application resource tree
 var GetApplicationResourceTreeTool = mcp.NewTool("get_application_resource_tree",
 	mcp.WithDescription("Get the resource tree of an ArgoCD application, showing all resources and their relationships"),
+	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("Name of the application"),

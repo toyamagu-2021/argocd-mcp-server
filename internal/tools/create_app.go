@@ -15,6 +15,7 @@ import (
 // CreateAppTool defines the create_application tool schema
 var CreateAppTool = mcp.NewTool("create_application",
 	mcp.WithDescription("Creates a new ArgoCD application with specified source and destination configuration."),
+	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the application to create."),

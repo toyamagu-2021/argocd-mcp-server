@@ -13,6 +13,7 @@ import (
 // GetUserInfoTool defines the get_user_info tool schema
 var GetUserInfoTool = mcp.NewTool("get_user_info",
 	mcp.WithDescription("Get current user information from ArgoCD. Returns details about the currently authenticated user including username, groups, and authentication status."),
+	mcp.WithDestructiveHintAnnotation(false),
 )
 
 // HandleGetUserInfo processes get_user_info tool requests

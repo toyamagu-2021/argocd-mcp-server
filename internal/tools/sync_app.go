@@ -13,6 +13,7 @@ import (
 // SyncAppTool defines the sync_application tool schema
 var SyncAppTool = mcp.NewTool("sync_application",
 	mcp.WithDescription("Triggers a sync operation for a specific ArgoCD application."),
+	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the application to sync."),

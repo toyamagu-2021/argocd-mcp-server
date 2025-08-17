@@ -12,6 +12,7 @@ import (
 // DeleteApplicationSetTool defines the delete_applicationset tool schema
 var DeleteApplicationSetTool = mcp.NewTool("delete_applicationset",
 	mcp.WithDescription("Deletes an ArgoCD ApplicationSet. Use with caution as this operation is destructive and will delete all applications managed by the ApplicationSet."),
+	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the ApplicationSet to delete."),

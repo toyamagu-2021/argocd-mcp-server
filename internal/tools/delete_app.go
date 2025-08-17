@@ -12,6 +12,7 @@ import (
 // DeleteAppTool defines the delete_application tool schema
 var DeleteAppTool = mcp.NewTool("delete_application",
 	mcp.WithDescription("Deletes an ArgoCD application. Use with caution as this operation is destructive."),
+	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the application to delete."),

@@ -15,6 +15,7 @@ import (
 // CreateApplicationSetTool provides an MCP tool for creating ApplicationSets in ArgoCD
 var CreateApplicationSetTool = mcp.NewTool("create_applicationset",
 	mcp.WithDescription("Create a new ApplicationSet in ArgoCD"),
+	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("Name of the ApplicationSet"),
