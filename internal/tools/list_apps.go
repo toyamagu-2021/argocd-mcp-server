@@ -13,7 +13,7 @@ import (
 
 // ListAppsTool defines the list_application tool schema
 var ListAppsTool = mcp.NewTool("list_application",
-	mcp.WithDescription("Lists all ArgoCD applications, with optional filters. Note: When detailed=true, this fetches complete application information including all resource details, which can be very large. It's recommended to use detailed=false (default) for better performance and to avoid excessive data transfer."),
+	mcp.WithDescription("Lists ArgoCD applications with optional filters. Use name_only=true for just names, detailed=true for full info (can be large), or default for summary view."),
 	mcp.WithString("project",
 		mcp.Description("Filter applications by project name."),
 	),
