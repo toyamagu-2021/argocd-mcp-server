@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
@@ -13,10 +14,24 @@ import (
 // ListClusterTool provides MCP tool for listing all ArgoCD clusters
 var ListClusterTool = mcp.NewTool("list_cluster",
 	mcp.WithDescription("Lists all ArgoCD clusters configured in the system"),
+	mcp.WithBoolean("detailed",
+		mcp.Description("If true, returns complete cluster details including all configuration data (can be very large). If false (default), returns only essential fields. Recommended: keep this as false to avoid fetching excessive data."),
+	),
 )
+
+// ClusterSummary represents a simplified view of a cluster
+type ClusterSummary struct {
+	Name             string                    `json:"name"`
+	Server           string                    `json:"server"`
+	ServerVersion    string                    `json:"serverVersion,omitempty"`
+	ConnectionStatus v1alpha1.ConnectionStatus `json:"connectionStatus"`
+}
 
 // HandleListCluster handles MCP tool requests for listing ArgoCD clusters
 func HandleListCluster(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract the detailed parameter
+	detailed := request.GetBool("detailed", false)
+
 	config := &client.Config{
 		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
 		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
@@ -32,21 +47,53 @@ func HandleListCluster(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	}
 	defer func() { _ = argoClient.Close() }()
 
-	return listClusterHandler(ctx, argoClient)
+	return listClusterHandler(ctx, argoClient, detailed)
 }
 
 func listClusterHandler(
 	ctx context.Context,
 	argoClient client.Interface,
+	detailed bool,
 ) (*mcp.CallToolResult, error) {
 	clusters, err := argoClient.ListClusters(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to list clusters: %v", err)), nil
 	}
 
-	jsonData, err := json.MarshalIndent(clusters, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if len(clusters.Items) == 0 {
+		return mcp.NewToolResultText("No clusters found."), nil
+	}
+
+	var jsonData []byte
+
+	if detailed {
+		// Return full cluster details
+		jsonData, err = json.MarshalIndent(clusters, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+		}
+	} else {
+		// Return summarized cluster information
+		summaries := make([]ClusterSummary, 0, len(clusters.Items))
+		for _, cluster := range clusters.Items {
+			summary := ClusterSummary{
+				Name:             cluster.Name,
+				Server:           cluster.Server,
+				ConnectionStatus: cluster.Info.ConnectionState.Status,
+			}
+
+			// Add server version if available
+			if cluster.Info.ServerVersion != "" {
+				summary.ServerVersion = cluster.Info.ServerVersion
+			}
+
+			summaries = append(summaries, summary)
+		}
+
+		jsonData, err = json.MarshalIndent(summaries, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+		}
 	}
 
 	return mcp.NewToolResultText(string(jsonData)), nil

@@ -49,6 +49,20 @@ func TestHandleListCluster(t *testing.T) {
 			},
 			wantError: false,
 		},
+		{
+			name: "with detailed=true",
+			request: mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      "list_cluster",
+					Arguments: map[string]interface{}{"detailed": true},
+				},
+			},
+			envVars: map[string]string{
+				"ARGOCD_AUTH_TOKEN": "test-token",
+				"ARGOCD_SERVER":     "argocd.example.com:443",
+			},
+			wantError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -93,12 +107,41 @@ func TestListClusterTool_Schema(t *testing.T) {
 func TestListClusterHandler(t *testing.T) {
 	tests := []struct {
 		name        string
+		detailed    bool
 		setupMock   func(*mock.MockInterface)
 		wantError   bool
 		wantMessage string
 	}{
 		{
-			name: "successful list",
+			name:     "successful list - summary",
+			detailed: false,
+			setupMock: func(m *mock.MockInterface) {
+				expectedClusters := &v1alpha1.ClusterList{
+					Items: []v1alpha1.Cluster{
+						{
+							Server: "https://kubernetes.default.svc",
+							Name:   "in-cluster",
+							ConnectionState: v1alpha1.ConnectionState{
+								Status: v1alpha1.ConnectionStatusSuccessful,
+							},
+						},
+						{
+							Server: "https://external-cluster.example.com",
+							Name:   "external-cluster",
+							ConnectionState: v1alpha1.ConnectionState{
+								Status: v1alpha1.ConnectionStatusFailed,
+							},
+						},
+					},
+				}
+				m.EXPECT().ListClusters(gomock.Any()).Return(expectedClusters, nil)
+			},
+			wantError:   false,
+			wantMessage: "in-cluster",
+		},
+		{
+			name:     "successful list - detailed",
+			detailed: true,
 			setupMock: func(m *mock.MockInterface) {
 				expectedClusters := &v1alpha1.ClusterList{
 					Items: []v1alpha1.Cluster{
@@ -111,15 +154,6 @@ func TestListClusterHandler(t *testing.T) {
 								},
 							},
 						},
-						{
-							Server: "https://external-cluster.example.com",
-							Name:   "external-cluster",
-							Config: v1alpha1.ClusterConfig{
-								TLSClientConfig: v1alpha1.TLSClientConfig{
-									Insecure: true,
-								},
-							},
-						},
 					},
 				}
 				m.EXPECT().ListClusters(gomock.Any()).Return(expectedClusters, nil)
@@ -128,17 +162,20 @@ func TestListClusterHandler(t *testing.T) {
 			wantMessage: "in-cluster",
 		},
 		{
-			name: "empty cluster list",
+			name:     "empty cluster list",
+			detailed: false,
 			setupMock: func(m *mock.MockInterface) {
 				expectedClusters := &v1alpha1.ClusterList{
 					Items: []v1alpha1.Cluster{},
 				}
 				m.EXPECT().ListClusters(gomock.Any()).Return(expectedClusters, nil)
 			},
-			wantError: false,
+			wantError:   false,
+			wantMessage: "No clusters found",
 		},
 		{
-			name: "list fails",
+			name:     "list fails",
+			detailed: false,
 			setupMock: func(m *mock.MockInterface) {
 				m.EXPECT().ListClusters(gomock.Any()).Return(nil, assert.AnError)
 			},
@@ -154,7 +191,7 @@ func TestListClusterHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := listClusterHandler(context.Background(), mockClient)
+			result, err := listClusterHandler(context.Background(), mockClient, tt.detailed)
 
 			if tt.wantError {
 				require.Nil(t, err)
