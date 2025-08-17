@@ -172,6 +172,10 @@ func TestRealArgoCD_Suite(t *testing.T) {
 		t.Run("InvalidProjectName", testInvalidProjectName)
 		t.Run("CreateProject", testCreateProject)
 
+		// Repository tests
+		t.Run("ListRepository", testListRepository)
+		t.Run("GetRepository", testGetRepository)
+
 		// ApplicationSet tests (standalone tests)
 		t.Run("ListApplicationSets", testListApplicationSets)
 		t.Run("ListApplicationSetsWithProject", testListApplicationSetsWithProject)
@@ -231,6 +235,10 @@ func TestRealArgoCD_Suite(t *testing.T) {
 			t.Run("GetClusterNotFound", testGetClusterNotFoundGRPCWeb)
 			t.Run("InvalidProjectName", testInvalidProjectNameGRPCWeb)
 			t.Run("CreateProject", testCreateProjectGRPCWeb)
+
+			// Repository tests
+			t.Run("ListRepository", testListRepositoryGRPCWeb)
+			t.Run("GetRepository", testGetRepositoryGRPCWeb)
 
 			// ApplicationSet tests (standalone tests)
 			t.Run("ListApplicationSets", testListApplicationSetsGRPCWeb)

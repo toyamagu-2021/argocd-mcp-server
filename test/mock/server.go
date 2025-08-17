@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	repositoryPkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"google.golang.org/grpc"
@@ -1029,6 +1030,70 @@ func (s *mockClusterService) Get(ctx context.Context, req *cluster.ClusterQuery)
 	return cluster, nil
 }
 
+type mockRepositoryService struct {
+	repositoryPkg.UnimplementedRepositoryServiceServer
+}
+
+func (s *mockRepositoryService) List(ctx context.Context, req *repositoryPkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	repos := &v1alpha1.RepositoryList{
+		Items: v1alpha1.Repositories{
+			{
+				Repo:     "https://github.com/example/repo1.git",
+				Type:     "git",
+				Username: "example-user",
+			},
+			{
+				Repo: "https://github.com/example/repo2.git",
+				Type: "git",
+			},
+		},
+	}
+
+	return repos, nil
+}
+
+func (s *mockRepositoryService) Get(ctx context.Context, req *repositoryPkg.RepoQuery) (*v1alpha1.Repository, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Repo == "" {
+		return nil, status.Error(codes.InvalidArgument, "repository URL is required")
+	}
+
+	switch req.Repo {
+	case "https://github.com/example/repo1.git":
+		return &v1alpha1.Repository{
+			Repo:     "https://github.com/example/repo1.git",
+			Type:     "git",
+			Username: "example-user",
+		}, nil
+	case "https://github.com/example/repo2.git":
+		return &v1alpha1.Repository{
+			Repo: "https://github.com/example/repo2.git",
+			Type: "git",
+		}, nil
+	default:
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("repository %s not found", req.Repo))
+	}
+}
+
 func main() {
 	port := flag.String("port", "50051", "gRPC server port")
 	flag.Parse()
@@ -1043,6 +1108,7 @@ func main() {
 	applicationset.RegisterApplicationSetServiceServer(s, &mockApplicationSetService{})
 	project.RegisterProjectServiceServer(s, &mockProjectService{})
 	cluster.RegisterClusterServiceServer(s, &mockClusterService{})
+	repositoryPkg.RegisterRepositoryServiceServer(s, &mockRepositoryService{})
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
