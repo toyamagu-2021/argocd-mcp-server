@@ -101,6 +101,96 @@ func TestParallel_GetApplication(t *testing.T) {
 	}
 }
 
+func TestParallel_RefreshApplication(t *testing.T) {
+	t.Parallel()
+
+	// Test normal refresh
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "refresh_application",
+			"arguments": map[string]interface{}{
+				"name": "test-app-1",
+				"hard": false,
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	if !strings.Contains(text, "test-app-1") {
+		t.Errorf("expected response to contain application name")
+	}
+
+	// Test hard refresh
+	callToolRequestHard := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "refresh_application",
+			"arguments": map[string]interface{}{
+				"name": "test-app-2",
+				"hard": true,
+			},
+		},
+	}
+
+	responseHard := sendSharedRequest(t, callToolRequestHard)
+
+	resultHard, ok := responseHard["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map for hard refresh, got %T", responseHard["result"])
+	}
+
+	contentHard, ok := resultHard["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array for hard refresh, got %T", resultHard["content"])
+	}
+
+	if len(contentHard) == 0 {
+		t.Fatal("expected at least one content item for hard refresh")
+	}
+
+	textContentHard, ok := contentHard[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map for hard refresh, got %T", contentHard[0])
+	}
+
+	textHard, ok := textContentHard["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string for hard refresh, got %T", textContentHard["text"])
+	}
+
+	if !strings.Contains(textHard, "test-app-2") {
+		t.Errorf("expected hard refresh response to contain test-app-2")
+	}
+}
+
 func TestParallel_SyncApplication(t *testing.T) {
 	t.Parallel()
 

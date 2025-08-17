@@ -171,6 +171,19 @@ func (c *Client) GetApplication(ctx context.Context, name string) (*v1alpha1.App
 	return resp, nil
 }
 
+// RefreshApplication refreshes an ArgoCD application by fetching the latest state
+func (c *Client) RefreshApplication(ctx context.Context, name string, refreshType string) (*v1alpha1.Application, error) {
+	req := &applicationpkg.ApplicationQuery{
+		Name:    &name,
+		Refresh: &refreshType,
+	}
+	resp, err := c.appClient.Get(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh application: %w", err)
+	}
+	return resp, nil
+}
+
 // ListApplications retrieves all ArgoCD applications with optional selector filtering
 func (c *Client) ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error) {
 	req := &applicationpkg.ApplicationQuery{}

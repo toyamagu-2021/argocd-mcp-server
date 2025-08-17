@@ -9,6 +9,7 @@
 - [x] get_application_events - Gets Kubernetes events for resources
 - [x] create_application - Creates a new ArgoCD application
 - [x] sync_application - Triggers application sync with prune/dry-run options
+- [x] refresh_application - Refreshes application without syncing
 - [x] delete_application - Deletes applications with cascade control
 
 ### Projects
@@ -30,7 +31,6 @@
 ### Applications (Extended)
 - [ ] update_application - Updates existing application configuration
 - [ ] patch_application - Partial updates to application spec
-- [ ] refresh_application - Refreshes application without syncing
 - [ ] rollback_application - Rollbacks to previous sync state
 - [ ] get_application_resource_tree - Gets resource hierarchy
 - [ ] terminate_operation - Terminates running sync/refresh operations

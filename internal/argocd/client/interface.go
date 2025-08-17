@@ -24,6 +24,7 @@ type Interface interface {
 	DeleteApplication(ctx context.Context, name string, cascade bool) error
 	SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool) (*v1alpha1.Application, error)
 	RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error)
+	RefreshApplication(ctx context.Context, name string, refreshType string) (*v1alpha1.Application, error)
 	GetApplicationManifests(ctx context.Context, name string, revision string) (interface{}, error)
 	GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error)
 	GetApplicationLogs(ctx context.Context, name string, podName string, container string, namespace string, resourceName string, kind string, group string, tailLines int64, sinceSeconds *int64, follow bool, previous bool, filter string, appNamespace string, project string) (LogStream, error)

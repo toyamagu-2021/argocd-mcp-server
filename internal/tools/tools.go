@@ -27,6 +27,9 @@ func RegisterAll(s *server.MCPServer) {
 	// Register sync_application tool
 	s.AddTool(SyncAppTool, HandleSyncApplication)
 
+	// Register refresh_application tool
+	s.AddTool(RefreshAppTool, HandleRefreshApplication)
+
 	// Register delete_application tool
 	s.AddTool(DeleteAppTool, HandleDeleteApplication)
 

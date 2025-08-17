@@ -436,6 +436,21 @@ func (mr *MockInterfaceMockRecorder) ListRepositories(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRepositories", reflect.TypeOf((*MockInterface)(nil).ListRepositories), ctx)
 }
 
+// RefreshApplication mocks base method.
+func (m *MockInterface) RefreshApplication(ctx context.Context, name, refreshType string) (*v1alpha1.Application, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RefreshApplication", ctx, name, refreshType)
+	ret0, _ := ret[0].(*v1alpha1.Application)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RefreshApplication indicates an expected call of RefreshApplication.
+func (mr *MockInterfaceMockRecorder) RefreshApplication(ctx, name, refreshType any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshApplication", reflect.TypeOf((*MockInterface)(nil).RefreshApplication), ctx, name, refreshType)
+}
+
 // RollbackApplication mocks base method.
 func (m *MockInterface) RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()
