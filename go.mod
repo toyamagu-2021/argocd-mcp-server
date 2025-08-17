@@ -3,7 +3,7 @@ module github.com/toyamagu-2021/argocd-mcp-server
 go 1.24.6
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.14.14
+	github.com/argoproj/argo-cd/v2 v2.14.15
 	github.com/argoproj/gitops-engine v0.7.1-0.20250521000818-c08b0a72c1f1
 	github.com/gogo/protobuf v1.3.2
 	github.com/mark3labs/mcp-go v0.37.0
