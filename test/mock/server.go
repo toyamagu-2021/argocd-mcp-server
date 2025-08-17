@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repositoryPkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"google.golang.org/grpc"
@@ -1236,6 +1237,31 @@ type mockRepositoryService struct {
 	repositoryPkg.UnimplementedRepositoryServiceServer
 }
 
+type mockSessionService struct {
+	sessionpkg.UnimplementedSessionServiceServer
+}
+
+func (s *mockSessionService) GetUserInfo(ctx context.Context, req *sessionpkg.GetUserInfoRequest) (*sessionpkg.GetUserInfoResponse, error) {
+	// Verify authentication
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	// Return mock user info
+	return &sessionpkg.GetUserInfoResponse{
+		LoggedIn: true,
+		Username: "test-user",
+		Iss:      "argocd",
+		Groups:   []string{"admin", "developers"},
+	}, nil
+}
+
 func (s *mockRepositoryService) List(ctx context.Context, req *repositoryPkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -1311,6 +1337,7 @@ func main() {
 	project.RegisterProjectServiceServer(s, &mockProjectService{})
 	cluster.RegisterClusterServiceServer(s, &mockClusterService{})
 	repositoryPkg.RegisterRepositoryServiceServer(s, &mockRepositoryService{})
+	sessionpkg.RegisterSessionServiceServer(s, &mockSessionService{})
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
