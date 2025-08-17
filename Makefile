@@ -210,10 +210,28 @@ generate-token: check-context
 	@echo "Note: This requires ArgoCD CLI and ArgoCD to be accessible at localhost:8080"
 	@echo "Installing argocd CLI if not present..."
 	@command -v argocd >/dev/null 2>&1 || brew install argocd
-	@echo "Logging in to ArgoCD..."
+	@echo "Getting ArgoCD admin password..."
 	@ARGOCD_PASSWORD=$$($(KUBECTL) -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d); \
-	if argocd login localhost:8080 --username admin --password $$ARGOCD_PASSWORD --insecure; then \
-		echo "Login successful!"; \
+	echo "Attempting to login to ArgoCD..."; \
+	LOGIN_SUCCESS=false; \
+	for attempt in $$(seq 1 10); do \
+		echo "Login attempt $$attempt/10..."; \
+		if argocd login localhost:8080 --username admin --password $$ARGOCD_PASSWORD --insecure 2>&1; then \
+			echo "✅ Login successful!"; \
+			LOGIN_SUCCESS=true; \
+			break; \
+		else \
+			echo "Login failed, checking ArgoCD server availability..."; \
+			if curl -k -s -o /dev/null https://localhost:8080/api/version 2>/dev/null; then \
+				echo "Server is reachable, retrying in 3 seconds..."; \
+				sleep 3; \
+			else \
+				echo "Server not reachable, waiting 5 seconds..."; \
+				sleep 5; \
+			fi; \
+		fi; \
+	done; \
+	if [ "$$LOGIN_SUCCESS" = "true" ]; then \
 		echo "Waiting for ArgoCD server to stabilize..."; \
 		sleep 3; \
 		echo "Generating token..."; \
@@ -243,7 +261,7 @@ generate-token: check-context
 		echo "❌ Failed to generate token after 10 attempts"; \
 		exit 1; \
 	else \
-		echo "❌ Failed to login to ArgoCD"; \
+		echo "❌ Failed to login to ArgoCD after 10 attempts"; \
 		echo "Please ensure:"; \
 		echo "  1. ArgoCD is running (check with: kubectl get pods -n argocd)"; \
 		echo "  2. ArgoCD is accessible at localhost:8080"; \
