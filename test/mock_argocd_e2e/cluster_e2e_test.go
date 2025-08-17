@@ -130,7 +130,6 @@ func TestParallel_GetCluster(t *testing.T) {
 		t.Fatalf("failed to parse cluster JSON: %v", err)
 	}
 
-
 	// Verify the cluster details
 	if server, ok := cluster["server"].(string); !ok || server != "https://kubernetes.default.svc" {
 		t.Errorf("expected server to be https://kubernetes.default.svc, got %v", server)
