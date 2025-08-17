@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	if sharedMCPServer.stdout != nil {
 		_ = sharedMCPServer.stdout.Close()
 	}
-	
+
 	if sharedMCPServer.cmd != nil && sharedMCPServer.cmd.Process != nil {
 		// Kill the entire process group to ensure all child processes are terminated
 		pgid, _ := syscall.Getpgid(sharedMCPServer.cmd.Process.Pid)

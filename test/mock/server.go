@@ -1328,7 +1328,7 @@ func main() {
 		log.Println("Graceful shutdown timeout, forcing stop")
 		s.Stop()
 	}
-	
+
 	// Ensure all goroutines are cleaned up and exit explicitly
 	log.Println("Mock server exiting")
 	os.Exit(0)

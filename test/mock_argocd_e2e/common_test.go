@@ -169,7 +169,7 @@ func startSharedMCPServer(port string) {
 		"ARGOCD_GRPC_WEB=false", // Explicitly disable gRPC-Web
 		"LOG_LEVEL=debug",
 	)
-	
+
 	// Set process group ID to enable killing all child processes
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
