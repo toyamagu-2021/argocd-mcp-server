@@ -13,7 +13,7 @@ import (
 
 // ListAppsTool defines the list_application tool schema
 var ListAppsTool = mcp.NewTool("list_application",
-	mcp.WithDescription("Lists all ArgoCD applications, with optional filters. Note: When detailed=true, this fetches complete application information including all resource details, which can be very large. It's recommended to use detailed=false (default) for better performance and to avoid excessive data transfer."),
+	mcp.WithDescription("Lists ArgoCD applications with optional filters. Use name_only=true for just names, detailed=true for full info (can be large), or default for summary view."),
 	mcp.WithString("project",
 		mcp.Description("Filter applications by project name."),
 	),
@@ -29,6 +29,9 @@ var ListAppsTool = mcp.NewTool("list_application",
 	mcp.WithBoolean("detailed",
 		mcp.Description("If true, returns complete application details including all resource information (can be very large). If false (default), returns only essential fields. Recommended: keep this as false to avoid fetching excessive resource data."),
 	),
+	mcp.WithBoolean("name_only",
+		mcp.Description("If true, returns only application names. Takes precedence over 'detailed' option. Useful for getting a quick list of application names."),
+	),
 )
 
 // HandleListApplications processes list_application tool requests
@@ -39,6 +42,7 @@ func HandleListApplications(ctx context.Context, request mcp.CallToolRequest) (*
 	namespace := request.GetString("namespace", "")
 	selector := request.GetString("selector", "")
 	detailed := request.GetBool("detailed", false)
+	nameOnly := request.GetBool("name_only", false)
 
 	// Create gRPC client and list applications
 	config := &client.Config{
@@ -57,7 +61,7 @@ func HandleListApplications(ctx context.Context, request mcp.CallToolRequest) (*
 	defer func() { _ = argoClient.Close() }()
 
 	// Use the handler function with the real client
-	return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector, detailed)
+	return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector, detailed, nameOnly)
 }
 
 // ApplicationSummary represents a simplified view of an application
@@ -93,6 +97,12 @@ type ApplicationOperation struct {
 	StartedAt string `json:"startedAt,omitempty"`
 }
 
+// ApplicationNameList represents a list of application names
+type ApplicationNameList struct {
+	Names []string `json:"names"`
+	Count int      `json:"count"`
+}
+
 // listApplicationsHandler handles the core logic for listing applications.
 // This is separated out to enable testing with mocked clients.
 func listApplicationsHandler(
@@ -100,6 +110,7 @@ func listApplicationsHandler(
 	argoClient client.Interface,
 	project, cluster, namespace, selector string,
 	detailed bool,
+	nameOnly bool,
 ) (*mcp.CallToolResult, error) {
 	appList, err := argoClient.ListApplications(ctx, selector)
 	if err != nil {
@@ -129,7 +140,21 @@ func listApplicationsHandler(
 
 	var jsonData []byte
 
-	if detailed {
+	if nameOnly {
+		// Return only application names
+		names := make([]string, 0, len(filteredApps))
+		for _, app := range filteredApps {
+			names = append(names, app.Name)
+		}
+		nameList := ApplicationNameList{
+			Names: names,
+			Count: len(names),
+		}
+		jsonData, err = json.MarshalIndent(nameList, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+		}
+	} else if detailed {
 		// Return full application details
 		jsonData, err = json.MarshalIndent(filteredApps, "", "  ")
 		if err != nil {

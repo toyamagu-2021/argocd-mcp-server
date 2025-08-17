@@ -178,7 +178,7 @@ func TestListProjectsHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := listProjectsHandler(context.Background(), mockClient)
+			result, err := listProjectsHandler(context.Background(), mockClient, false)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -210,4 +210,51 @@ func TestListProjectsHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestListProjectsHandler_NameOnly(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := mock.NewMockInterface(ctrl)
+
+	projectList := &v1alpha1.AppProjectList{
+		Items: []v1alpha1.AppProject{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: "argocd",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "production",
+					Namespace: "argocd",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "staging",
+					Namespace: "argocd",
+				},
+			},
+		},
+	}
+
+	mockClient.EXPECT().ListProjects(gomock.Any()).Return(projectList, nil)
+
+	result, err := listProjectsHandler(context.Background(), mockClient, true)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Len(t, result.Content, 1)
+	textContent, ok := mcp.AsTextContent(result.Content[0])
+	require.True(t, ok)
+
+	var nameList ProjectNameList
+	err = json.Unmarshal([]byte(textContent.Text), &nameList)
+	require.NoError(t, err)
+
+	assert.Equal(t, 3, nameList.Count)
+	assert.Equal(t, []string{"default", "production", "staging"}, nameList.Names)
 }

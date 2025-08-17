@@ -13,9 +13,12 @@ import (
 
 // ListClusterTool provides MCP tool for listing all ArgoCD clusters
 var ListClusterTool = mcp.NewTool("list_cluster",
-	mcp.WithDescription("Lists all ArgoCD clusters configured in the system"),
+	mcp.WithDescription("Lists all ArgoCD clusters configured in the system. Use name_only=true to get just cluster names and servers for a compact view."),
 	mcp.WithBoolean("detailed",
 		mcp.Description("If true, returns complete cluster details including all configuration data (can be very large). If false (default), returns only essential fields. Recommended: keep this as false to avoid fetching excessive data."),
+	),
+	mcp.WithBoolean("name_only",
+		mcp.Description("If true, returns only cluster names/servers. Takes precedence over 'detailed' option. Useful for getting a quick list of cluster identifiers."),
 	),
 )
 
@@ -29,8 +32,9 @@ type ClusterSummary struct {
 
 // HandleListCluster handles MCP tool requests for listing ArgoCD clusters
 func HandleListCluster(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract the detailed parameter
+	// Extract the detailed and name_only parameters
 	detailed := request.GetBool("detailed", false)
+	nameOnly := request.GetBool("name_only", false)
 
 	config := &client.Config{
 		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
@@ -47,13 +51,26 @@ func HandleListCluster(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	}
 	defer func() { _ = argoClient.Close() }()
 
-	return listClusterHandler(ctx, argoClient, detailed)
+	return listClusterHandler(ctx, argoClient, detailed, nameOnly)
+}
+
+// ClusterNameList represents a list of cluster identifiers
+type ClusterNameList struct {
+	Clusters []ClusterIdentifier `json:"clusters"`
+	Count    int                 `json:"count"`
+}
+
+// ClusterIdentifier contains minimal cluster identification
+type ClusterIdentifier struct {
+	Name   string `json:"name"`
+	Server string `json:"server"`
 }
 
 func listClusterHandler(
 	ctx context.Context,
 	argoClient client.Interface,
 	detailed bool,
+	nameOnly bool,
 ) (*mcp.CallToolResult, error) {
 	clusters, err := argoClient.ListClusters(ctx)
 	if err != nil {
@@ -66,7 +83,24 @@ func listClusterHandler(
 
 	var jsonData []byte
 
-	if detailed {
+	if nameOnly {
+		// Return only cluster names and servers
+		identifiers := make([]ClusterIdentifier, 0, len(clusters.Items))
+		for _, cluster := range clusters.Items {
+			identifiers = append(identifiers, ClusterIdentifier{
+				Name:   cluster.Name,
+				Server: cluster.Server,
+			})
+		}
+		nameList := ClusterNameList{
+			Clusters: identifiers,
+			Count:    len(identifiers),
+		}
+		jsonData, err = json.MarshalIndent(nameList, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+		}
+	} else if detailed {
 		// Return full cluster details
 		jsonData, err = json.MarshalIndent(clusters, "", "  ")
 		if err != nil {

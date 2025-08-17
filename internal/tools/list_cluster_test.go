@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -191,7 +192,7 @@ func TestListClusterHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := listClusterHandler(context.Background(), mockClient, tt.detailed)
+			result, err := listClusterHandler(context.Background(), mockClient, tt.detailed, false)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -211,4 +212,54 @@ func TestListClusterHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestListClusterHandler_NameOnly(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := mock.NewMockInterface(ctrl)
+
+	clusterList := &v1alpha1.ClusterList{
+		Items: []v1alpha1.Cluster{
+			{
+				Name:   "in-cluster",
+				Server: "https://kubernetes.default.svc",
+			},
+			{
+				Name:   "prod-cluster",
+				Server: "https://prod.example.com",
+			},
+			{
+				Name:   "dev-cluster",
+				Server: "https://dev.example.com",
+			},
+		},
+	}
+
+	mockClient.EXPECT().ListClusters(gomock.Any()).Return(clusterList, nil)
+
+	result, err := listClusterHandler(context.Background(), mockClient, false, true)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Len(t, result.Content, 1)
+	textContent, ok := mcp.AsTextContent(result.Content[0])
+	require.True(t, ok)
+
+	// Since we don't import ClusterNameList in tests, we'll check the JSON structure
+	var response map[string]interface{}
+	err = json.Unmarshal([]byte(textContent.Text), &response)
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(3), response["count"])
+	clusters, ok := response["clusters"].([]interface{})
+	require.True(t, ok)
+	assert.Len(t, clusters, 3)
+
+	// Check first cluster
+	firstCluster, ok := clusters[0].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "in-cluster", firstCluster["name"])
+	assert.Equal(t, "https://kubernetes.default.svc", firstCluster["server"])
 }
