@@ -35,5 +35,7 @@ EOF < /dev/null
 .env
 .env.*
 
+# Build output
 /dist
+/argocd-mcp-server
 .mcp.json

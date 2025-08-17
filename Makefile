@@ -9,7 +9,6 @@ GOFMT=gofmt
 GOVET=$(GOCMD) vet
 BINARY_NAME=argocd-mcp-server
 BINARY_PATH=./cmd/argocd-mcp-server
-OUTPUT_DIR=dist
 
 # E2E Test Variables
 CLUSTER_NAME := argocd-mcp-server
@@ -22,14 +21,13 @@ EXPECTED_CONTEXT := kind-$(CLUSTER_NAME)
 # Build
 .PHONY: build
 build:
-	@mkdir -p $(OUTPUT_DIR)
-	$(GOBUILD) -o $(OUTPUT_DIR)/$(BINARY_NAME) $(BINARY_PATH)
+	$(GOBUILD) -o $(BINARY_NAME) $(BINARY_PATH)
 
 # Clean
 .PHONY: clean
 clean:
 	$(GOCMD) clean
-	rm -rf $(OUTPUT_DIR)
+	rm -f $(BINARY_NAME)
 
 # Dependencies
 .PHONY: deps
@@ -113,7 +111,7 @@ check-all: lint-advanced test-race
 # Run
 .PHONY: run
 run: build
-	./$(OUTPUT_DIR)/$(BINARY_NAME)
+	./$(BINARY_NAME)
 
 # Install
 .PHONY: install
