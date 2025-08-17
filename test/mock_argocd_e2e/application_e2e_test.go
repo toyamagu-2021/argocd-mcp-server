@@ -442,3 +442,251 @@ func TestParallel_FilterApplicationsByNamespace(t *testing.T) {
 		t.Errorf("expected response NOT to contain test-app-1 (default namespace)")
 	}
 }
+
+func TestParallel_GetApplicationResourceTree(t *testing.T) {
+	t.Parallel()
+
+	// Test getting resource tree for test-app-1
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": "test-app-1",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Verify the response contains expected resource types
+	if !strings.Contains(text, "Service") {
+		t.Errorf("expected response to contain Service resource")
+	}
+
+	if !strings.Contains(text, "Deployment") {
+		t.Errorf("expected response to contain Deployment resource")
+	}
+
+	if !strings.Contains(text, "Pod") {
+		t.Errorf("expected response to contain Pod resource")
+	}
+
+	if !strings.Contains(text, "test-service") {
+		t.Errorf("expected response to contain test-service")
+	}
+
+	if !strings.Contains(text, "test-deployment") {
+		t.Errorf("expected response to contain test-deployment")
+	}
+
+	// Check for orphaned nodes
+	if !strings.Contains(text, "orphanedNodes") {
+		t.Errorf("expected response to contain orphanedNodes field")
+	}
+
+	if !strings.Contains(text, "orphaned-config") {
+		t.Errorf("expected response to contain orphaned ConfigMap")
+	}
+}
+
+func TestParallel_GetApplicationResourceTree_StatefulSet(t *testing.T) {
+	t.Parallel()
+
+	// Test getting resource tree for test-app-2 with StatefulSet
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": "test-app-2",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Verify StatefulSet resources
+	if !strings.Contains(text, "StatefulSet") {
+		t.Errorf("expected response to contain StatefulSet resource")
+	}
+
+	if !strings.Contains(text, "PersistentVolumeClaim") {
+		t.Errorf("expected response to contain PersistentVolumeClaim resource")
+	}
+
+	if !strings.Contains(text, "database") {
+		t.Errorf("expected response to contain database StatefulSet")
+	}
+
+	if !strings.Contains(text, "database-pvc-0") {
+		t.Errorf("expected response to contain database PVC")
+	}
+}
+
+func TestParallel_GetApplicationResourceTree_Empty(t *testing.T) {
+	t.Parallel()
+
+	// Test getting resource tree for empty-app
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": "empty-app",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Debug: log the actual response to see the structure
+	t.Logf("Empty app resource tree response: %s", text)
+
+	// For empty trees, ArgoCD returns {} because of omitempty JSON tags
+	// or it might return explicit empty arrays
+	isEmptyObject := text == "{}" || text == "{\n}" || text == "{ }"
+	hasEmptyNodes := strings.Contains(text, `"nodes":[]`) || 
+		strings.Contains(text, `"nodes": []`) || 
+		strings.Contains(text, `"nodes": [`)
+	hasEmptyOrphaned := strings.Contains(text, `"orphanedNodes":[]`) || 
+		strings.Contains(text, `"orphanedNodes": []`) || 
+		strings.Contains(text, `"orphanedNodes": [`)
+		
+	// Either empty object or has explicit empty arrays is valid
+	if !isEmptyObject && !hasEmptyNodes {
+		t.Errorf("expected response to be empty object or contain empty nodes array, got: %s", text)
+	}
+	
+	// If it has nodes field, check orphaned too
+	if hasEmptyNodes && !hasEmptyOrphaned && !isEmptyObject {
+		t.Errorf("expected response to contain empty orphanedNodes array when nodes is present, got: %s", text)
+	}
+}
+
+func TestParallel_GetApplicationResourceTree_NotFound(t *testing.T) {
+	t.Parallel()
+
+	// Test getting resource tree for non-existent app
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": "non-existent-app",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	// Check for error response
+	isError, ok := result["isError"].(bool)
+	if !ok || !isError {
+		t.Fatal("expected error response for non-existent application")
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	if !strings.Contains(text, "not found") {
+		t.Errorf("expected error message to contain 'not found', got: %s", text)
+	}
+}

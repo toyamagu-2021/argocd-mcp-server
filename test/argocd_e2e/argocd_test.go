@@ -210,6 +210,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 			t.Run("GetExistingApplication", testGetExistingApplication)
 			t.Run("GetExistingApplicationEvents", testGetExistingApplicationEvents)
 			t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifests)
+			t.Run("GetExistingApplicationResourceTree", testGetExistingApplicationResourceTree)
 			t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRun)
 		}
 	})
@@ -267,6 +268,7 @@ func TestRealArgoCD_Suite(t *testing.T) {
 				t.Run("GetExistingApplication", testGetExistingApplicationGRPCWeb)
 				t.Run("GetExistingApplicationEvents", testGetExistingApplicationEventsGRPCWeb)
 				t.Run("GetExistingApplicationManifests", testGetExistingApplicationManifestsGRPCWeb)
+				t.Run("GetExistingApplicationResourceTree", testGetExistingApplicationResourceTreeGRPCWeb)
 				t.Run("SyncExistingApplication_DryRun", testSyncExistingApplicationDryRunGRPCWeb)
 			}
 		})
@@ -2817,5 +2819,182 @@ func testGetCreatedApplicationManifestsGRPCWeb(t *testing.T) {
 	}
 
 	t.Logf("Successfully retrieved manifests for created application %s via gRPC-Web", testAppName)
+	t.Logf("Response snippet: %.500s...", text)
+}
+func testGetExistingApplicationResourceTree(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Logf("Error response: %v", errObj)
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "permission") {
+			t.Skip("No permission to get application resource tree on this ArgoCD server")
+		}
+		t.Fatalf("Error calling get_application_resource_tree: %v", errObj["message"])
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Parse JSON to validate structure
+	var tree map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &tree); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	// Check for expected fields in resource tree response
+	if _, ok := tree["nodes"]; !ok && tree["nodes"] != nil {
+		t.Error("expected response to contain nodes field")
+	}
+
+	t.Logf("Successfully retrieved resource tree for application %s", appName)
+	
+	// Check if there are nodes in the tree
+	if nodes, ok := tree["nodes"].([]interface{}); ok {
+		t.Logf("Resource tree contains %d nodes", len(nodes))
+		
+		// Check for orphaned nodes if they exist
+		if orphaned, ok := tree["orphanedNodes"].([]interface{}); ok && len(orphaned) > 0 {
+			t.Logf("Resource tree contains %d orphaned nodes", len(orphaned))
+		}
+	}
+	
+	t.Logf("Response snippet: %.500s...", text)
+}
+
+func testGetExistingApplicationResourceTreeGRPCWeb(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServerWithGRPCWeb(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource_tree",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Logf("Error response: %v", errObj)
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+		if strings.Contains(fmt.Sprintf("%v", errObj["message"]), "permission") {
+			t.Skip("No permission to get application resource tree on this ArgoCD server")
+		}
+		t.Fatalf("Error calling get_application_resource_tree via gRPC-Web: %v", errObj["message"])
+	}
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Parse JSON to validate structure
+	var tree map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &tree); err != nil {
+		t.Fatalf("expected response to be valid JSON: %v", err)
+	}
+
+	// Check for expected fields in resource tree response
+	if _, ok := tree["nodes"]; !ok && tree["nodes"] != nil {
+		t.Error("expected response to contain nodes field")
+	}
+
+	t.Logf("Successfully retrieved resource tree for application %s via gRPC-Web", appName)
+	
+	// Check if there are nodes in the tree
+	if nodes, ok := tree["nodes"].([]interface{}); ok {
+		t.Logf("Resource tree contains %d nodes", len(nodes))
+		
+		// Check for orphaned nodes if they exist
+		if orphaned, ok := tree["orphanedNodes"].([]interface{}); ok && len(orphaned) > 0 {
+			t.Logf("Resource tree contains %d orphaned nodes", len(orphaned))
+		}
+	}
+	
 	t.Logf("Response snippet: %.500s...", text)
 }

@@ -301,6 +301,21 @@ func (mr *MockInterfaceMockRecorder) GetApplicationManifests(ctx, name, revision
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationManifests", reflect.TypeOf((*MockInterface)(nil).GetApplicationManifests), ctx, name, revision)
 }
 
+// GetApplicationResourceTree mocks base method.
+func (m *MockInterface) GetApplicationResourceTree(ctx context.Context, name, appNamespace, project string) (*v1alpha1.ApplicationTree, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetApplicationResourceTree", ctx, name, appNamespace, project)
+	ret0, _ := ret[0].(*v1alpha1.ApplicationTree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetApplicationResourceTree indicates an expected call of GetApplicationResourceTree.
+func (mr *MockInterfaceMockRecorder) GetApplicationResourceTree(ctx, name, appNamespace, project any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationResourceTree", reflect.TypeOf((*MockInterface)(nil).GetApplicationResourceTree), ctx, name, appNamespace, project)
+}
+
 // GetApplicationSet mocks base method.
 func (m *MockInterface) GetApplicationSet(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error) {
 	m.ctrl.T.Helper()

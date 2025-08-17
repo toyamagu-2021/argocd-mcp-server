@@ -7,6 +7,7 @@
 - [x] get_application - Retrieves detailed application information  
 - [x] get_application_manifests - Gets rendered manifests for an application
 - [x] get_application_events - Gets Kubernetes events for resources
+- [x] get_application_resource_tree - Gets resource hierarchy
 - [x] create_application - Creates a new ArgoCD application
 - [x] sync_application - Triggers application sync with prune/dry-run options
 - [x] refresh_application - Refreshes application without syncing
@@ -32,7 +33,6 @@
 - [ ] update_application - Updates existing application configuration
 - [ ] patch_application - Partial updates to application spec
 - [ ] rollback_application - Rollbacks to previous sync state
-- [ ] get_application_resource_tree - Gets resource hierarchy
 - [ ] terminate_operation - Terminates running sync/refresh operations
 - [ ] get_application_logs - Gets logs for application resources
 

@@ -347,6 +347,38 @@ func (c *Client) RollbackApplication(ctx context.Context, name string, id int64)
 	return resp, nil
 }
 
+// GetApplicationResourceTree retrieves the resource tree structure of an ArgoCD application
+func (c *Client) GetApplicationResourceTree(ctx context.Context, name string, appNamespace string, project string) (*v1alpha1.ApplicationTree, error) {
+	// If appNamespace or project not provided, get them from the application
+	if appNamespace == "" || project == "" {
+		appReq := &applicationpkg.ApplicationQuery{
+			Name: &name,
+		}
+		app, err := c.appClient.Get(ctx, appReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get application details: %w", err)
+		}
+		if appNamespace == "" {
+			appNamespace = app.ObjectMeta.Namespace
+		}
+		if project == "" {
+			project = app.Spec.Project
+		}
+	}
+
+	req := &applicationpkg.ResourcesQuery{
+		ApplicationName: &name,
+		AppNamespace:    &appNamespace,
+		Project:         &project,
+	}
+
+	resp, err := c.appClient.ResourceTree(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application resource tree: %w", err)
+	}
+	return resp, nil
+}
+
 // GetApplicationLogs retrieves logs from pods in an ArgoCD application
 func (c *Client) GetApplicationLogs(ctx context.Context, name string, podName string, container string, namespace string, resourceName string, kind string, group string, tailLines int64, sinceSeconds *int64, follow bool, previous bool, filter string, appNamespace string, project string) (LogStream, error) {
 	// Build the query

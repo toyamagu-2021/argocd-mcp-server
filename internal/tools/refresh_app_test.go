@@ -73,7 +73,9 @@ func TestHandleRefreshApplication(t *testing.T) {
 				require.NotNil(t, result)
 				assert.True(t, result.IsError)
 				if tt.errorContains != "" && len(result.Content) > 0 {
-					assert.Contains(t, result.Content[0], tt.errorContains)
+					textContent, ok := mcp.AsTextContent(result.Content[0])
+					require.True(t, ok)
+					assert.Contains(t, textContent.Text, tt.errorContains)
 				}
 			} else {
 				require.Nil(t, err)
