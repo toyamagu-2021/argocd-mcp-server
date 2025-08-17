@@ -66,21 +66,42 @@ func testListClusters(t *testing.T) {
 	}
 
 	// Parse the JSON response to verify it contains clusters
-	var clusterList map[string]interface{}
-	if err := json.Unmarshal([]byte(text), &clusterList); err != nil {
-		t.Fatalf("failed to parse cluster list JSON: %v", err)
-	}
+	// The response could be either:
+	// 1. An array of cluster summaries (when detailed=false, which is the default)
+	// 2. An object with "items" field (when detailed=true)
+	var items []interface{}
 
-	items, ok := clusterList["items"].([]interface{})
-	if !ok {
-		t.Fatalf("expected items to be an array, got %T", clusterList["items"])
+	// First try to parse as array (default behavior)
+	if err := json.Unmarshal([]byte(text), &items); err != nil {
+		// If that fails, try to parse as object with "items" field
+		var clusterList map[string]interface{}
+		if err := json.Unmarshal([]byte(text), &clusterList); err != nil {
+			t.Fatalf("failed to parse cluster list JSON as either array or object: %v", err)
+		}
+
+		var ok bool
+		items, ok = clusterList["items"].([]interface{})
+		if !ok {
+			t.Fatalf("expected items to be an array, got %T", clusterList["items"])
+		}
 	}
 
 	// Check for the default in-cluster
 	foundInCluster := false
 	for _, cluster := range items {
 		if clusterMap, ok := cluster.(map[string]interface{}); ok {
-			if server, ok := clusterMap["server"].(string); ok && server == "https://kubernetes.default.svc" {
+			// Handle both formats: summary format uses "server" directly,
+			// detailed format may have nested structure
+			var server string
+			if s, ok := clusterMap["server"].(string); ok {
+				server = s
+			} else if info, ok := clusterMap["info"].(map[string]interface{}); ok {
+				if s, ok := info["server"].(string); ok {
+					server = s
+				}
+			}
+
+			if server == "https://kubernetes.default.svc" {
 				foundInCluster = true
 				t.Logf("Found in-cluster: %v", clusterMap["name"])
 				break
