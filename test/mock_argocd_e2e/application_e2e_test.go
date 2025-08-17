@@ -1,0 +1,354 @@
+package mockargocde2e
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestParallel_ListApplications(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name":      "list_application",
+			"arguments": map[string]interface{}{},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	if textContent["type"] != "text" {
+		t.Errorf("expected content type to be text, got %v", textContent["type"])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	if !strings.Contains(text, "test-app-1") || !strings.Contains(text, "test-app-2") {
+		t.Errorf("expected response to contain test applications")
+	}
+}
+
+func TestParallel_GetApplication(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application",
+			"arguments": map[string]interface{}{
+				"name": "test-app-1",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	if !strings.Contains(text, "test-app-1") {
+		t.Errorf("expected response to contain test-app-1")
+	}
+
+	if !strings.Contains(text, "https://github.com/test/repo1") {
+		t.Errorf("expected response to contain repo URL")
+	}
+}
+
+func TestParallel_SyncApplication(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "sync_application",
+			"arguments": map[string]interface{}{
+				"name":    "test-app-1",
+				"dry_run": true,
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	if !strings.Contains(text, "test-app-1") {
+		t.Errorf("expected response to contain application name")
+	}
+
+	hasOperationState := strings.Contains(text, "operationState") || strings.Contains(text, "OperationState")
+	hasSucceeded := strings.Contains(text, "Succeeded") || strings.Contains(text, "Dry run completed successfully")
+	if !hasOperationState || !hasSucceeded {
+		t.Errorf("expected response to contain sync operation result, got: %s", text)
+	}
+}
+
+func TestParallel_DeleteApplication(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "delete_application",
+			"arguments": map[string]interface{}{
+				"name":    "test-app-2",
+				"cascade": false,
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	if !strings.Contains(text, "test-app-2") || !strings.Contains(text, "deleted successfully") {
+		t.Errorf("expected response to contain deletion confirmation")
+	}
+}
+
+func TestParallel_CreateApplication(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "create_application",
+			"arguments": map[string]interface{}{
+				"name":           "test-app-new",
+				"repo_url":       "https://github.com/test/new-repo",
+				"dest_namespace": "default",
+				"path":           "manifests",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Debug: print the actual response
+	t.Logf("Create response text: %s", text)
+
+	if !strings.Contains(text, "test-app-new") {
+		t.Errorf("expected response to contain new application name, got: %s", text)
+	}
+
+	if !strings.Contains(text, "created successfully") && !strings.Contains(text, "Created application") && !strings.Contains(text, "Application created") {
+		t.Errorf("expected response to contain creation confirmation, got: %s", text)
+	}
+}
+
+func TestParallel_FilterApplicationsByProject(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "list_application",
+			"arguments": map[string]interface{}{
+				"project": "production",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	if !strings.Contains(text, "test-app-2") {
+		t.Errorf("expected response to contain test-app-2 (production project)")
+	}
+
+	if strings.Contains(text, "test-app-1") {
+		t.Errorf("expected response NOT to contain test-app-1 (default project)")
+	}
+}
+
+func TestParallel_FilterApplicationsByNamespace(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "list_application",
+			"arguments": map[string]interface{}{
+				"namespace": "prod",
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Check that only prod namespace apps are returned
+	if !strings.Contains(text, "test-app-2") {
+		t.Errorf("expected response to contain test-app-2 (prod namespace)")
+	}
+
+	if strings.Contains(text, "test-app-1") {
+		t.Errorf("expected response NOT to contain test-app-1 (default namespace)")
+	}
+}
