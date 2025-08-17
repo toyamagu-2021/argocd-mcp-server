@@ -140,7 +140,7 @@ check-context:
 .PHONY: kind-create
 kind-create: check-tools
 	@echo "Creating Kind cluster: $(CLUSTER_NAME)"
-	@$(KIND) create cluster --name $(CLUSTER_NAME) || echo "Cluster $(CLUSTER_NAME) already exists"
+	@$(KIND) create cluster --name $(CLUSTER_NAME) --config kind-config.yaml || echo "Cluster $(CLUSTER_NAME) already exists"
 	@$(KUBECTL) cluster-info --context kind-$(CLUSTER_NAME)
 
 # Delete Kind cluster
@@ -165,7 +165,19 @@ install-argocd: check-context
 	@$(KUBECTL) wait --for=condition=available --timeout=300s deployment/argocd-redis -n $(ARGOCD_NAMESPACE)
 	@echo "Configuring ArgoCD to allow API key for admin account..."
 	@$(KUBECTL) patch configmap argocd-cm -n $(ARGOCD_NAMESPACE) --type merge -p '{"data":{"accounts.admin":"apiKey, login"}}'
+	@echo "Configuring ArgoCD server service as NodePort..."
+	@$(KUBECTL) patch service argocd-server -n $(ARGOCD_NAMESPACE) --type merge -p '{"spec":{"type":"NodePort","ports":[{"name":"https","port":443,"protocol":"TCP","targetPort":8080,"nodePort":30080}]}}'
 	@echo "ArgoCD installed and configured successfully"
+	@echo "ArgoCD server is now accessible at localhost:8080"
+	@echo "Waiting for ArgoCD server to be accessible..."
+	@for i in $$(seq 1 30); do \
+		if curl -k -s -o /dev/null https://localhost:8080/api/version 2>/dev/null; then \
+			echo "✅ ArgoCD server is accessible at localhost:8080"; \
+			break; \
+		fi; \
+		echo "Waiting for ArgoCD server... ($$i/30)"; \
+		sleep 2; \
+	done
 
 # Get ArgoCD admin password
 .PHONY: argocd-password
@@ -189,13 +201,13 @@ generate-env: check-context
 	@$(KUBECTL) -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d >> .env
 	@echo "" >> .env
 	@echo ".env file generated successfully"
-	@echo "Note: You may need to run 'make argocd-port-forward' in another terminal to access ArgoCD"
+	@echo "Note: ArgoCD is accessible at localhost:8080 (no port-forwarding needed)"
 
 # Generate ArgoCD token and update .env using CLI
 .PHONY: generate-token
 generate-token: check-context
 	@echo "Generating ArgoCD token using CLI..."
-	@echo "Note: This requires ArgoCD CLI and port-forwarding to be active"
+	@echo "Note: This requires ArgoCD CLI and ArgoCD to be accessible at localhost:8080"
 	@echo "Installing argocd CLI if not present..."
 	@command -v argocd >/dev/null 2>&1 || brew install argocd
 	@echo "Logging in to ArgoCD..."
@@ -220,7 +232,7 @@ generate-token: check-context
 .PHONY: generate-token-api
 generate-token-api: check-context
 	@echo "Generating ArgoCD token using API..."
-	@echo "Note: This requires port-forwarding to be active (run 'make argocd-port-forward' in another terminal)"
+	@echo "Note: This requires ArgoCD to be accessible at localhost:8080"
 	@ARGOCD_PASSWORD=$$($(KUBECTL) -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d); \
 	echo "Getting session token..."; \
 	SESSION_TOKEN=$$(curl -s -X POST localhost:8080/api/v1/session \
@@ -251,19 +263,20 @@ generate-token-api: check-context
 		exit 1; \
 	fi
 
-# Port forward ArgoCD server
+# Port forward ArgoCD server (DEPRECATED - now using NodePort)
 .PHONY: argocd-port-forward
 argocd-port-forward: check-context
-	@echo "Port forwarding ArgoCD server to localhost:8080"
-	@$(KUBECTL) port-forward svc/argocd-server -n $(ARGOCD_NAMESPACE) 8080:443 &
+	@echo "⚠️  WARNING: Port forwarding is deprecated. ArgoCD is now exposed via NodePort on localhost:8080"
+	@echo "    This target is maintained for compatibility but is no longer needed."
+	@echo "    ArgoCD should already be accessible at localhost:8080 after 'make install-argocd'"
 
 # Setup E2E test environment (create cluster and install ArgoCD)
 .PHONY: e2e-setup
-e2e-setup: kind-create install-argocd argocd-port-forward generate-env generate-token
+e2e-setup: kind-create install-argocd generate-env generate-token
 	@echo "E2E test environment setup complete"
 	@echo "Environment variables saved to .env file"
-	@echo "ArgoCD is accessible via port-forward: make argocd-port-forward"
-	@echo "To generate a proper token, run: make generate-token (requires port-forward active)"
+	@echo "ArgoCD is accessible at localhost:8080"
+	@echo "To generate a new token, run: make generate-token"
 
 # Teardown E2E test environment
 .PHONY: e2e-teardown
@@ -396,10 +409,10 @@ help:
 	@echo "  kind-delete        - Delete Kind cluster"
 	@echo "  install-argocd     - Install ArgoCD $(ARGOCD_VERSION) in the cluster"
 	@echo "  generate-env       - Generate .env file with ArgoCD credentials"
-	@echo "  generate-token     - Generate ArgoCD token via CLI (requires port-forward)"
-	@echo "  generate-token-api - Generate ArgoCD token via API (requires port-forward)"
+	@echo "  generate-token     - Generate ArgoCD token via CLI"
+	@echo "  generate-token-api - Generate ArgoCD token via API"
 	@echo "  argocd-password    - Get ArgoCD admin password"
-	@echo "  argocd-port-forward - Port forward ArgoCD to localhost:8080"
+	@echo "  argocd-port-forward - (DEPRECATED) Port forward ArgoCD to localhost:8080"
 	@echo "  cluster-info       - Show cluster and ArgoCD pod information"
 	@echo ""
 	@echo "  help               - Show this help message"
