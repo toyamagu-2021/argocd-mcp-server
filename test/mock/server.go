@@ -1147,7 +1147,12 @@ func (s *mockClusterService) List(ctx context.Context, req *cluster.ClusterQuery
 						Insecure: false,
 					},
 				},
-				ServerVersion: "1.28",
+				Info: v1alpha1.ClusterInfo{
+					ServerVersion: "1.28",
+					ConnectionState: v1alpha1.ConnectionState{
+						Status: v1alpha1.ConnectionStatusSuccessful,
+					},
+				},
 			},
 			{
 				Server: "https://external-cluster.example.com",
@@ -1157,7 +1162,12 @@ func (s *mockClusterService) List(ctx context.Context, req *cluster.ClusterQuery
 						Insecure: true,
 					},
 				},
-				ServerVersion: "1.27",
+				Info: v1alpha1.ClusterInfo{
+					ServerVersion: "1.27",
+					ConnectionState: v1alpha1.ConnectionState{
+						Status: v1alpha1.ConnectionStatusSuccessful,
+					},
+				},
 			},
 		},
 	}
@@ -1190,7 +1200,12 @@ func (s *mockClusterService) Get(ctx context.Context, req *cluster.ClusterQuery)
 					Insecure: false,
 				},
 			},
-			ServerVersion: "1.28",
+			Info: v1alpha1.ClusterInfo{
+				ServerVersion: "1.28",
+				ConnectionState: v1alpha1.ConnectionState{
+					Status: v1alpha1.ConnectionStatusSuccessful,
+				},
+			},
 		},
 		"https://external-cluster.example.com": {
 			Server: "https://external-cluster.example.com",
@@ -1200,7 +1215,12 @@ func (s *mockClusterService) Get(ctx context.Context, req *cluster.ClusterQuery)
 					Insecure: true,
 				},
 			},
-			ServerVersion: "1.27",
+			Info: v1alpha1.ClusterInfo{
+				ServerVersion: "1.27",
+				ConnectionState: v1alpha1.ConnectionState{
+					Status: v1alpha1.ConnectionStatusSuccessful,
+				},
+			},
 		},
 	}
 

@@ -49,14 +49,10 @@ func TestParallel_ListClusters(t *testing.T) {
 	}
 
 	// Parse the JSON response to verify it contains clusters
-	var clusterList map[string]interface{}
-	if err := json.Unmarshal([]byte(text), &clusterList); err != nil {
+	// By default (detailed=false), list_cluster returns an array directly, not wrapped in an object
+	var clusters []interface{}
+	if err := json.Unmarshal([]byte(text), &clusters); err != nil {
 		t.Fatalf("failed to parse cluster list JSON: %v", err)
-	}
-
-	items, ok := clusterList["items"].([]interface{})
-	if !ok {
-		t.Fatalf("expected items to be an array, got %T", clusterList["items"])
 	}
 
 	// Check for expected mock clusters
@@ -65,7 +61,7 @@ func TestParallel_ListClusters(t *testing.T) {
 		"https://external-cluster.example.com": false,
 	}
 
-	for _, cluster := range items {
+	for _, cluster := range clusters {
 		if clusterMap, ok := cluster.(map[string]interface{}); ok {
 			if server, ok := clusterMap["server"].(string); ok {
 				if _, expected := expectedClusters[server]; expected {
@@ -81,7 +77,7 @@ func TestParallel_ListClusters(t *testing.T) {
 		}
 	}
 
-	t.Logf("Successfully listed %d clusters", len(items))
+	t.Logf("Successfully listed %d clusters", len(clusters))
 }
 
 func TestParallel_GetCluster(t *testing.T) {
@@ -134,6 +130,7 @@ func TestParallel_GetCluster(t *testing.T) {
 		t.Fatalf("failed to parse cluster JSON: %v", err)
 	}
 
+
 	// Verify the cluster details
 	if server, ok := cluster["server"].(string); !ok || server != "https://kubernetes.default.svc" {
 		t.Errorf("expected server to be https://kubernetes.default.svc, got %v", server)
@@ -143,8 +140,13 @@ func TestParallel_GetCluster(t *testing.T) {
 		t.Errorf("expected name to be in-cluster, got %v", name)
 	}
 
-	if version, ok := cluster["serverVersion"].(string); !ok || version != "1.28" {
-		t.Errorf("expected serverVersion to be 1.28, got %v", version)
+	// Check serverVersion which is nested under info
+	if info, ok := cluster["info"].(map[string]interface{}); ok {
+		if version, ok := info["serverVersion"].(string); !ok || version != "1.28" {
+			t.Errorf("expected serverVersion to be 1.28, got %v", version)
+		}
+	} else {
+		t.Errorf("expected info field to be present and be a map, got %T", cluster["info"])
 	}
 
 	t.Logf("Successfully retrieved cluster details")
