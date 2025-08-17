@@ -65,6 +65,7 @@ jobs:
         uses: helm/kind-action@v1
         with:
           cluster_name: "argocd-mcp-server"
+          config: kind-config.yaml
 
       - name: Install ArgoCD
         run: make install-argocd
@@ -78,10 +79,12 @@ jobs:
         env:
           TAG: v2.14.4
 
+      - name: Generate ArgoCD credentials
+        run: |
+          make generate-env generate-token
+          
       - name: Run tests
         run: |
-          make argocd-port-forward &
-          make generate-env generate-token
           source .env
           ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test-pretty
 
