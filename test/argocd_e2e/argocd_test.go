@@ -33,10 +33,6 @@ func startMCPServer(t *testing.T) (*exec.Cmd, io.WriteCloser, io.ReadCloser) {
 	return startMCPServerWithOptions(t, useGRPCWeb)
 }
 
-func startMCPServerWithGRPCWeb(t *testing.T) (*exec.Cmd, io.WriteCloser, io.ReadCloser) {
-	return startMCPServerWithOptions(t, true)
-}
-
 func startMCPServerWithOptions(t *testing.T, useGRPCWeb bool) (*exec.Cmd, io.WriteCloser, io.ReadCloser) {
 	server := getEnvOrSkip(t, "ARGOCD_SERVER")
 	token := getEnvOrSkip(t, "ARGOCD_AUTH_TOKEN")
