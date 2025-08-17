@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os"
 
 	mcp_server "github.com/mark3labs/mcp-go/server"
@@ -10,12 +12,35 @@ import (
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/tools"
 )
 
+var (
+	version = "1.0.0"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
+	versionFlag := flag.Bool("version", false, "Print version information")
+	flag.Parse()
+
+	// Check for version flag
+	if *versionFlag {
+		fmt.Printf("argocd-mcp-server version %s (commit: %s, built: %s)\n", version, commit, date)
+		os.Exit(0)
+	}
+
+	// Check for version subcommand
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Printf("argocd-mcp-server version %s (commit: %s, built: %s)\n", version, commit, date)
+		os.Exit(0)
+	}
+
 	log := logging.GetLogger()
 
 	// Log startup
 	log.WithFields(logrus.Fields{
-		"version": "1.0.0",
+		"version": version,
+		"commit":  commit,
+		"date":    date,
 		"pid":     os.Getpid(),
 	}).Info("Starting ArgoCD MCP Server")
 
