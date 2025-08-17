@@ -353,7 +353,7 @@ func TestListApplicationsHandler(t *testing.T) {
 			tt.setupMock(mockClient)
 
 			ctx := context.Background()
-			result, err := listApplicationsHandler(ctx, mockClient, tt.project, tt.cluster, tt.namespace, tt.selector, false)
+			result, err := listApplicationsHandler(ctx, mockClient, tt.project, tt.cluster, tt.namespace, tt.selector, false, false)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -428,7 +428,7 @@ func TestListApplicationsHandler_DetailedOutput(t *testing.T) {
 	t.Run("summary output (default)", func(t *testing.T) {
 		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
 
-		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false)
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, false)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -457,7 +457,7 @@ func TestListApplicationsHandler_DetailedOutput(t *testing.T) {
 	t.Run("detailed output", func(t *testing.T) {
 		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
 
-		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", true)
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", true, false)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -478,6 +478,24 @@ func TestListApplicationsHandler_DetailedOutput(t *testing.T) {
 		assert.NotNil(t, app.Status)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
 		assert.Equal(t, "Healthy", string(app.Status.Health.Status))
+	})
+
+	t.Run("name only output", func(t *testing.T) {
+		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, true)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		require.Len(t, result.Content, 1)
+		textContent, ok := mcp.AsTextContent(result.Content[0])
+		require.True(t, ok)
+
+		var nameList ApplicationNameList
+		err = json.Unmarshal([]byte(textContent.Text), &nameList)
+		require.NoError(t, err)
+		assert.Equal(t, 1, nameList.Count)
+		assert.Equal(t, []string{"test-app"}, nameList.Names)
 	})
 }
 
@@ -537,7 +555,7 @@ func TestListApplicationsHandler_ComplexFiltering(t *testing.T) {
 	ctx := context.Background()
 
 	// Filter by project and cluster
-	result, err := listApplicationsHandler(ctx, mockClient, "project1", "https://cluster1.example.com", "", "", false)
+	result, err := listApplicationsHandler(ctx, mockClient, "project1", "https://cluster1.example.com", "", "", false, false)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
