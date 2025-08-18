@@ -11,9 +11,9 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/mock v0.5.2
 	google.golang.org/grpc v1.74.2
-	google.golang.org/protobuf v1.36.6
-	k8s.io/api v0.31.2
-	k8s.io/apimachinery v0.31.2
+	google.golang.org/protobuf v1.36.7
+	k8s.io/api v0.33.4
+	k8s.io/apimachinery v0.33.4
 )
 
 require (
@@ -69,7 +69,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-github/v66 v66.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
