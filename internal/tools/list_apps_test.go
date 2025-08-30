@@ -774,11 +774,11 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 
 		// Check that special characters are properly escaped - now only 4 minimal fields
 		fields := strings.Split(lines[1], "\t")
-		require.Len(t, fields, 4) // Only 4 minimal fields now
+		require.Len(t, fields, 4)                            // Only 4 minimal fields now
 		assert.Equal(t, "app-with-special-chars", fields[0]) // name
 		assert.Equal(t, "test\\tproject", fields[1])         // project with escaped tab
-		assert.Equal(t, "OutOfSync", fields[2])             // syncStatus
-		assert.Equal(t, "Progressing", fields[3])           // healthStatus
+		assert.Equal(t, "OutOfSync", fields[2])              // syncStatus
+		assert.Equal(t, "Progressing", fields[3])            // healthStatus
 	})
 
 	t.Run("TSV format with empty applications list", func(t *testing.T) {
@@ -842,7 +842,7 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 		headerTabCount := strings.Count(lines[0], "\t")
 		dataTabCount := strings.Count(lines[1], "\t")
 		require.Equal(t, headerTabCount, dataTabCount) // Both should have same number of tabs
-		require.Equal(t, 3, dataTabCount)             // Should have 3 tabs = 4 fields
+		require.Equal(t, 3, dataTabCount)              // Should have 3 tabs = 4 fields
 
 		fields := strings.Split(lines[1], "\t")
 		require.Equal(t, 4, len(fields)) // 4 minimal fields (name, project, syncStatus, healthStatus)
@@ -850,8 +850,8 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 		// Verify key fields
 		assert.Equal(t, "app-no-source", fields[0]) // name
 		assert.Equal(t, "default", fields[1])       // project
-		assert.Equal(t, "", fields[2])             // syncStatus (empty)
-		assert.Equal(t, "", fields[3])             // healthStatus (empty)
+		assert.Equal(t, "", fields[2])              // syncStatus (empty)
+		assert.Equal(t, "", fields[3])              // healthStatus (empty)
 		// No chart field in minimal format
 	})
 
@@ -987,7 +987,7 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 		// Check first app data (8 fields)
 		app1Fields := strings.Split(lines[1], "\t")
 		require.Len(t, app1Fields, 8)
-		assert.Equal(t, "test-app", app1Fields[0])                       // name
+		assert.Equal(t, "test-app", app1Fields[0])                        // name
 		assert.Equal(t, "default", app1Fields[1])                         // project
 		assert.Equal(t, "Synced", app1Fields[2])                          // syncStatus
 		assert.Equal(t, "Healthy", app1Fields[3])                         // healthStatus
@@ -1027,7 +1027,7 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 		// Check first app data (7 fields)
 		app1Fields := strings.Split(lines[1], "\t")
 		require.Len(t, app1Fields, 7)
-		assert.Equal(t, "test-app", app1Fields[0])                       // name
+		assert.Equal(t, "test-app", app1Fields[0])                        // name
 		assert.Equal(t, "default", app1Fields[1])                         // project
 		assert.Equal(t, "Synced", app1Fields[2])                          // syncStatus
 		assert.Equal(t, "Healthy", app1Fields[3])                         // healthStatus
@@ -1065,12 +1065,12 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 		app1Fields := strings.Split(lines[1], "\t")
 		require.Len(t, app1Fields, 7)
 		assert.Equal(t, "test-app", app1Fields[0]) // name
-		assert.Equal(t, "default", app1Fields[1]) // project
-		assert.Equal(t, "Synced", app1Fields[2])  // syncStatus
-		assert.Equal(t, "Healthy", app1Fields[3]) // healthStatus
-		assert.Equal(t, "", app1Fields[4])        // opPhase (empty)
-		assert.Equal(t, "", app1Fields[5])        // opMessage (empty)
-		assert.Equal(t, "", app1Fields[6])        // opStartedAt (empty)
+		assert.Equal(t, "default", app1Fields[1])  // project
+		assert.Equal(t, "Synced", app1Fields[2])   // syncStatus
+		assert.Equal(t, "Healthy", app1Fields[3])  // healthStatus
+		assert.Equal(t, "", app1Fields[4])         // opPhase (empty)
+		assert.Equal(t, "", app1Fields[5])         // opMessage (empty)
+		assert.Equal(t, "", app1Fields[6])         // opStartedAt (empty)
 
 		// Check second app data (has operation)
 		app2Fields := strings.Split(lines[2], "\t")
