@@ -351,6 +351,11 @@ clean-mocks:
 # Testing
 .PHONY: test
 test:
+	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
+	gotestsum --format testname -- ./...
+
+.PHONY: test-basic
+test-basic:
 	$(GOTEST) ./...
 
 .PHONY: test-verbose
@@ -431,7 +436,8 @@ help:
 	@echo "  lint-advanced      - Run all linters including security checks"
 	@echo ""
 	@echo "Testing:"
-	@echo "  test               - Run tests"
+	@echo "  test               - Run tests with gotestsum (default)"
+	@echo "  test-basic         - Run basic go tests"
 	@echo "  test-verbose       - Run tests with verbose output"
 	@echo "  test-race          - Run tests with race detector"
 	@echo "  test-cover         - Run tests with coverage"

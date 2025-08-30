@@ -15,9 +15,12 @@ go build -o argocd-mcp-server ./cmd/argocd-mcp-server
 
 ### Run Tests
 ```bash
-# Run all tests
-go test ./...
+# Run all tests with gotestsum (default)
 make test
+
+# Run basic go tests
+go test ./...
+make test-basic
 
 # Run tests with verbose output
 go test -v ./...
