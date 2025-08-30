@@ -375,10 +375,6 @@ test-coverprofile:
 	$(GOTEST) -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 
-.PHONY: test-pretty
-test-pretty:
-	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
-	gotestsum --format testname -- ./...
 
 .PHONY: test-watch
 test-watch:
@@ -442,7 +438,6 @@ help:
 	@echo "  test-race          - Run tests with race detector"
 	@echo "  test-cover         - Run tests with coverage"
 	@echo "  test-coverprofile  - Generate coverage report"
-	@echo "  test-pretty        - Run tests with pretty output (gotestsum)"
 	@echo "  test-watch         - Run tests in watch mode"
 	@echo "  test-coverage-pretty - Generate coverage report with gotestsum"
 	@echo ""
