@@ -12,6 +12,7 @@
 - [x] sync_application - Triggers application sync with prune/dry-run options
 - [x] refresh_application - Refreshes application without syncing
 - [x] delete_application - Deletes applications with cascade control
+- [x] terminate_operation - Terminates running sync/refresh operations
 
 ### Projects
 - [x] list_project - Lists all ArgoCD projects
@@ -37,7 +38,6 @@
 - [ ] update_application - Updates existing application configuration
 - [ ] patch_application - Partial updates to application spec
 - [ ] rollback_application - Rollbacks to previous sync state
-- [ ] terminate_operation - Terminates running sync/refresh operations
 - [ ] get_application_logs - Gets logs for application resources
 
 ### Projects (Complete)

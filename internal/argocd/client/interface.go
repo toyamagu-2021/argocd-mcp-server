@@ -30,6 +30,7 @@ type Interface interface {
 	GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error)
 	GetApplicationLogs(ctx context.Context, name string, podName string, container string, namespace string, resourceName string, kind string, group string, tailLines int64, sinceSeconds *int64, follow bool, previous bool, filter string, appNamespace string, project string) (LogStream, error)
 	GetApplicationResourceTree(ctx context.Context, name string, appNamespace string, project string) (*v1alpha1.ApplicationTree, error)
+	TerminateOperation(ctx context.Context, name string, appNamespace string, project string) error
 
 	// Cluster operations
 	ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error)

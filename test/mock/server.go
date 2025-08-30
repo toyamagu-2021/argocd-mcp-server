@@ -515,6 +515,33 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 	return events, nil
 }
 
+func (s *mockApplicationService) TerminateOperation(ctx context.Context, req *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return nil, status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+
+	if req.Name == nil || *req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+
+	// Check if application exists
+	appName := *req.Name
+	if appName != "test-app-1" && appName != "test-app-2" && appName != "test-app-empty" {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("applications.argoproj.io \"%s\" not found", appName))
+	}
+
+	// For test apps, we simulate that there's no operation in progress (most common case)
+	// In a real scenario, you'd check if there's an active operation
+	// For now, return success as if we terminated an operation
+	return &application.OperationTerminateResponse{}, nil
+}
+
 func (s *mockApplicationService) ResourceTree(ctx context.Context, req *application.ResourcesQuery) (*v1alpha1.ApplicationTree, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {

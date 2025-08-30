@@ -147,6 +147,14 @@ func TestRealArgoCD_Suite(t *testing.T) {
 						t.Parallel()
 						testSyncExistingApplicationDryRun(t)
 					})
+					t.Run("TerminateOperation", func(t *testing.T) {
+						t.Parallel()
+						if config.useGRPCWeb {
+							testTerminateOperationGRPCWeb(t)
+						} else {
+							testTerminateOperation(t)
+						}
+					})
 				})
 			}
 

@@ -512,6 +512,20 @@ func (mr *MockInterfaceMockRecorder) SyncApplication(ctx, name, revision, prune,
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncApplication", reflect.TypeOf((*MockInterface)(nil).SyncApplication), ctx, name, revision, prune, dryRun)
 }
 
+// TerminateOperation mocks base method.
+func (m *MockInterface) TerminateOperation(ctx context.Context, name, appNamespace, project string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TerminateOperation", ctx, name, appNamespace, project)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TerminateOperation indicates an expected call of TerminateOperation.
+func (mr *MockInterfaceMockRecorder) TerminateOperation(ctx, name, appNamespace, project any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TerminateOperation", reflect.TypeOf((*MockInterface)(nil).TerminateOperation), ctx, name, appNamespace, project)
+}
+
 // UpdateApplication mocks base method.
 func (m *MockInterface) UpdateApplication(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()

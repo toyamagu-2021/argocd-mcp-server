@@ -36,6 +36,9 @@ func RegisterAll(s *server.MCPServer) {
 	// Register delete_application tool
 	s.AddTool(DeleteAppTool, HandleDeleteApplication)
 
+	// Register terminate_operation tool
+	s.AddTool(TerminateOperationTool, HandleTerminateOperation)
+
 	// Register list_project tool
 	s.AddTool(ListProjectsTool, HandleListProjects)
 
