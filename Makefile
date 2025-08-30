@@ -351,6 +351,11 @@ clean-mocks:
 # Testing
 .PHONY: test
 test:
+	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
+	gotestsum --format testname -- ./...
+
+.PHONY: test-basic
+test-basic:
 	$(GOTEST) ./...
 
 .PHONY: test-verbose
@@ -370,10 +375,6 @@ test-coverprofile:
 	$(GOTEST) -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 
-.PHONY: test-pretty
-test-pretty:
-	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
-	gotestsum --format testname -- ./...
 
 .PHONY: test-watch
 test-watch:
@@ -431,12 +432,12 @@ help:
 	@echo "  lint-advanced      - Run all linters including security checks"
 	@echo ""
 	@echo "Testing:"
-	@echo "  test               - Run tests"
+	@echo "  test               - Run tests with gotestsum (default)"
+	@echo "  test-basic         - Run basic go tests"
 	@echo "  test-verbose       - Run tests with verbose output"
 	@echo "  test-race          - Run tests with race detector"
 	@echo "  test-cover         - Run tests with coverage"
 	@echo "  test-coverprofile  - Generate coverage report"
-	@echo "  test-pretty        - Run tests with pretty output (gotestsum)"
 	@echo "  test-watch         - Run tests in watch mode"
 	@echo "  test-coverage-pretty - Generate coverage report with gotestsum"
 	@echo ""

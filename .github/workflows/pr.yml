@@ -86,7 +86,7 @@ jobs:
       - name: Run tests
         run: |
           source .env
-          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test-pretty
+          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test
 
       - name: Run tests with coverage
         run: make test-cover
