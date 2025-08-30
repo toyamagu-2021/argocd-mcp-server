@@ -486,6 +486,27 @@ func (c *Client) GetApplicationLogs(ctx context.Context, name string, podName st
 	return stream, nil
 }
 
+// TerminateOperation terminates the currently running operation on an application
+func (c *Client) TerminateOperation(ctx context.Context, name string, appNamespace string, project string) error {
+	req := &applicationpkg.OperationTerminateRequest{
+		Name: &name,
+	}
+
+	// Set namespace and project if provided
+	if appNamespace != "" {
+		req.AppNamespace = &appNamespace
+	}
+	if project != "" {
+		req.Project = &project
+	}
+
+	_, err := c.appClient.TerminateOperation(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to terminate operation: %w", err)
+	}
+	return nil
+}
+
 // Cluster operations
 
 // ListClusters retrieves all ArgoCD clusters

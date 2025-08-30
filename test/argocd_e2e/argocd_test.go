@@ -1090,3 +1090,188 @@ func testSyncExistingApplicationDryRun(t *testing.T) {
 	t.Logf("Successfully performed dry-run sync for application %s", appName)
 	t.Logf("Response snippet: %.500s...", text)
 }
+
+func testTerminateOperation(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	// First, try to terminate operation (it may or may not have an active operation)
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "terminate_operation",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	// Check if there's an error
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		errorMsg := fmt.Sprintf("%v", errObj["message"])
+		t.Logf("Error response: %v", errorMsg)
+
+		// It's OK if there's no operation to terminate
+		if strings.Contains(errorMsg, "no operation is in progress") ||
+			strings.Contains(errorMsg, "operation has already completed") {
+			t.Logf("No operation in progress for application %s (expected)", appName)
+			return
+		}
+
+		// Skip if app not found
+		if strings.Contains(errorMsg, "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+
+		// Skip if no permission
+		if strings.Contains(errorMsg, "permission") {
+			t.Skip("No permission to terminate operations on this ArgoCD server")
+		}
+
+		// Any other error is unexpected
+		t.Fatalf("Unexpected error calling terminate_operation: %v", errorMsg)
+	}
+
+	// If no error, check the success response
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Check that the response mentions successful termination
+	if !strings.Contains(text, "Successfully terminated operation") {
+		t.Errorf("expected response to indicate successful termination, got: %s", text)
+	}
+
+	if !strings.Contains(text, appName) {
+		t.Errorf("expected response to contain application name %s", appName)
+	}
+
+	t.Logf("Successfully terminated operation for application %s", appName)
+	t.Logf("Response: %s", text)
+}
+
+func testTerminateOperationGRPCWeb(t *testing.T) {
+	appName := os.Getenv("TEST_APP_NAME")
+	if appName == "" {
+		t.Skip("Skipping test: TEST_APP_NAME environment variable not set")
+	}
+
+	mcpCmd, stdin, stdout := startMCPServerWithOptions(t, true) // Force gRPC-Web
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+
+	initializeMCPConnection(t, stdin, stdout)
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "terminate_operation",
+			"arguments": map[string]interface{}{
+				"name": appName,
+			},
+		},
+	}
+
+	response := sendRequest(t, stdin, stdout, callToolRequest)
+
+	// Check if there's an error
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		errorMsg := fmt.Sprintf("%v", errObj["message"])
+		t.Logf("Error response: %v", errorMsg)
+
+		// It's OK if there's no operation to terminate
+		if strings.Contains(errorMsg, "no operation is in progress") ||
+			strings.Contains(errorMsg, "operation has already completed") {
+			t.Logf("No operation in progress for application %s (expected)", appName)
+			return
+		}
+
+		// Skip if app not found
+		if strings.Contains(errorMsg, "not found") {
+			t.Skipf("Application %s not found on this ArgoCD server", appName)
+		}
+
+		// Skip if no permission
+		if strings.Contains(errorMsg, "permission") {
+			t.Skip("No permission to terminate operations on this ArgoCD server")
+		}
+
+		// Any other error is unexpected
+		t.Fatalf("Unexpected error calling terminate_operation: %v", errorMsg)
+	}
+
+	// If no error, check the success response
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+
+	content, ok := result["content"].([]interface{})
+	if !ok {
+		t.Fatalf("expected content to be an array, got %T", result["content"])
+	}
+
+	if len(content) == 0 {
+		t.Fatal("expected at least one content item")
+	}
+
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+
+	// Check that the response mentions successful termination
+	if !strings.Contains(text, "Successfully terminated operation") {
+		t.Errorf("expected response to indicate successful termination, got: %s", text)
+	}
+
+	if !strings.Contains(text, appName) {
+		t.Errorf("expected response to contain application name %s", appName)
+	}
+
+	t.Logf("Successfully terminated operation for application %s (gRPC-Web)", appName)
+	t.Logf("Response: %s", text)
+}

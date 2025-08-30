@@ -15,6 +15,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `sync_application` - Trigger a sync operation for an application with optional prune and dry-run modes
 - `refresh_application` - Refresh application state from the git repository
 - `delete_application` - Delete an ArgoCD application with optional cascade control
+- `terminate_operation` - Terminate the currently running operation (sync, refresh, etc.) on an application
 
 ### ApplicationSet Management
 - `list_applicationset` - List ArgoCD ApplicationSets with optional filtering
@@ -250,6 +251,23 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
     "arguments": {
       "name": "my-app",
       "cascade": true
+    }
+  }
+}
+```
+
+#### Terminate Operation
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "tools/call",
+  "params": {
+    "name": "terminate_operation",
+    "arguments": {
+      "name": "my-app",
+      "app_namespace": "argocd",
+      "project": "default"
     }
   }
 }
