@@ -190,6 +190,24 @@ func TestParseMultipleFramesWithTrailer(t *testing.T) {
 	}
 }
 
+func FuzzFrameRoundTrip(f *testing.F) {
+	f.Add([]byte(nil))
+	f.Add([]byte("grpc-web"))
+	f.Add(bytes.Repeat([]byte{0xff}, 64))
+	f.Fuzz(func(t *testing.T, msg []byte) {
+		frames, err := parseFrames(toFrame(msg))
+		if err != nil {
+			t.Fatalf("parseFrames(toFrame(msg)): %v", err)
+		}
+		if len(frames) != 1 {
+			t.Fatalf("got %d frames, want 1", len(frames))
+		}
+		if !bytes.Equal(frames[0], msg) {
+			t.Fatalf("round trip = %q, want %q", frames[0], msg)
+		}
+	})
+}
+
 func TestParseFramesSequence(t *testing.T) {
 	// Test that parseFrames correctly handles a typical gRPC-Web response
 	// with multiple data frames followed by a trailer
