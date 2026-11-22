@@ -9,7 +9,7 @@ require (
 	github.com/mark3labs/mcp-go v0.37.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
-	go.uber.org/mock v0.5.2
+	go.uber.org/mock v0.6.0
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	k8s.io/api v0.37.0
@@ -36,7 +36,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/bombsimon/logrusr/v4 v4.2.0 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/casbin/casbin/v2 v2.135.0 // indirect
 	github.com/casbin/govaluate v1.10.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
