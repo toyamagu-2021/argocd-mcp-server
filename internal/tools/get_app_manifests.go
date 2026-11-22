@@ -13,6 +13,7 @@ import (
 // GetAppManifestsTool defines the get_application_manifests tool schema
 var GetAppManifestsTool = mcp.NewTool("get_application_manifests",
 	mcp.WithDescription("Retrieves the rendered Kubernetes manifests for an ArgoCD application. This shows what resources will be applied to the cluster."),
+	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
 		mcp.Required(),

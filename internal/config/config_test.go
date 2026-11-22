@@ -37,6 +37,7 @@ func TestLoad(t *testing.T) {
 				assert.False(t, c.Insecure)
 				assert.False(t, c.PlainText)
 				assert.False(t, c.GRPCWeb)
+				assert.False(t, c.ReadOnly)
 				assert.Equal(t, DefaultGRPCMaxSizeMB*1024*1024, c.MaxGRPCMessageSize)
 			},
 		},
@@ -46,6 +47,7 @@ func TestLoad(t *testing.T) {
 				EnvServer: "s:443", EnvAuthToken: "tok",
 				EnvInsecure: "true", EnvPlainText: "true", EnvGRPCWeb: "true",
 				EnvGRPCWebRootPath: "/argo", EnvGRPCMaxSizeMB: "16",
+				EnvReadOnly: "true",
 			},
 			check: func(t *testing.T, c *Config) {
 				assert.True(t, c.Insecure)
@@ -53,6 +55,7 @@ func TestLoad(t *testing.T) {
 				assert.True(t, c.GRPCWeb)
 				assert.Equal(t, "/argo", c.GRPCWebRootPath)
 				assert.Equal(t, 16*1024*1024, c.MaxGRPCMessageSize)
+				assert.True(t, c.ReadOnly)
 			},
 		},
 		{

@@ -13,6 +13,7 @@ import (
 // GetAppEventsTool defines the get_application_events tool schema
 var GetAppEventsTool = mcp.NewTool("get_application_events",
 	mcp.WithDescription("Gets Kubernetes events for resources belonging to an ArgoCD application. Returns events that help diagnose issues with application resources."),
+	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
 		mcp.Required(),

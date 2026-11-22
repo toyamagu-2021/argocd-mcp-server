@@ -13,6 +13,7 @@ import (
 // GetProjectTool defines the get_project tool schema
 var GetProjectTool = mcp.NewTool("get_project",
 	mcp.WithDescription("Retrieves detailed information about a specific ArgoCD project."),
+	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
 		mcp.Required(),

@@ -13,6 +13,7 @@ import (
 // GetAppTool defines the get_application tool schema
 var GetAppTool = mcp.NewTool("get_application",
 	mcp.WithDescription("Retrieves detailed information about a specific ArgoCD application."),
+	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
 		mcp.Required(),

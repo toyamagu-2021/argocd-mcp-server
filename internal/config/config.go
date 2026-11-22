@@ -23,6 +23,7 @@ const (
 	EnvGRPCWeb         = "ARGOCD_GRPC_WEB"
 	EnvGRPCWebRootPath = "ARGOCD_GRPC_WEB_ROOT_PATH"
 	EnvGRPCMaxSizeMB   = "ARGOCD_GRPC_MAX_SIZE_MB"
+	EnvReadOnly        = "ARGOCD_MCP_READ_ONLY"
 )
 
 // DefaultGRPCMaxSizeMB is the default gRPC message size limit in MiB.
@@ -43,6 +44,8 @@ type Config struct {
 	GRPCWeb            bool
 	GRPCWebRootPath    string
 	MaxGRPCMessageSize int
+	// ReadOnly removes every state-changing tool (ARGOCD_MCP_READ_ONLY=true).
+	ReadOnly bool
 }
 
 // Load reads the configuration from the environment and validates it.
@@ -58,6 +61,7 @@ func load(getenv func(string) string) (*Config, error) {
 		PlainText:       parseBool(getenv(EnvPlainText)),
 		GRPCWeb:         parseBool(getenv(EnvGRPCWeb)),
 		GRPCWebRootPath: getenv(EnvGRPCWebRootPath),
+		ReadOnly:        parseBool(getenv(EnvReadOnly)),
 	}
 
 	cfg.MaxGRPCMessageSize = parseIntClamped(getenv(EnvGRPCMaxSizeMB), DefaultGRPCMaxSizeMB, 1, math.MaxInt32/(1024*1024)) * 1024 * 1024

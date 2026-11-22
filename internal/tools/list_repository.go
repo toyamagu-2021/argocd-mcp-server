@@ -13,6 +13,7 @@ import (
 // ListRepositoryTool defines the list_repository tool schema
 var ListRepositoryTool = mcp.NewTool("list_repository",
 	mcp.WithDescription("Lists all configured Git repositories in ArgoCD."),
+	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 )
 

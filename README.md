@@ -62,11 +62,25 @@ export ARGOCD_INSECURE=false     # Skip TLS verification (default: false)
 export ARGOCD_PLAINTEXT=false    # Use plaintext connection (default: false)
 export ARGOCD_GRPC_WEB=false     # Enable gRPC-Web proxy mode (default: false)
 export ARGOCD_GRPC_WEB_ROOT_PATH=""  # Custom root path for gRPC-Web requests (optional)
+export ARGOCD_GRPC_MAX_SIZE_MB=200   # Max gRPC message size in MiB (default: 200)
+export ARGOCD_MCP_READ_ONLY=false    # Register read-only tools only (default: false)
 
 # Logging configuration
 export LOG_LEVEL=info     # Options: debug, info, warn, error
 export LOG_FORMAT=text    # Options: text, json
 ```
+
+### Read-only Mode
+
+With `ARGOCD_MCP_READ_ONLY=true` the server does not register any tool that changes Argo CD state:
+`create_application`, `sync_application`, `refresh_application`, `delete_application`,
+`terminate_operation`, `create_project`, `create_applicationset`, `delete_applicationset`.
+
+Read-only mode is a convenience on top of Argo CD RBAC, not a replacement for it: issue the
+server a token whose account can only do what you want the LLM to do.
+
+All read tools carry the MCP `readOnlyHint` annotation. `refresh_application` is marked
+non-destructive and idempotent.
 
 ## Usage
 

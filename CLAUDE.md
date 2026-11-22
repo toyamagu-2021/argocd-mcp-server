@@ -233,6 +233,8 @@ This is a Model Context Protocol (MCP) server that exposes ArgoCD operations as 
    - `ARGOCD_PLAINTEXT`: Use plaintext connection (optional, default: false)
    - `ARGOCD_GRPC_WEB`: Enable gRPC-Web proxy mode (optional, default: false)
    - `ARGOCD_GRPC_WEB_ROOT_PATH`: Custom root path for gRPC-Web requests (optional)
+   - `ARGOCD_GRPC_MAX_SIZE_MB`: Max gRPC message size in MiB (optional, default: 200)
+   - `ARGOCD_MCP_READ_ONLY`: Do not register state-changing tools (optional, default: false)
 
 3. **MCP Protocol**: Communicates via stdin/stdout using JSON-RPC format as per MCP specification
 
