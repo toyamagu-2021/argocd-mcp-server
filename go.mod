@@ -1,6 +1,6 @@
 module github.com/toyamagu-2021/argocd-mcp-server
 
-go 1.24.6
+go 1.27.4
 
 require (
 	github.com/argoproj/argo-cd/v2 v2.14.15
