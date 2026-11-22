@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

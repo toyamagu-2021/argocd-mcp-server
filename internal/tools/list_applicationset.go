@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )

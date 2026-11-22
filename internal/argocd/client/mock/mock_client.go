@@ -13,9 +13,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	application "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	session "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	application "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	session "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	client "github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	gomock "go.uber.org/mock/gomock"
 )

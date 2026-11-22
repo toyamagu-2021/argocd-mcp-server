@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 //go:generate mockgen -source=interface.go -destination=mock/mock_client.go -package=mock

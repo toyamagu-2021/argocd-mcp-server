@@ -18,7 +18,7 @@ BINARY_PATH=./cmd/argocd-mcp-server
 
 # E2E Test Variables
 CLUSTER_NAME := argocd-mcp-server
-ARGOCD_VERSION := v2.14.14
+ARGOCD_VERSION := v3.6.2
 ARGOCD_NAMESPACE := argocd
 KUBECTL := kubectl
 KIND := kind

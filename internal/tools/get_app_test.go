@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,7 +163,7 @@ func TestGetApplicationHandler(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: "Synced",
 						},
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: "Healthy",
 						},
 					},
