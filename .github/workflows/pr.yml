@@ -27,16 +27,7 @@ jobs:
         uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: "go.mod"
-
-      # - name: Cache Go modules
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       ~/.cache/go-build
-      #       ~/go/pkg/mod
-      #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-go-
+          cache: true
 
       - name: Download dependencies
         run: make deps
@@ -61,16 +52,7 @@ jobs:
         uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: "go.mod"
-
-      # - name: Cache Go modules
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       ~/.cache/go-build
-      #       ~/go/pkg/mod
-      #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-go-
+          cache: true
 
       - name: Download dependencies
         run: make deps
@@ -100,13 +82,10 @@ jobs:
         run: |
           make generate-env generate-token
           
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           source .env
-          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test
-
-      - name: Run tests with coverage
-        run: make test-cover
+          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test-cover
 
       - name: Build binary
         run: make build
