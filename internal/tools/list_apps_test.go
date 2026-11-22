@@ -87,7 +87,7 @@ func TestListApplicationsHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+				m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 			},
 			wantError: false,
 			wantApps:  2,
@@ -129,7 +129,7 @@ func TestListApplicationsHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+				m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 			},
 			wantError: false,
 			wantApps:  1,
@@ -171,7 +171,7 @@ func TestListApplicationsHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+				m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 			},
 			wantError: false,
 			wantApps:  1,
@@ -200,7 +200,7 @@ func TestListApplicationsHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+				m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 			},
 			wantError:   false,
 			wantMessage: "No applications found matching the criteria.",
@@ -232,7 +232,7 @@ func TestListApplicationsHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().ListApplications(gomock.Any(), "env=production").Return(appList, nil)
+				m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 			},
 			wantError: false,
 			wantApps:  1,
@@ -244,7 +244,7 @@ func TestListApplicationsHandler(t *testing.T) {
 			namespace: "",
 			selector:  "",
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().ListApplications(gomock.Any(), "").Return(nil, assert.AnError)
+				m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
 			},
 			wantError:   false, // The handler returns an error result, not an error
 			wantMessage: "Failed to list applications",
@@ -260,7 +260,7 @@ func TestListApplicationsHandler(t *testing.T) {
 			tt.setupMock(mockClient)
 
 			ctx := context.Background()
-			result, err := listApplicationsHandler(ctx, mockClient, tt.project, tt.cluster, tt.namespace, tt.selector, false, false, "json", []string{})
+			result, err := listApplicationsHandler(ctx, mockClient, tt.project, tt.cluster, tt.namespace, tt.selector, false, false, "json", []string{}, "")
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -333,9 +333,9 @@ func TestListApplicationsHandler_DetailedOutput(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("summary output (default)", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, false, "json", []string{})
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, false, "json", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -362,9 +362,9 @@ func TestListApplicationsHandler_DetailedOutput(t *testing.T) {
 	})
 
 	t.Run("detailed output", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", true, false, "json", []string{})
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", true, false, "json", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -388,9 +388,9 @@ func TestListApplicationsHandler_DetailedOutput(t *testing.T) {
 	})
 
 	t.Run("name only output", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, true, "json", []string{})
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, true, "json", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -457,12 +457,12 @@ func TestListApplicationsHandler_ComplexFiltering(t *testing.T) {
 		},
 	}
 
-	mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+	mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
 	ctx := context.Background()
 
 	// Filter by project and cluster
-	result, err := listApplicationsHandler(ctx, mockClient, "project1", "https://cluster1.example.com", "", "", false, false, "json", []string{})
+	result, err := listApplicationsHandler(ctx, mockClient, "project1", "https://cluster1.example.com", "", "", false, false, "json", []string{}, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -551,9 +551,9 @@ func TestListApplicationsHandler_TSVFormat(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("TSV minimal output (default - 4 fields)", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -586,9 +586,9 @@ func TestListApplicationsHandler_TSVFormat(t *testing.T) {
 	})
 
 	t.Run("TSV name only output", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, true, "tsv", []string{})
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", false, true, "tsv", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -604,9 +604,9 @@ func TestListApplicationsHandler_TSVFormat(t *testing.T) {
 	})
 
 	t.Run("TSV detailed output (falls back to JSON)", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", true, false, "tsv", []string{})
+		result, err := listApplicationsHandler(ctx, mockClient, "", "", "", "", true, false, "tsv", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -665,9 +665,9 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 			},
 		}
 
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -688,9 +688,9 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 
 	t.Run("TSV format with empty applications list", func(t *testing.T) {
 		emptyAppList := &v1alpha1.ApplicationList{Items: []v1alpha1.Application{}}
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(emptyAppList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(emptyAppList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -727,9 +727,9 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 			},
 		}
 
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -783,10 +783,10 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 			},
 		}
 
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
 		// Test that JSON format still works
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "json", []string{})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "json", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -873,9 +873,9 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 	}
 
 	t.Run("TSV with optional_fields - source group", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{"source"})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{"source"}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -913,9 +913,9 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 	})
 
 	t.Run("TSV with optional_fields - individual fields", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{"namespace", "source-repo", "dest-namespace"})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{"namespace", "source-repo", "dest-namespace"}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -950,9 +950,9 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 	})
 
 	t.Run("TSV with optional_fields - operation fields", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{"operation"})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{"operation"}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -990,9 +990,9 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 	})
 
 	t.Run("TSV with empty optional_fields", func(t *testing.T) {
-		mockClient.EXPECT().ListApplications(gomock.Any(), "").Return(appList, nil)
+		mockClient.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(appList, nil)
 
-		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{})
+		result, err := listApplicationsHandler(context.Background(), mockClient, "", "", "", "", false, false, "tsv", []string{}, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 

@@ -23,7 +23,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `list_applicationset` - List ArgoCD ApplicationSets with optional filtering
 - `get_applicationset` - Retrieve detailed information about a specific ApplicationSet
 - `create_applicationset` - Create a new ApplicationSet with generators and templates
-- `delete_applicationset` - Delete an ApplicationSet with cascade control
+- `delete_applicationset` - Delete an ApplicationSet (Argo CD also deletes the Applications it generated)
 
 ### Project Management
 - `list_project` - List all ArgoCD projects
@@ -69,6 +69,18 @@ export ARGOCD_MCP_READ_ONLY=false    # Register read-only tools only (default: f
 export LOG_LEVEL=info     # Options: debug, info, warn, error
 export LOG_FORMAT=text    # Options: text, json
 ```
+
+### Application Namespace
+
+`get_application`, `list_application`, `get_application_manifests`, `sync_application`,
+`refresh_application` and `delete_application` (as well as the events, logs, resource tree
+and terminate tools) accept an optional `app_namespace`: the namespace of the Application
+resource itself (`metadata.namespace`). You only need it when Argo CD is configured for
+[Applications in any namespace](https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/).
+
+In `list_application`, `namespace` filters by **destination** namespace
+(`spec.destination.namespace`) while `app_namespace` filters by the Application's own
+namespace. Both can be combined.
 
 ### Read-only Mode
 
@@ -374,7 +386,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
     "name": "delete_applicationset",
     "arguments": {
       "name": "my-appset",
-      "cascade": true
+      "app_namespace": "argocd"
     }
   }
 }
@@ -584,7 +596,7 @@ make lint-advanced
 - **sync_application**: Use `dry_run: true` to preview changes before actual sync
 - **refresh_application**: Use `hard_refresh: false` for incremental refresh, `true` for full refresh
 - **delete_application**: Use `cascade: false` to preserve cluster resources when deleting only the ArgoCD application
-- **delete_applicationset**: Use `cascade: false` to preserve generated applications
+- **delete_applicationset**: Deleting an ApplicationSet also deletes the Applications it generated; there is no cascade option. The namespace argument is `app_namespace` (the old `appsetNamespace` is still accepted during 0.3)
 - **create_project**: Use `upsert: true` to update existing projects instead of failing on conflict
 - Always verify application and project names before performing destructive operations
 

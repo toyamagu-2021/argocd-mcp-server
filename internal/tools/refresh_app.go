@@ -23,6 +23,9 @@ var RefreshAppTool = mcp.NewTool("refresh_application",
 	mcp.WithBoolean("hard",
 		mcp.Description("Forces a hard refresh, which triggers a full reconciliation (default: false)."),
 	),
+	mcp.WithString("app_namespace",
+		mcp.Description("Namespace of the Application resource (its metadata.namespace). Only needed when Argo CD manages Applications outside its own namespace (apps-in-any-namespace). Defaults to the Argo CD namespace."),
+	),
 )
 
 // makeRefreshApplication returns the handler for this tool bound to the shared client in d.
@@ -31,11 +34,12 @@ func makeRefreshApplication(d Deps) server.ToolHandlerFunc {
 		// Extract parameters from mcp.CallToolRequest
 		appName := request.GetString("name", "")
 		hardRefresh := request.GetBool("hard", false)
+		appNamespace := request.GetString("app_namespace", "")
 
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return refreshApplicationHandler(ctx, argoClient, appName, hardRefresh)
+		return refreshApplicationHandler(ctx, argoClient, appName, hardRefresh, appNamespace)
 	}
 }
 
@@ -46,6 +50,7 @@ func refreshApplicationHandler(
 	argoClient client.Interface,
 	appName string,
 	hardRefresh bool,
+	appNamespace string,
 ) (*mcp.CallToolResult, error) {
 	if appName == "" {
 		return mcp.NewToolResultError("Application name is required"), nil
@@ -57,7 +62,7 @@ func refreshApplicationHandler(
 		refreshType = "hard"
 	}
 
-	app, err := argoClient.RefreshApplication(ctx, appName, refreshType)
+	app, err := argoClient.RefreshApplication(ctx, appName, refreshType, appNamespace)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to refresh application: %v", err)), nil
 	}

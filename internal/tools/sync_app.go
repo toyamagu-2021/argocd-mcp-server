@@ -24,6 +24,9 @@ var SyncAppTool = mcp.NewTool("sync_application",
 	mcp.WithBoolean("dry_run",
 		mcp.Description("Preview the sync operation without making actual changes (default: false)."),
 	),
+	mcp.WithString("app_namespace",
+		mcp.Description("Namespace of the Application resource (its metadata.namespace). Only needed when Argo CD manages Applications outside its own namespace (apps-in-any-namespace). Defaults to the Argo CD namespace."),
+	),
 )
 
 // makeSyncApplication returns the handler for this tool bound to the shared client in d.
@@ -33,11 +36,12 @@ func makeSyncApplication(d Deps) server.ToolHandlerFunc {
 		appName := request.GetString("name", "")
 		prune := request.GetBool("prune", false)
 		dryRun := request.GetBool("dry_run", false)
+		appNamespace := request.GetString("app_namespace", "")
 
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return syncApplicationHandler(ctx, argoClient, appName, prune, dryRun)
+		return syncApplicationHandler(ctx, argoClient, appName, prune, dryRun, appNamespace)
 	}
 }
 
@@ -49,13 +53,14 @@ func syncApplicationHandler(
 	appName string,
 	prune bool,
 	dryRun bool,
+	appNamespace string,
 ) (*mcp.CallToolResult, error) {
 	if appName == "" {
 		return mcp.NewToolResultError("Application name is required"), nil
 	}
 
 	// Sync with empty revision to use latest
-	app, err := argoClient.SyncApplication(ctx, appName, "", prune, dryRun)
+	app, err := argoClient.SyncApplication(ctx, appName, "", prune, dryRun, appNamespace)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to sync application: %v", err)), nil
 	}

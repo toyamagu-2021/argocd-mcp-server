@@ -143,46 +143,46 @@ func (mr *MockInterfaceMockRecorder) CreateProject(ctx, project, upsert any) *go
 }
 
 // DeleteApplication mocks base method.
-func (m *MockInterface) DeleteApplication(ctx context.Context, name string, cascade bool) error {
+func (m *MockInterface) DeleteApplication(ctx context.Context, name string, cascade bool, appNamespace string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteApplication", ctx, name, cascade)
+	ret := m.ctrl.Call(m, "DeleteApplication", ctx, name, cascade, appNamespace)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteApplication indicates an expected call of DeleteApplication.
-func (mr *MockInterfaceMockRecorder) DeleteApplication(ctx, name, cascade any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) DeleteApplication(ctx, name, cascade, appNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplication", reflect.TypeOf((*MockInterface)(nil).DeleteApplication), ctx, name, cascade)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplication", reflect.TypeOf((*MockInterface)(nil).DeleteApplication), ctx, name, cascade, appNamespace)
 }
 
 // DeleteApplicationSet mocks base method.
-func (m *MockInterface) DeleteApplicationSet(ctx context.Context, name, appsetNamespace string) error {
+func (m *MockInterface) DeleteApplicationSet(ctx context.Context, name, appNamespace string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteApplicationSet", ctx, name, appsetNamespace)
+	ret := m.ctrl.Call(m, "DeleteApplicationSet", ctx, name, appNamespace)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteApplicationSet indicates an expected call of DeleteApplicationSet.
-func (mr *MockInterfaceMockRecorder) DeleteApplicationSet(ctx, name, appsetNamespace any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) DeleteApplicationSet(ctx, name, appNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplicationSet", reflect.TypeOf((*MockInterface)(nil).DeleteApplicationSet), ctx, name, appsetNamespace)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplicationSet", reflect.TypeOf((*MockInterface)(nil).DeleteApplicationSet), ctx, name, appNamespace)
 }
 
 // GetApplication mocks base method.
-func (m *MockInterface) GetApplication(ctx context.Context, name string) (*v1alpha1.Application, error) {
+func (m *MockInterface) GetApplication(ctx context.Context, name, appNamespace string) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetApplication", ctx, name)
+	ret := m.ctrl.Call(m, "GetApplication", ctx, name, appNamespace)
 	ret0, _ := ret[0].(*v1alpha1.Application)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetApplication indicates an expected call of GetApplication.
-func (mr *MockInterfaceMockRecorder) GetApplication(ctx, name any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) GetApplication(ctx, name, appNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplication", reflect.TypeOf((*MockInterface)(nil).GetApplication), ctx, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplication", reflect.TypeOf((*MockInterface)(nil).GetApplication), ctx, name, appNamespace)
 }
 
 // GetApplicationEvents mocks base method.
@@ -201,33 +201,33 @@ func (mr *MockInterfaceMockRecorder) GetApplicationEvents(ctx, name, resourceNam
 }
 
 // GetApplicationLogs mocks base method.
-func (m *MockInterface) GetApplicationLogs(ctx context.Context, name, podName, container, namespace, resourceName, kind, group string, tailLines int64, sinceSeconds *int64, follow, previous bool, filter, appNamespace, project string) (client.LogStream, error) {
+func (m *MockInterface) GetApplicationLogs(ctx context.Context, opts client.LogsOptions) (client.LogStream, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetApplicationLogs", ctx, name, podName, container, namespace, resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter, appNamespace, project)
+	ret := m.ctrl.Call(m, "GetApplicationLogs", ctx, opts)
 	ret0, _ := ret[0].(client.LogStream)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetApplicationLogs indicates an expected call of GetApplicationLogs.
-func (mr *MockInterfaceMockRecorder) GetApplicationLogs(ctx, name, podName, container, namespace, resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter, appNamespace, project any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) GetApplicationLogs(ctx, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationLogs", reflect.TypeOf((*MockInterface)(nil).GetApplicationLogs), ctx, name, podName, container, namespace, resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter, appNamespace, project)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationLogs", reflect.TypeOf((*MockInterface)(nil).GetApplicationLogs), ctx, opts)
 }
 
 // GetApplicationManifests mocks base method.
-func (m *MockInterface) GetApplicationManifests(ctx context.Context, name, revision string) (any, error) {
+func (m *MockInterface) GetApplicationManifests(ctx context.Context, name, revision, appNamespace string) (any, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetApplicationManifests", ctx, name, revision)
+	ret := m.ctrl.Call(m, "GetApplicationManifests", ctx, name, revision, appNamespace)
 	ret0, _ := ret[0].(any)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetApplicationManifests indicates an expected call of GetApplicationManifests.
-func (mr *MockInterfaceMockRecorder) GetApplicationManifests(ctx, name, revision any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) GetApplicationManifests(ctx, name, revision, appNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationManifests", reflect.TypeOf((*MockInterface)(nil).GetApplicationManifests), ctx, name, revision)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationManifests", reflect.TypeOf((*MockInterface)(nil).GetApplicationManifests), ctx, name, revision, appNamespace)
 }
 
 // GetApplicationResourceTree mocks base method.
@@ -336,18 +336,18 @@ func (mr *MockInterfaceMockRecorder) ListApplicationSets(ctx, project any) *gomo
 }
 
 // ListApplications mocks base method.
-func (m *MockInterface) ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error) {
+func (m *MockInterface) ListApplications(ctx context.Context, opts client.ListApplicationsOptions) (*v1alpha1.ApplicationList, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListApplications", ctx, selector)
+	ret := m.ctrl.Call(m, "ListApplications", ctx, opts)
 	ret0, _ := ret[0].(*v1alpha1.ApplicationList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListApplications indicates an expected call of ListApplications.
-func (mr *MockInterfaceMockRecorder) ListApplications(ctx, selector any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) ListApplications(ctx, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListApplications", reflect.TypeOf((*MockInterface)(nil).ListApplications), ctx, selector)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListApplications", reflect.TypeOf((*MockInterface)(nil).ListApplications), ctx, opts)
 }
 
 // ListClusters mocks base method.
@@ -396,33 +396,33 @@ func (mr *MockInterfaceMockRecorder) ListRepositories(ctx any) *gomock.Call {
 }
 
 // RefreshApplication mocks base method.
-func (m *MockInterface) RefreshApplication(ctx context.Context, name, refreshType string) (*v1alpha1.Application, error) {
+func (m *MockInterface) RefreshApplication(ctx context.Context, name, refreshType, appNamespace string) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RefreshApplication", ctx, name, refreshType)
+	ret := m.ctrl.Call(m, "RefreshApplication", ctx, name, refreshType, appNamespace)
 	ret0, _ := ret[0].(*v1alpha1.Application)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RefreshApplication indicates an expected call of RefreshApplication.
-func (mr *MockInterfaceMockRecorder) RefreshApplication(ctx, name, refreshType any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) RefreshApplication(ctx, name, refreshType, appNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshApplication", reflect.TypeOf((*MockInterface)(nil).RefreshApplication), ctx, name, refreshType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshApplication", reflect.TypeOf((*MockInterface)(nil).RefreshApplication), ctx, name, refreshType, appNamespace)
 }
 
 // SyncApplication mocks base method.
-func (m *MockInterface) SyncApplication(ctx context.Context, name, revision string, prune, dryRun bool) (*v1alpha1.Application, error) {
+func (m *MockInterface) SyncApplication(ctx context.Context, name, revision string, prune, dryRun bool, appNamespace string) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SyncApplication", ctx, name, revision, prune, dryRun)
+	ret := m.ctrl.Call(m, "SyncApplication", ctx, name, revision, prune, dryRun, appNamespace)
 	ret0, _ := ret[0].(*v1alpha1.Application)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SyncApplication indicates an expected call of SyncApplication.
-func (mr *MockInterfaceMockRecorder) SyncApplication(ctx, name, revision, prune, dryRun any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) SyncApplication(ctx, name, revision, prune, dryRun, appNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncApplication", reflect.TypeOf((*MockInterface)(nil).SyncApplication), ctx, name, revision, prune, dryRun)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncApplication", reflect.TypeOf((*MockInterface)(nil).SyncApplication), ctx, name, revision, prune, dryRun, appNamespace)
 }
 
 // TerminateOperation mocks base method.
