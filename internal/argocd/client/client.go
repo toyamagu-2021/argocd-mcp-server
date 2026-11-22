@@ -5,11 +5,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
+	"sync"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
@@ -24,31 +22,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// MaxGRPCMessageSize contains max grpc message size
-var MaxGRPCMessageSize = parseNumFromEnv("ARGOCD_GRPC_MAX_SIZE_MB", 200, 0, math.MaxInt32) * 1024 * 1024
-
-// parseNumFromEnv parses a number from environment variable with default and bounds
-func parseNumFromEnv(envVar string, defaultVal, min, max int) int {
-	envVal := os.Getenv(envVar)
-	if envVal == "" {
-		return defaultVal
-	}
-
-	val, err := strconv.Atoi(envVal)
-	if err != nil {
-		return defaultVal
-	}
-
-	if val < min {
-		return min
-	}
-	if val > max {
-		return max
-	}
-
-	return val
-}
-
 // Client provides a gRPC client for ArgoCD server operations
 type Client struct {
 	config     *Config
@@ -58,6 +31,9 @@ type Client struct {
 	// gRPC-Web proxy support
 	grpcWebProxy *grpcwebproxy.GRPCWebProxy
 	proxyCloser  io.Closer
+
+	closeOnce sync.Once
+	closeErr  error
 
 	// Service clients
 	appClient     applicationpkg.ApplicationServiceClient
@@ -150,8 +126,8 @@ func (c *Client) connect() error {
 
 	// Configure gRPC message size limits
 	opts = append(opts, grpc.WithDefaultCallOptions(
-		grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize),
-		grpc.MaxCallSendMsgSize(MaxGRPCMessageSize),
+		grpc.MaxCallRecvMsgSize(c.config.maxGRPCMessageSize()),
+		grpc.MaxCallSendMsgSize(c.config.maxGRPCMessageSize()),
 	))
 
 	// Establish connection
@@ -173,8 +149,14 @@ func (c *Client) connect() error {
 	return nil
 }
 
-// Close closes the gRPC connection and any associated resources
+// Close closes the gRPC connection and any associated resources.
+// It is safe to call more than once; only the first call does any work.
 func (c *Client) Close() error {
+	c.closeOnce.Do(func() { c.closeErr = c.close() })
+	return c.closeErr
+}
+
+func (c *Client) close() error {
 	var err error
 
 	// Close gRPC connection

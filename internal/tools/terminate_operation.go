@@ -3,9 +3,9 @@ package tools
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -24,35 +24,23 @@ var TerminateOperationTool = mcp.NewTool("terminate_operation",
 	),
 )
 
-// HandleTerminateOperation processes terminate_operation tool requests
-func HandleTerminateOperation(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract parameters
-	name := request.GetString("name", "")
-	if name == "" {
-		return mcp.NewToolResultError("name is required"), nil
+// makeTerminateOperation returns the handler for this tool bound to the shared client in d.
+func makeTerminateOperation(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract parameters
+		name := request.GetString("name", "")
+		if name == "" {
+			return mcp.NewToolResultError("name is required"), nil
+		}
+
+		appNamespace := request.GetString("app_namespace", "")
+		project := request.GetString("project", "")
+
+		argoClient := d.Client
+
+		// Use the handler function with the real client
+		return terminateOperationHandler(ctx, argoClient, name, appNamespace, project)
 	}
-
-	appNamespace := request.GetString("app_namespace", "")
-	project := request.GetString("project", "")
-
-	// Create gRPC client
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-	}
-
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return terminateOperationHandler(ctx, argoClient, name, appNamespace, project)
 }
 
 // terminateOperationHandler handles the core logic for the tool.

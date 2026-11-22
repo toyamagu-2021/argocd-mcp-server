@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -42,44 +42,32 @@ var ListAppsTool = mcp.NewTool("list_application",
 	),
 )
 
-// HandleListApplications processes list_application tool requests
-func HandleListApplications(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Safely extract optional parameters from mcp.CallToolRequest
-	project := request.GetString("project", "")
-	cluster := request.GetString("cluster", "")
-	namespace := request.GetString("namespace", "")
-	selector := request.GetString("selector", "")
-	detailed := request.GetBool("detailed", false)
-	nameOnly := request.GetBool("name_only", false)
-	outputFormat := request.GetString("output_format", "tsv")
-	optionalFieldsStr := request.GetString("optional_fields", "")
-	var optionalFields []string
-	if optionalFieldsStr != "" {
-		optionalFields = strings.Split(optionalFieldsStr, ",")
-		// Trim whitespace from each field
-		for i, field := range optionalFields {
-			optionalFields[i] = strings.TrimSpace(field)
+// makeListApplications returns the handler for this tool bound to the shared client in d.
+func makeListApplications(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Safely extract optional parameters from mcp.CallToolRequest
+		project := request.GetString("project", "")
+		cluster := request.GetString("cluster", "")
+		namespace := request.GetString("namespace", "")
+		selector := request.GetString("selector", "")
+		detailed := request.GetBool("detailed", false)
+		nameOnly := request.GetBool("name_only", false)
+		outputFormat := request.GetString("output_format", "tsv")
+		optionalFieldsStr := request.GetString("optional_fields", "")
+		var optionalFields []string
+		if optionalFieldsStr != "" {
+			optionalFields = strings.Split(optionalFieldsStr, ",")
+			// Trim whitespace from each field
+			for i, field := range optionalFields {
+				optionalFields[i] = strings.TrimSpace(field)
+			}
 		}
-	}
 
-	// Create gRPC client and list applications
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-	}
+		argoClient := d.Client
 
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
+		// Use the handler function with the real client
+		return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector, detailed, nameOnly, outputFormat, optionalFields)
 	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector, detailed, nameOnly, outputFormat, optionalFields)
 }
 
 // ApplicationSummary represents a simplified view of an application

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -21,28 +21,18 @@ var GetClusterTool = mcp.NewTool("get_cluster",
 )
 
 // HandleGetCluster handles MCP tool requests for retrieving cluster information
-func HandleGetCluster(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	server := request.GetString("server", "")
-	if server == "" {
-		return mcp.NewToolResultError("server is required"), nil
-	}
+// makeGetCluster returns the handler for this tool bound to the shared client in d.
+func makeGetCluster(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		server := request.GetString("server", "")
+		if server == "" {
+			return mcp.NewToolResultError("server is required"), nil
+		}
 
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-	}
+		argoClient := d.Client
 
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
+		return getClusterHandler(ctx, argoClient, server)
 	}
-	defer func() { _ = argoClient.Close() }()
-
-	return getClusterHandler(ctx, argoClient, server)
 }
 
 func getClusterHandler(

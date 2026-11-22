@@ -3,9 +3,9 @@ package tools
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -22,30 +22,18 @@ var DeleteAppTool = mcp.NewTool("delete_application",
 	),
 )
 
-// HandleDeleteApplication processes delete_application tool requests
-func HandleDeleteApplication(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract parameters from mcp.CallToolRequest
-	appName := request.GetString("name", "")
-	cascade := request.GetBool("cascade", true)
+// makeDeleteApplication returns the handler for this tool bound to the shared client in d.
+func makeDeleteApplication(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract parameters from mcp.CallToolRequest
+		appName := request.GetString("name", "")
+		cascade := request.GetBool("cascade", true)
 
-	// Create gRPC client
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
+		argoClient := d.Client
+
+		// Use the handler function with the real client
+		return deleteApplicationHandler(ctx, argoClient, appName, cascade)
 	}
-
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return deleteApplicationHandler(ctx, argoClient, appName, cascade)
 }
 
 // deleteApplicationHandler handles the core logic for deleting an application.

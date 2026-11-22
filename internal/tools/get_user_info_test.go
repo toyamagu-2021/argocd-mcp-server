@@ -14,60 +14,6 @@ import (
 )
 
 // Test the tool handler with environment variables
-func TestHandleGetUserInfo(t *testing.T) {
-	tests := []struct {
-		name          string
-		request       mcp.CallToolRequest
-		envVars       map[string]string
-		wantError     bool
-		errorContains string
-	}{
-		{
-			name: "missing environment variables",
-			request: mcp.CallToolRequest{
-				Params: mcp.CallToolParams{
-					Name:      "get_user_info",
-					Arguments: map[string]interface{}{},
-				},
-			},
-			envVars: map[string]string{
-				"ARGOCD_AUTH_TOKEN": "",
-				"ARGOCD_SERVER":     "",
-			},
-			wantError:     true,
-			errorContains: "server address is required",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variables
-			for k, v := range tt.envVars {
-				t.Setenv(k, v)
-			}
-
-			// Execute handler
-			result, err := HandleGetUserInfo(context.Background(), tt.request)
-
-			// Check expectations
-			if tt.wantError {
-				require.Nil(t, err)
-				require.NotNil(t, result)
-				assert.True(t, result.IsError)
-				if tt.errorContains != "" && len(result.Content) > 0 {
-					content, ok := mcp.AsTextContent(result.Content[0])
-					require.True(t, ok)
-					assert.Contains(t, content.Text, tt.errorContains)
-				}
-			} else {
-				require.Nil(t, err)
-				require.NotNil(t, result)
-				assert.False(t, result.IsError)
-			}
-		})
-	}
-}
-
 // Test the tool schema
 func TestGetUserInfoTool_Schema(t *testing.T) {
 	// Verify tool is properly defined
