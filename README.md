@@ -64,7 +64,7 @@ export ARGOCD_PLAINTEXT=false    # Use plaintext connection (default: false)
 export ARGOCD_GRPC_WEB=false     # Enable gRPC-Web proxy mode (default: false)
 export ARGOCD_GRPC_WEB_ROOT_PATH=""  # Custom root path for gRPC-Web requests (optional)
 export ARGOCD_GRPC_MAX_SIZE_MB=200   # Max gRPC message size in MiB (default: 200)
-export ARGOCD_MCP_READ_ONLY=false    # Register read-only tools only (default: false)
+export ARGOCD_MCP_READ_ONLY=false    # When true, state-changing tools are not registered (default: false)
 
 # Logging configuration
 export LOG_LEVEL=info     # Options: debug, info, warn, error
@@ -264,7 +264,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
     "name": "refresh_application",
     "arguments": {
       "name": "my-app",
-      "hard_refresh": false
+      "hard": false
     }
   }
 }
@@ -594,7 +594,7 @@ make lint-advanced
 ## Safety Considerations
 
 - **sync_application**: Use `dry_run: true` to preview changes before actual sync
-- **refresh_application**: Use `hard_refresh: false` for incremental refresh, `true` for full refresh
+- **refresh_application**: Use `hard: false` (default) for a normal refresh, `hard: true` to also invalidate the manifest cache
 - **delete_application**: `cascade` defaults to `false`, so only the Application is deleted and its resources stay in the cluster. Pass `cascade: true` to delete the resources as well. This intentionally differs from the Argo CD CLI default (`true`)
 - **delete_applicationset**: Deleting an ApplicationSet also deletes the Applications it generated; there is no cascade option. The namespace argument is `app_namespace` (the old `appsetNamespace` is still accepted during 0.3)
 - **create_project**: Use `upsert: true` to update existing projects instead of failing on conflict

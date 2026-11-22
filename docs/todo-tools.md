@@ -1,117 +1,69 @@
-# ArgoCD MCP Server - Tools Implementation Checklist
+# Argo CD MCP Server — Public Tools
 
-## ✅ Completed Tools
+The server exposes a fixed set of **23 public tools** (design D1, see
+[`design/refactor-0.3.md`](design/refactor-0.3.md)). The list is enforced by
+`publicTools` in `internal/tools/register_test.go`.
 
-### Applications
-- [x] list_application - Lists ArgoCD applications with filtering options
-- [x] get_application - Retrieves detailed application information  
-- [x] get_application_manifests - Gets rendered manifests for an application
-- [x] get_application_events - Gets Kubernetes events for resources
-- [x] get_application_resource_tree - Gets resource hierarchy
-- [x] create_application - Creates a new ArgoCD application
-- [x] sync_application - Triggers application sync with prune/dry-run options
-- [x] refresh_application - Refreshes application without syncing
-- [x] delete_application - Deletes applications with cascade control
-- [x] terminate_operation - Terminates running sync/refresh operations
+**Mutating** tools change Argo CD state and are not registered when
+`ARGOCD_MCP_READ_ONLY=true`.
 
-### Projects
-- [x] list_project - Lists all ArgoCD projects
-- [x] get_project - Retrieves detailed project information by name
-- [x] create_project - Creates new ArgoCD project with access controls
+## Applications
 
-### ApplicationSets
-- [x] list_applicationset - Lists ArgoCD ApplicationSets with filtering options
-- [x] get_applicationset - Retrieves detailed ApplicationSet information
-- [x] create_applicationset - Creates a new ApplicationSet with generators and template
+| Tool | Mutating | Notes |
+|---|---|---|
+| `list_application` | | `project`, `selector`, `app_namespace` filtered server-side; destination `cluster` / `namespace` filtered client-side |
+| `get_application` | | `app_namespace` |
+| `get_application_manifests` | | Secret data hidden by the Argo CD server |
+| `get_application_events` | | |
+| `get_application_logs` | | `follow=true` is rejected (stdio cannot stream) |
+| `get_application_resource_tree` | | |
+| `create_application` | ✔ | |
+| `sync_application` | ✔ | `prune`, `dry_run` |
+| `refresh_application` | | treated as read (D11, revised); `hard` |
+| `delete_application` | ✔ | `cascade` defaults to **false** (differs from the Argo CD CLI) |
+| `terminate_operation` | ✔ | |
 
-### Clusters
-- [x] list_cluster - Lists managed Kubernetes clusters
-- [x] get_cluster - Gets cluster details and connection info
+## ApplicationSets
 
-### Repositories
-- [x] list_repository - Lists configured Git repositories
-- [x] get_repository - Gets repository details and connection status
+| Tool | Mutating | Notes |
+|---|---|---|
+| `list_applicationset` | | |
+| `get_applicationset` | | |
+| `create_applicationset` | ✔ | `dry_run`, `upsert` |
+| `delete_applicationset` | ✔ | `app_namespace` (legacy `appsetNamespace` accepted in 0.3); generated Applications are deleted too |
 
-## 📋 TODO - Priority 1 (Core Functionality)
+## Projects
 
-### Applications (Extended)
-- [ ] update_application - Updates existing application configuration
-- [ ] patch_application - Partial updates to application spec
-- [ ] rollback_application - Rollbacks to previous sync state
-- [ ] get_application_logs - Gets logs for application resources
+| Tool | Mutating | Notes |
+|---|---|---|
+| `list_project` | | |
+| `get_project` | | |
+| `create_project` | ✔ | |
 
-### Projects (Complete)
-- [ ] update_project - Updates existing project
-- [ ] delete_project - Deletes a project
-- [ ] patch_project - Partial updates to project spec
+## Clusters
 
-### ApplicationSets (Extended)
-- [ ] update_applicationset - Updates existing ApplicationSet configuration
-- [ ] delete_applicationset - Deletes an ApplicationSet
+| Tool | Mutating | Notes |
+|---|---|---|
+| `list_cluster` | | credentials removed with upstream `Sanitized()` |
+| `get_cluster` | | credentials removed with upstream `Sanitized()` |
 
-## 📋 TODO - Priority 2 (Essential Management)
+## Repositories
 
-### Repositories (Extended)
-- [ ] create_repository - Adds new repository connection
-- [ ] update_repository - Updates repository configuration
-- [ ] delete_repository - Removes repository connection
-- [ ] validate_repository - Tests repository connection
+| Tool | Mutating | Notes |
+|---|---|---|
+| `list_repository` | | credentials removed with upstream `Sanitized()` |
+| `get_repository` | | credentials removed with upstream `Sanitized()` |
 
-### Clusters (Extended)
-- [ ] create_cluster - Registers new cluster
-- [ ] update_cluster - Updates cluster configuration
-- [ ] delete_cluster - Removes cluster registration
-- [ ] get_cluster_info - Gets server version and capabilities
+## Session
 
-## 📋 TODO - Priority 3 (Advanced Features)
+| Tool | Mutating | Notes |
+|---|---|---|
+| `get_user_info` | | |
 
-### Certificates
-- [ ] list_certificates - Lists TLS certificates
-- [ ] create_certificate - Adds new certificate
-- [ ] delete_certificate - Removes certificate
+## Not planned
 
-### Settings
-- [ ] get_settings - Gets ArgoCD server settings
-- [ ] update_settings - Updates server settings
-- [ ] get_resource_overrides - Gets resource behavior customizations
-
-### RBAC & Accounts
-- [ ] list_accounts - Lists user accounts
-- [ ] get_account - Gets account details
-- [ ] create_token - Generates authentication token
-- [ ] revoke_token - Revokes authentication token
-- [ ] get_rbac_policies - Lists RBAC policies
-- [ ] validate_rbac - Tests RBAC permissions
-
-### GPG Keys
-- [ ] list_gpg_keys - Lists configured GPG keys
-- [ ] create_gpg_key - Adds GPG key for commit verification
-- [ ] delete_gpg_key - Removes GPG key
-
-## 📋 TODO - Priority 4 (Monitoring & Observability)
-
-### Metrics & Health
-- [ ] get_metrics - Gets Prometheus metrics
-- [ ] get_health - Gets health status
-- [ ] get_version - Gets ArgoCD version info
-
-### Notifications
-- [ ] list_notifications - Lists notification configurations
-- [ ] test_notification - Tests notification delivery
-
-## Implementation Notes
-
-1. **Current Status**: Project tools (list_projects, get_project) are created but not yet integrated into tools.go
-2. **Testing**: Each tool should have comprehensive unit tests
-3. **Error Handling**: Use the custom error types from internal/errors/
-4. **Authentication**: All tools use the gRPC client with JWT token authentication
-5. **Safety**: Include dry-run options where applicable (sync, delete operations)
-6. **Response Format**: Follow MCP protocol for structured responses
-
-## Next Steps
-
-1. Implement remaining ApplicationSet CRUD operations (create, update, delete)
-2. Complete remaining project operations (update, delete, patch)
-3. Move to application extended operations (update, patch, refresh, rollback)
-4. Implement repository management tools
-5. Complete cluster management operations
+The pre-0.3 roadmap in this file (update/patch/rollback of applications, project /
+repository / cluster / certificate / GPG / settings / account management, and so on) is
+**archived**. Per design D1 and §7, 0.3 adds no new write tools and keeps the public set
+fixed. Access is controlled with Argo CD RBAC plus read-only mode, not a tool allowlist
+(D10). Changing this scope needs a design update first.

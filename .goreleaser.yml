@@ -70,22 +70,25 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
-      - '^ci:'
-      - '^refactor:'
-      - '^style:'
+      # with or without a scope, e.g. "test:" and "test(tools):"
+      - '^docs(\(.+\))?:'
+      - '^test(\(.+\))?:'
+      - '^chore(\(.+\))?:'
+      - '^ci(\(.+\))?:'
+      - '^refactor(\(.+\))?:'
+      - '^style(\(.+\))?:'
       - '^Merge pull request'
   groups:
+    # Conventional-commit breaking changes (e.g. "feat!:" or "feat(scope)!:").
+    # Must come before 'Features', which would otherwise match first.
+    - title: 'Breaking Changes'
+      regexp: '^\w+(\(.+\))?!:'
     - title: 'Features'
       regexp: '^feat'
     - title: 'Bug Fixes'
       regexp: '^fix'
     - title: 'Performance Improvements'
       regexp: '^perf'
-    - title: 'Breaking Changes'
-      regexp: '^BREAKING CHANGE'
     - title: 'Other changes'
 
 release:
@@ -95,6 +98,8 @@ release:
   prerelease: auto
   draft: false
   name_template: "{{.ProjectName}} v{{.Version}}"
+  header: |
+    See [CHANGELOG.md](https://github.com/toyamagu-2021/argocd-mcp-server/blob/{{ .Tag }}/CHANGELOG.md) for breaking changes and migration notes.
   footer: |
     ## Installation
     

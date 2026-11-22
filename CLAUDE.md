@@ -233,18 +233,16 @@ This is a Model Context Protocol (MCP) server that exposes ArgoCD operations as 
 
 ## MCP Tools Available
 
-### Application Management
-- `list_application`: Lists ArgoCD applications with filtering options (project, cluster, namespace, selector, detailed mode)
-- `get_application`: Retrieves detailed application information
-- `get_application_manifests`: Gets rendered Kubernetes manifests for an application
-- `get_application_events`: Gets Kubernetes events for resources belonging to an application
-- `create_application`: Creates a new ArgoCD application with source and destination configuration
-- `sync_application`: Triggers application sync with prune/dry-run options
-- `delete_application`: Deletes applications (`cascade` defaults to false)
+The server exposes a fixed set of 23 public tools (design D1). The full inventory, with
+which tools are mutating (removed by `ARGOCD_MCP_READ_ONLY=true`), is in
+`docs/todo-tools.md`, and the locked list is `publicTools` in
+`internal/tools/register_test.go`.
 
-### Project Management
-- `list_project`: Lists all ArgoCD projects
-- `get_project`: Retrieves detailed project information
-- `create_project`: Creates new ArgoCD project with access controls and deployment restrictions
+- Applications: `list_application`, `get_application`, `get_application_manifests`, `get_application_events`, `get_application_logs`, `get_application_resource_tree`, `create_application`, `sync_application`, `refresh_application`, `delete_application` (`cascade` defaults to false), `terminate_operation`
+- ApplicationSets: `list_applicationset`, `get_applicationset`, `create_applicationset`, `delete_applicationset`
+- Projects: `list_project`, `get_project`, `create_project`
+- Clusters: `list_cluster`, `get_cluster`
+- Repositories: `list_repository`, `get_repository`
+- Session: `get_user_info`
 
-Each tool accepts structured JSON arguments and returns formatted responses via the MCP protocol.
+To add or change a tool, follow `docs/TOOL_IMPLEMENTATION_GUIDE.md`.
