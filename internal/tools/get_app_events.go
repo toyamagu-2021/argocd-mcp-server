@@ -50,7 +50,14 @@ func makeGetApplicationEvents(d Deps) server.ToolHandlerFunc {
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return getApplicationEventsHandler(ctx, argoClient, appName, resourceNamespace, resourceName, resourceUID, appNamespace, project)
+		return getApplicationEventsHandler(ctx, argoClient, client.EventsOptions{
+			Name:              appName,
+			ResourceNamespace: resourceNamespace,
+			ResourceName:      resourceName,
+			ResourceUID:       resourceUID,
+			AppNamespace:      appNamespace,
+			Project:           project,
+		})
 	}
 }
 
@@ -59,18 +66,13 @@ func makeGetApplicationEvents(d Deps) server.ToolHandlerFunc {
 func getApplicationEventsHandler(
 	ctx context.Context,
 	argoClient client.Interface,
-	appName string,
-	resourceNamespace string,
-	resourceName string,
-	resourceUID string,
-	appNamespace string,
-	project string,
+	opts client.EventsOptions,
 ) (*mcp.CallToolResult, error) {
-	if appName == "" {
+	if opts.Name == "" {
 		return mcp.NewToolResultError("Application name is required"), nil
 	}
 
-	events, err := argoClient.GetApplicationEvents(ctx, appName, resourceNamespace, resourceName, resourceUID, appNamespace, project)
+	events, err := argoClient.GetApplicationEvents(ctx, opts)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get application events: %v", err)), nil
 	}
