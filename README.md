@@ -16,7 +16,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `create_application` - Create a new ArgoCD application with source and destination configuration
 - `sync_application` - Trigger a sync operation for an application with optional prune and dry-run modes
 - `refresh_application` - Refresh application state from the git repository
-- `delete_application` - Delete an ArgoCD application with optional cascade control
+- `delete_application` - Delete an ArgoCD application. **`cascade` defaults to `false`** (resources are kept) — unlike the Argo CD CLI
 - `terminate_operation` - Terminate the currently running operation (sync, refresh, etc.) on an application
 
 ### ApplicationSet Management
@@ -595,7 +595,7 @@ make lint-advanced
 
 - **sync_application**: Use `dry_run: true` to preview changes before actual sync
 - **refresh_application**: Use `hard_refresh: false` for incremental refresh, `true` for full refresh
-- **delete_application**: Use `cascade: false` to preserve cluster resources when deleting only the ArgoCD application
+- **delete_application**: `cascade` defaults to `false`, so only the Application is deleted and its resources stay in the cluster. Pass `cascade: true` to delete the resources as well. This intentionally differs from the Argo CD CLI default (`true`)
 - **delete_applicationset**: Deleting an ApplicationSet also deletes the Applications it generated; there is no cascade option. The namespace argument is `app_namespace` (the old `appsetNamespace` is still accepted during 0.3)
 - **create_project**: Use `upsert: true` to update existing projects instead of failing on conflict
 - Always verify application and project names before performing destructive operations
