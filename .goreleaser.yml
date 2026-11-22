@@ -47,6 +47,22 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 
+sboms:
+  - artifacts: archive
+
+# Cosign v3 (installed by sigstore/cosign-installer v4.1.3) rejects
+# --output-certificate/--output-signature: "must specify --bundle with
+# --new-bundle-format". The bundle file holds the signature and certificate.
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
