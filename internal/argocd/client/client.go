@@ -231,18 +231,6 @@ func (c *Client) CreateApplication(ctx context.Context, app *v1alpha1.Applicatio
 	return resp, nil
 }
 
-// UpdateApplication updates an existing ArgoCD application
-func (c *Client) UpdateApplication(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.Application, error) {
-	req := &applicationpkg.ApplicationUpdateRequest{
-		Application: app,
-	}
-	resp, err := c.appClient.Update(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update application: %w", err)
-	}
-	return resp, nil
-}
-
 // DeleteApplication deletes an ArgoCD application
 func (c *Client) DeleteApplication(ctx context.Context, name string, cascade bool) error {
 	req := &applicationpkg.ApplicationDeleteRequest{
@@ -349,19 +337,6 @@ func (c *Client) GetApplicationEvents(ctx context.Context, name string, resource
 	resp, err := c.appClient.ListResourceEvents(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get application events: %w", err)
-	}
-	return resp, nil
-}
-
-// RollbackApplication rolls back an ArgoCD application to a previous revision
-func (c *Client) RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error) {
-	req := &applicationpkg.ApplicationRollbackRequest{
-		Name: &name,
-		Id:   &id,
-	}
-	resp, err := c.appClient.Rollback(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to rollback application: %w", err)
 	}
 	return resp, nil
 }
@@ -515,43 +490,6 @@ func (c *Client) GetCluster(ctx context.Context, server string) (*v1alpha1.Clust
 	return resp, nil
 }
 
-// CreateCluster creates a new ArgoCD cluster
-func (c *Client) CreateCluster(ctx context.Context, cluster *v1alpha1.Cluster, upsert bool) (*v1alpha1.Cluster, error) {
-	req := &clusterpkg.ClusterCreateRequest{
-		Cluster: cluster,
-		Upsert:  upsert,
-	}
-	resp, err := c.clusterClient.Create(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster: %w", err)
-	}
-	return resp, nil
-}
-
-// UpdateCluster updates an existing ArgoCD cluster
-func (c *Client) UpdateCluster(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-	req := &clusterpkg.ClusterUpdateRequest{
-		Cluster: cluster,
-	}
-	resp, err := c.clusterClient.Update(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update cluster: %w", err)
-	}
-	return resp, nil
-}
-
-// DeleteCluster deletes an ArgoCD cluster by server address
-func (c *Client) DeleteCluster(ctx context.Context, server string) error {
-	req := &clusterpkg.ClusterQuery{
-		Server: server,
-	}
-	_, err := c.clusterClient.Delete(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to delete cluster: %w", err)
-	}
-	return nil
-}
-
 // Project operations
 
 // ListProjects retrieves all ArgoCD projects
@@ -589,30 +527,6 @@ func (c *Client) CreateProject(ctx context.Context, project *v1alpha1.AppProject
 	return resp, nil
 }
 
-// UpdateProject updates an existing ArgoCD project
-func (c *Client) UpdateProject(ctx context.Context, project *v1alpha1.AppProject) (*v1alpha1.AppProject, error) {
-	req := &projectpkg.ProjectUpdateRequest{
-		Project: project,
-	}
-	resp, err := c.projectClient.Update(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update project: %w", err)
-	}
-	return resp, nil
-}
-
-// DeleteProject deletes an ArgoCD project by name
-func (c *Client) DeleteProject(ctx context.Context, name string) error {
-	req := &projectpkg.ProjectQuery{
-		Name: name,
-	}
-	_, err := c.projectClient.Delete(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to delete project: %w", err)
-	}
-	return nil
-}
-
 // Repository operations
 
 // ListRepositories retrieves all ArgoCD repositories
@@ -635,43 +549,6 @@ func (c *Client) GetRepository(ctx context.Context, repo string) (*v1alpha1.Repo
 		return nil, fmt.Errorf("failed to get repository: %w", err)
 	}
 	return resp, nil
-}
-
-// CreateRepository creates a new ArgoCD repository
-func (c *Client) CreateRepository(ctx context.Context, repo *v1alpha1.Repository, upsert bool) (*v1alpha1.Repository, error) {
-	req := &repositorypkg.RepoCreateRequest{
-		Repo:   repo,
-		Upsert: upsert,
-	}
-	resp, err := c.repoClient.Create(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create repository: %w", err)
-	}
-	return resp, nil
-}
-
-// UpdateRepository updates an existing ArgoCD repository
-func (c *Client) UpdateRepository(ctx context.Context, repo *v1alpha1.Repository) (*v1alpha1.Repository, error) {
-	req := &repositorypkg.RepoUpdateRequest{
-		Repo: repo,
-	}
-	resp, err := c.repoClient.Update(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update repository: %w", err)
-	}
-	return resp, nil
-}
-
-// DeleteRepository deletes an ArgoCD repository by URL
-func (c *Client) DeleteRepository(ctx context.Context, repo string) error {
-	req := &repositorypkg.RepoQuery{
-		Repo: repo,
-	}
-	_, err := c.repoClient.Delete(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to delete repository: %w", err)
-	}
-	return nil
 }
 
 // ListApplicationSets lists all ArgoCD ApplicationSets, optionally filtered by project

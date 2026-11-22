@@ -21,10 +21,8 @@ type Interface interface {
 	GetApplication(ctx context.Context, name string) (*v1alpha1.Application, error)
 	ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error)
 	CreateApplication(ctx context.Context, app *v1alpha1.Application, upsert bool) (*v1alpha1.Application, error)
-	UpdateApplication(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.Application, error)
 	DeleteApplication(ctx context.Context, name string, cascade bool) error
 	SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool) (*v1alpha1.Application, error)
-	RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error)
 	RefreshApplication(ctx context.Context, name string, refreshType string) (*v1alpha1.Application, error)
 	GetApplicationManifests(ctx context.Context, name string, revision string) (interface{}, error)
 	GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error)
@@ -35,23 +33,15 @@ type Interface interface {
 	// Cluster operations
 	ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error)
 	GetCluster(ctx context.Context, server string) (*v1alpha1.Cluster, error)
-	CreateCluster(ctx context.Context, cluster *v1alpha1.Cluster, upsert bool) (*v1alpha1.Cluster, error)
-	UpdateCluster(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error)
-	DeleteCluster(ctx context.Context, server string) error
 
 	// Project operations
 	ListProjects(ctx context.Context) (*v1alpha1.AppProjectList, error)
 	GetProject(ctx context.Context, name string) (*v1alpha1.AppProject, error)
 	CreateProject(ctx context.Context, project *v1alpha1.AppProject, upsert bool) (*v1alpha1.AppProject, error)
-	UpdateProject(ctx context.Context, project *v1alpha1.AppProject) (*v1alpha1.AppProject, error)
-	DeleteProject(ctx context.Context, name string) error
 
 	// Repository operations
 	ListRepositories(ctx context.Context) (*v1alpha1.RepositoryList, error)
 	GetRepository(ctx context.Context, repo string) (*v1alpha1.Repository, error)
-	CreateRepository(ctx context.Context, repo *v1alpha1.Repository, upsert bool) (*v1alpha1.Repository, error)
-	UpdateRepository(ctx context.Context, repo *v1alpha1.Repository) (*v1alpha1.Repository, error)
-	DeleteRepository(ctx context.Context, repo string) error
 
 	// ApplicationSet operations
 	ListApplicationSets(ctx context.Context, project string) (*v1alpha1.ApplicationSetList, error)
