@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -417,7 +417,7 @@ func TestListApplicationsHandler_DetailedOutput(t *testing.T) {
 					Sync: v1alpha1.SyncStatus{
 						Status: v1alpha1.SyncStatusCodeSynced,
 					},
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status: "Healthy",
 					},
 				},
@@ -602,7 +602,7 @@ func TestListApplicationsHandler_TSVFormat(t *testing.T) {
 					Sync: v1alpha1.SyncStatus{
 						Status: v1alpha1.SyncStatusCodeSynced,
 					},
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status: "Healthy",
 					},
 				},
@@ -628,7 +628,7 @@ func TestListApplicationsHandler_TSVFormat(t *testing.T) {
 					Sync: v1alpha1.SyncStatus{
 						Status: v1alpha1.SyncStatusCodeOutOfSync,
 					},
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status: "Degraded",
 					},
 					OperationState: &v1alpha1.OperationState{
@@ -748,7 +748,7 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: "OutOfSync",
 						},
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: "Progressing",
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -814,7 +814,7 @@ func TestListApplicationsHandler_TSVFormat_EdgeCases(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: "",
 						},
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: "",
 						},
 					},
@@ -926,7 +926,7 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 					Sync: v1alpha1.SyncStatus{
 						Status: v1alpha1.SyncStatusCodeSynced,
 					},
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status: "Healthy",
 					},
 				},
@@ -952,7 +952,7 @@ func TestListApplicationsHandler_OptionalFields(t *testing.T) {
 					Sync: v1alpha1.SyncStatus{
 						Status: v1alpha1.SyncStatusCodeOutOfSync,
 					},
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status: "Degraded",
 					},
 					OperationState: &v1alpha1.OperationState{

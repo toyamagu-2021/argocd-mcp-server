@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,7 +163,7 @@ func TestGetProjectHandler(t *testing.T) {
 								Namespace: "*",
 							},
 						},
-						ClusterResourceWhitelist: []metav1.GroupKind{
+						ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 							{
 								Group: "*",
 								Kind:  "*",
@@ -188,7 +188,7 @@ func TestGetProjectHandler(t *testing.T) {
 							Namespace: "*",
 						},
 					},
-					ClusterResourceWhitelist: []metav1.GroupKind{
+					ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 						{
 							Group: "*",
 							Kind:  "*",

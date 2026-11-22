@@ -11,21 +11,23 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	repositoryPkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	repository "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	repositoryPkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	repository "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func boolPtr(v bool) *bool { return &v }
 
 type mockApplicationService struct {
 	application.UnimplementedApplicationServiceServer
@@ -62,7 +64,7 @@ func (s *mockApplicationService) List(ctx context.Context, req *application.Appl
 					},
 				},
 				Status: v1alpha1.ApplicationStatus{
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status:  "Healthy",
 						Message: "All resources are healthy",
 					},
@@ -90,7 +92,7 @@ func (s *mockApplicationService) List(ctx context.Context, req *application.Appl
 					},
 				},
 				Status: v1alpha1.ApplicationStatus{
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status:  "Progressing",
 						Message: "Deployment is progressing",
 					},
@@ -164,7 +166,7 @@ func (s *mockApplicationService) Get(ctx context.Context, req *application.Appli
 				},
 			},
 			Status: v1alpha1.ApplicationStatus{
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status:  "Unknown",
 					Message: "No resources",
 				},
@@ -193,13 +195,13 @@ func (s *mockApplicationService) Get(ctx context.Context, req *application.Appli
 				},
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune:    true,
-						SelfHeal: true,
+						Prune:    boolPtr(true),
+						SelfHeal: boolPtr(true),
 					},
 				},
 			},
 			Status: v1alpha1.ApplicationStatus{
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status:  "Healthy",
 					Message: "All resources are healthy",
 				},
@@ -239,7 +241,7 @@ func (s *mockApplicationService) Get(ctx context.Context, req *application.Appli
 				},
 			},
 			Status: v1alpha1.ApplicationStatus{
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status:  "Progressing",
 					Message: "Deployment is progressing",
 				},
@@ -328,7 +330,7 @@ func (s *mockApplicationService) Create(ctx context.Context, req *application.Ap
 		},
 		Spec: req.Application.Spec,
 		Status: v1alpha1.ApplicationStatus{
-			Health: v1alpha1.HealthStatus{
+			Health: v1alpha1.AppHealthStatus{
 				Status:  "Healthy",
 				Message: "Application created successfully",
 			},
@@ -430,7 +432,7 @@ spec:
 	}
 }
 
-func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *application.ApplicationResourceEventsQuery) (*v1.EventList, error) {
+func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *application.ApplicationResourceEventsQuery) (*eventspkg.EventList, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "missing metadata")
@@ -442,15 +444,15 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 	}
 
 	// Return mock events for any application
-	events := &v1.EventList{
-		Items: []v1.Event{
+	events := &eventspkg.EventList{
+		Items: []eventspkg.Event{
 			{
-				ObjectMeta: metav1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name:              "test-event-1",
 					Namespace:         "default",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-10 * time.Minute)},
 				},
-				InvolvedObject: v1.ObjectReference{
+				InvolvedObject: eventspkg.ObjectReference{
 					Kind:      "Pod",
 					Name:      "test-pod-1",
 					Namespace: "default",
@@ -458,7 +460,7 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 				Type:    "Normal",
 				Reason:  "Scheduled",
 				Message: "Successfully assigned default/test-pod-1 to node-1",
-				Source: v1.EventSource{
+				Source: eventspkg.EventSource{
 					Component: "default-scheduler",
 				},
 				FirstTimestamp: metav1.Time{Time: time.Now().Add(-10 * time.Minute)},
@@ -466,12 +468,12 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 				Count:          1,
 			},
 			{
-				ObjectMeta: metav1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name:              "test-event-2",
 					Namespace:         "default",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-5 * time.Minute)},
 				},
-				InvolvedObject: v1.ObjectReference{
+				InvolvedObject: eventspkg.ObjectReference{
 					Kind:      "Pod",
 					Name:      "test-pod-1",
 					Namespace: "default",
@@ -479,7 +481,7 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 				Type:    "Normal",
 				Reason:  "Pulled",
 				Message: "Container image \"nginx:latest\" already present on machine",
-				Source: v1.EventSource{
+				Source: eventspkg.EventSource{
 					Component: "kubelet",
 					Host:      "node-1",
 				},
@@ -488,12 +490,12 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 				Count:          1,
 			},
 			{
-				ObjectMeta: metav1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name:              "test-event-3",
 					Namespace:         "default",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-4 * time.Minute)},
 				},
-				InvolvedObject: v1.ObjectReference{
+				InvolvedObject: eventspkg.ObjectReference{
 					Kind:      "Pod",
 					Name:      "test-pod-1",
 					Namespace: "default",
@@ -501,7 +503,7 @@ func (s *mockApplicationService) ListResourceEvents(ctx context.Context, req *ap
 				Type:    "Normal",
 				Reason:  "Created",
 				Message: "Created container test",
-				Source: v1.EventSource{
+				Source: eventspkg.EventSource{
 					Component: "kubelet",
 					Host:      "node-1",
 				},
@@ -726,7 +728,7 @@ func (s *mockProjectService) List(ctx context.Context, req *project.ProjectQuery
 							Namespace: "*",
 						},
 					},
-					ClusterResourceWhitelist: []metav1.GroupKind{
+					ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 						{
 							Group: "*",
 							Kind:  "*",
@@ -751,7 +753,7 @@ func (s *mockProjectService) List(ctx context.Context, req *project.ProjectQuery
 							Namespace: "prod-*",
 						},
 					},
-					ClusterResourceWhitelist: []metav1.GroupKind{
+					ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 						{
 							Group: "apps",
 							Kind:  "Deployment",
@@ -828,7 +830,7 @@ func (s *mockProjectService) Get(ctx context.Context, req *project.ProjectQuery)
 						Namespace: "*",
 					},
 				},
-				ClusterResourceWhitelist: []metav1.GroupKind{
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 					{
 						Group: "*",
 						Kind:  "*",
@@ -854,7 +856,7 @@ func (s *mockProjectService) Get(ctx context.Context, req *project.ProjectQuery)
 						Namespace: "prod-*",
 					},
 				},
-				ClusterResourceWhitelist: []metav1.GroupKind{
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 					{
 						Group: "apps",
 						Kind:  "Deployment",

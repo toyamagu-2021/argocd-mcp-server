@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -98,7 +98,7 @@ func HandleCreateProject(ctx context.Context, request mcp.CallToolRequest) (*mcp
 
 	// Parse cluster resource whitelist
 	if clusterWhitelistStr != "" {
-		project.Spec.ClusterResourceWhitelist = parseGroupKinds(clusterWhitelistStr)
+		project.Spec.ClusterResourceWhitelist = parseClusterResourceRestrictions(clusterWhitelistStr)
 	}
 
 	// Parse namespace resource whitelist
@@ -167,6 +167,20 @@ func parseCommaSeparated(input string) []string {
 		}
 	}
 	return result
+}
+
+// parseClusterResourceRestrictions parses a comma-separated list of group:kind strings
+// into cluster resource whitelist entries.
+func parseClusterResourceRestrictions(input string) []v1alpha1.ClusterResourceRestrictionItem {
+	kinds := parseGroupKinds(input)
+	items := make([]v1alpha1.ClusterResourceRestrictionItem, 0, len(kinds))
+	for _, kind := range kinds {
+		items = append(items, v1alpha1.ClusterResourceRestrictionItem{
+			Group: kind.Group,
+			Kind:  kind.Kind,
+		})
+	}
+	return items
 }
 
 // parseGroupKinds parses a comma-separated list of group:kind strings

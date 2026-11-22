@@ -18,7 +18,7 @@ BINARY_PATH=./cmd/argocd-mcp-server
 
 # E2E Test Variables
 CLUSTER_NAME := argocd-mcp-server
-ARGOCD_VERSION := v2.14.14
+ARGOCD_VERSION := v3.6.2
 ARGOCD_NAMESPACE := argocd
 KUBECTL := kubectl
 KIND := kind
@@ -172,7 +172,9 @@ install-argocd: check-context
 	@echo "Creating ArgoCD namespace"
 	@$(KUBECTL) create namespace $(ARGOCD_NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
 	@echo "Installing ArgoCD $(ARGOCD_VERSION)"
-	@$(KUBECTL) apply -n $(ARGOCD_NAMESPACE) -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGOCD_VERSION)/manifests/install.yaml
+	# Server-side apply: the v3 ApplicationSet CRD is too large for the
+	# client-side last-applied-configuration annotation (262144 bytes).
+	@$(KUBECTL) apply --server-side --force-conflicts -n $(ARGOCD_NAMESPACE) -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGOCD_VERSION)/manifests/install.yaml
 	@echo "Waiting for ArgoCD to be ready..."
 	@$(KUBECTL) wait --for=condition=available --timeout=300s deployment/argocd-server -n $(ARGOCD_NAMESPACE)
 	@$(KUBECTL) wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n $(ARGOCD_NAMESPACE)
