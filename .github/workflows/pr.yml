@@ -6,12 +6,22 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
@@ -41,7 +51,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
@@ -73,9 +90,12 @@ jobs:
       - name: Install ArgoCD CLI
         run: |
           VERSION=${TAG} # Select desired TAG from https://github.com/argoproj/argo-cd/releases
-          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
+          base="https://github.com/argoproj/argo-cd/releases/download/${VERSION}"
+          curl -fsSL -o argocd-linux-amd64 "${base}/argocd-linux-amd64"
+          curl -fsSL -o cli_checksums.txt "${base}/cli_checksums.txt"
+          grep ' argocd-linux-amd64$' cli_checksums.txt | sha256sum -c -
           sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-          rm argocd-linux-amd64
+          rm argocd-linux-amd64 cli_checksums.txt
         env:
           TAG: v3.6.2
 
