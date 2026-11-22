@@ -69,7 +69,10 @@ func run(log *logrus.Logger) error {
 	defer func() { _ = argo.Close() }()
 
 	s := server.New(version)
-	tools.Register(s, tools.Deps{Client: argo})
+	tools.Register(s, tools.Deps{Client: argo, ReadOnly: cfg.ReadOnly})
+	if cfg.ReadOnly {
+		log.Info("Read-only mode: state-changing tools are not registered")
+	}
 	log.Info("All tools registered successfully")
 
 	// Start server via stdio

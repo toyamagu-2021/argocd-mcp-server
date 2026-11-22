@@ -122,3 +122,57 @@ func TestRegister_ArgumentWiring(t *testing.T) {
 		})
 	}
 }
+
+// Tools removed by ARGOCD_MCP_READ_ONLY=true (design §2).
+var mutatingTools = []string{
+	"create_application",
+	"sync_application",
+	"refresh_application",
+	"delete_application",
+	"terminate_operation",
+	"create_project",
+	"create_applicationset",
+	"delete_applicationset",
+}
+
+func TestRegister_ReadOnly(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	s := newTestServer(t, Deps{Client: mock.NewMockInterface(ctrl), ReadOnly: true})
+
+	got := s.ListTools()
+	assert.Len(t, got, len(publicTools)-len(mutatingTools))
+	for _, name := range mutatingTools {
+		assert.NotContains(t, got, name)
+	}
+	for name, st := range got {
+		require.NotNil(t, st.Tool.Annotations.ReadOnlyHint, name)
+		assert.True(t, *st.Tool.Annotations.ReadOnlyHint, "%s is registered in read-only mode but not marked readOnly", name)
+	}
+}
+
+func TestToolHints(t *testing.T) {
+	mutating := map[string]bool{}
+	for _, n := range mutatingTools {
+		mutating[n] = true
+	}
+	for _, e := range entries() {
+		a := e.tool.Annotations
+		name := e.tool.Name
+		assert.Equal(t, mutating[name], e.mutating, "%s: mutating flag", name)
+		require.NotNil(t, a.ReadOnlyHint, name)
+		require.NotNil(t, a.DestructiveHint, name)
+		if e.mutating {
+			assert.False(t, *a.ReadOnlyHint, "%s must not be readOnly", name)
+		} else {
+			assert.True(t, *a.ReadOnlyHint, "%s must be readOnly", name)
+			assert.False(t, *a.DestructiveHint, "%s must not be destructive", name)
+		}
+	}
+
+	// D11: refresh is a non-destructive, idempotent write.
+	r := RefreshAppTool.Annotations
+	assert.False(t, *r.ReadOnlyHint)
+	assert.False(t, *r.DestructiveHint)
+	require.NotNil(t, r.IdempotentHint)
+	assert.True(t, *r.IdempotentHint)
+}

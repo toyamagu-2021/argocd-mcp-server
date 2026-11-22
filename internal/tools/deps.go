@@ -10,4 +10,6 @@ import (
 // shutdown). Handlers must not close it.
 type Deps struct {
 	Client client.Interface
+	// ReadOnly disables registration of every tool that changes Argo CD state.
+	ReadOnly bool
 }

@@ -13,6 +13,7 @@ import (
 // GetClusterTool provides MCP tool for retrieving cluster details from ArgoCD
 var GetClusterTool = mcp.NewTool("get_cluster",
 	mcp.WithDescription("Retrieves detailed information about a specific ArgoCD cluster"),
+	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("server",
 		mcp.Required(),
