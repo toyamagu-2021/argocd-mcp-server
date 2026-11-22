@@ -128,7 +128,6 @@ func TestRegister_ArgumentWiring(t *testing.T) {
 var mutatingTools = []string{
 	"create_application",
 	"sync_application",
-	"refresh_application",
 	"delete_application",
 	"terminate_operation",
 	"create_project",
@@ -170,9 +169,9 @@ func TestToolHints(t *testing.T) {
 		}
 	}
 
-	// D11: refresh is a non-destructive, idempotent write.
+	// D11 (revised): refresh is a Get with refresh=normal|hard; treated as read.
 	r := RefreshAppTool.Annotations
-	assert.False(t, *r.ReadOnlyHint)
+	assert.True(t, *r.ReadOnlyHint)
 	assert.False(t, *r.DestructiveHint)
 	require.NotNil(t, r.IdempotentHint)
 	assert.True(t, *r.IdempotentHint)

@@ -24,7 +24,7 @@ func entries() []toolEntry {
 		{GetApplicationResourceTreeTool, makeGetApplicationResourceTree, false},
 		{CreateAppTool, makeCreateApplication, true},
 		{SyncAppTool, makeSyncApplication, true},
-		{RefreshAppTool, makeRefreshApplication, true},
+		{RefreshAppTool, makeRefreshApplication, false},
 		{DeleteAppTool, makeDeleteApplication, true},
 		{TerminateOperationTool, makeTerminateOperation, true},
 		{ListProjectsTool, makeListProjects, false},

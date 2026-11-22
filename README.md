@@ -86,14 +86,15 @@ namespace. Both can be combined.
 ### Read-only Mode
 
 With `ARGOCD_MCP_READ_ONLY=true` the server does not register any tool that changes Argo CD state:
-`create_application`, `sync_application`, `refresh_application`, `delete_application`,
-`terminate_operation`, `create_project`, `create_applicationset`, `delete_applicationset`.
+`create_application`, `sync_application`, `delete_application`, `terminate_operation`,
+`create_project`, `create_applicationset`, `delete_applicationset`.
 
 Read-only mode is a convenience on top of Argo CD RBAC, not a replacement for it: issue the
 server a token whose account can only do what you want the LLM to do.
 
-All read tools carry the MCP `readOnlyHint` annotation. `refresh_application` is marked
-non-destructive and idempotent.
+All read tools carry the MCP `readOnlyHint` annotation. `refresh_application` counts as a
+read tool and stays available in read-only mode: it is an application Get with a refresh
+request, which makes Argo CD re-reconcile the Application but never changes cluster resources.
 
 ## Usage
 
