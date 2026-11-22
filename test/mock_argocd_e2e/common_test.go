@@ -35,12 +35,16 @@ func (s *testServer) stop() {
 		}()
 
 		select {
-		case <-done:
-			// Process exited gracefully
+		case err := <-done:
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "test server shutdown: %v\n", err)
+			}
 		case <-time.After(3 * time.Second):
 			// Force kill the entire process group if graceful shutdown takes too long
 			_ = syscall.Kill(-pgid, syscall.SIGKILL)
-			<-done
+			if err := <-done; err != nil {
+				fmt.Fprintf(os.Stderr, "test server forced shutdown: %v\n", err)
+			}
 		}
 	}
 
