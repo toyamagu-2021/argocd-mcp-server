@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Test the tool handler with environment variables
 // Test the tool schema
 func TestCreateProjectTool_Schema(t *testing.T) {
 	// Verify tool is properly defined
@@ -287,4 +286,58 @@ func TestParseGroupKinds(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestParseClusterResourceRestrictions(t *testing.T) {
+	got := parseClusterResourceRestrictions(" rbac.authorization.k8s.io:ClusterRole , Namespace,,apps:Deployment ")
+	assert.Equal(t, []v1alpha1.ClusterResourceRestrictionItem{
+		{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+		{Group: "", Kind: "Namespace"},
+		{Group: "apps", Kind: "Deployment"},
+	}, got)
+	assert.Empty(t, parseClusterResourceRestrictions(""))
+}
+
+func TestCreateProject_Defaults(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().CreateProject(gomock.Any(), gomock.Any(), false).
+		DoAndReturn(func(_ interface{}, p *v1alpha1.AppProject, _ bool) (*v1alpha1.AppProject, error) {
+			assert.Equal(t, "proj", p.Name)
+			assert.Equal(t, []string{"*"}, p.Spec.SourceRepos)
+			assert.Equal(t, []v1alpha1.ApplicationDestination{{Server: "https://kubernetes.default.svc", Namespace: "*"}}, p.Spec.Destinations)
+			assert.Empty(t, p.Spec.ClusterResourceWhitelist)
+			assert.Empty(t, p.Spec.NamespaceResourceWhitelist)
+			assert.Empty(t, p.Spec.NamespaceResourceBlacklist)
+			return p, nil
+		})
+	res := callTool(t, newTestServer(t, Deps{Client: m}), "create_project", map[string]interface{}{"name": "proj"})
+	assert.False(t, res.IsError)
+}
+
+func TestCreateProject_AllArguments(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().CreateProject(gomock.Any(), gomock.Any(), true).
+		DoAndReturn(func(_ interface{}, p *v1alpha1.AppProject, _ bool) (*v1alpha1.AppProject, error) {
+			assert.Equal(t, "team project", p.Spec.Description)
+			assert.Equal(t, []string{"https://github.com/a/x", "https://github.com/a/y"}, p.Spec.SourceRepos)
+			assert.Equal(t, []v1alpha1.ApplicationDestination{{Server: "https://other.example", Namespace: "team-*"}}, p.Spec.Destinations)
+			assert.Equal(t, []v1alpha1.ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}}, p.Spec.ClusterResourceWhitelist)
+			assert.Equal(t, []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}}, p.Spec.NamespaceResourceWhitelist)
+			assert.Equal(t, []metav1.GroupKind{{Group: "", Kind: "Secret"}}, p.Spec.NamespaceResourceBlacklist)
+			return p, nil
+		})
+	res := callTool(t, newTestServer(t, Deps{Client: m}), "create_project", map[string]interface{}{
+		"name":                         "proj",
+		"description":                  "team project",
+		"source_repos":                 "https://github.com/a/x, https://github.com/a/y",
+		"destination_server":           "https://other.example",
+		"destination_namespace":        "team-*",
+		"cluster_resource_whitelist":   "Namespace",
+		"namespace_resource_whitelist": "apps:Deployment",
+		"namespace_resource_blacklist": "Secret",
+		"upsert":                       true,
+	})
+	assert.False(t, res.IsError)
 }

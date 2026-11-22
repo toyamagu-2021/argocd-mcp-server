@@ -15,7 +15,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// Test the tool handler with environment variables
 // Test the tool schema
 func TestGetApplicationLogsToolDefinition_Schema(t *testing.T) {
 	// Verify tool is properly defined
