@@ -174,8 +174,7 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 		// Check for gRPC status in headers even for non-200 responses
 		if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" {
 			grpcMessage := resp.Header.Get("Grpc-Message")
-			code, _ := strconv.Atoi(grpcStatus)
-			return status.Error(codes.Code(code), grpcMessage)
+			return status.Error(parseGRPCStatus(grpcStatus), grpcMessage)
 		}
 		body, _ := io.ReadAll(resp.Body)
 
@@ -195,8 +194,7 @@ func (p *GRPCWebProxy) handleStream(stream grpc.ServerStream) error {
 	// Check for gRPC status in headers (for immediate errors)
 	if grpcStatus := resp.Header.Get("Grpc-Status"); grpcStatus != "" && grpcStatus != "0" {
 		grpcMessage := resp.Header.Get("Grpc-Message")
-		code, _ := strconv.Atoi(grpcStatus)
-		return status.Error(codes.Code(code), grpcMessage)
+		return status.Error(parseGRPCStatus(grpcStatus), grpcMessage)
 	}
 
 	// Read and parse response frames
@@ -286,6 +284,17 @@ func (c *proxyCloser) Close() error {
 	return nil
 }
 
+// parseGRPCStatus parses a grpc-status header or trailer value.
+// "0" is codes.OK. Empty, negative, non-numeric, and values above
+// MaxUint32 are codes.Unknown.
+func parseGRPCStatus(s string) codes.Code {
+	n, err := strconv.ParseUint(strings.TrimSpace(s), 10, 32)
+	if err != nil {
+		return codes.Unknown
+	}
+	return codes.Code(n)
+}
+
 // parseGRPCTrailer parses the gRPC status from a trailer frame
 func parseGRPCTrailer(trailer []byte) error {
 	// Trailers are in HTTP/2 header format
@@ -293,22 +302,21 @@ func parseGRPCTrailer(trailer []byte) error {
 	trailerStr := string(trailer)
 	lines := strings.Split(trailerStr, "\r\n")
 
-	var grpcStatus int
+	var code codes.Code
 	var grpcMessage string
 
 	for _, line := range lines {
 		if strings.HasPrefix(line, "grpc-status:") {
-			statusStr := strings.TrimPrefix(line, "grpc-status:")
-			statusStr = strings.TrimSpace(statusStr)
-			grpcStatus, _ = strconv.Atoi(statusStr)
+			code = parseGRPCStatus(strings.TrimPrefix(line, "grpc-status:"))
 		} else if strings.HasPrefix(line, "grpc-message:") {
 			grpcMessage = strings.TrimPrefix(line, "grpc-message:")
 			grpcMessage = strings.TrimSpace(grpcMessage)
 		}
 	}
 
-	if grpcStatus != 0 {
-		return status.Error(codes.Code(grpcStatus), grpcMessage)
+	// A missing grpc-status and "0" are both codes.OK.
+	if code != codes.OK {
+		return status.Error(code, grpcMessage)
 	}
 
 	return nil
