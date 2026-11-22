@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
@@ -48,87 +48,75 @@ var CreateProjectTool = mcp.NewTool("create_project",
 	),
 )
 
-// HandleCreateProject processes create_project tool requests
-func HandleCreateProject(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract required parameter
-	name := request.GetString("name", "")
-	if name == "" {
-		return mcp.NewToolResultError("Project name is required"), nil
-	}
+// makeCreateProject returns the handler for this tool bound to the shared client in d.
+func makeCreateProject(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract required parameter
+		name := request.GetString("name", "")
+		if name == "" {
+			return mcp.NewToolResultError("Project name is required"), nil
+		}
 
-	// Extract optional parameters
-	description := request.GetString("description", "")
-	sourceReposStr := request.GetString("source_repos", "*")
-	destServer := request.GetString("destination_server", "https://kubernetes.default.svc")
-	destNamespace := request.GetString("destination_namespace", "*")
-	clusterWhitelistStr := request.GetString("cluster_resource_whitelist", "")
-	namespaceWhitelistStr := request.GetString("namespace_resource_whitelist", "")
-	namespaceBlacklistStr := request.GetString("namespace_resource_blacklist", "")
-	upsert := request.GetBool("upsert", false)
+		// Extract optional parameters
+		description := request.GetString("description", "")
+		sourceReposStr := request.GetString("source_repos", "*")
+		destServer := request.GetString("destination_server", "https://kubernetes.default.svc")
+		destNamespace := request.GetString("destination_namespace", "*")
+		clusterWhitelistStr := request.GetString("cluster_resource_whitelist", "")
+		namespaceWhitelistStr := request.GetString("namespace_resource_whitelist", "")
+		namespaceBlacklistStr := request.GetString("namespace_resource_blacklist", "")
+		upsert := request.GetBool("upsert", false)
 
-	// Build the project spec
-	project := &v1alpha1.AppProject{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "AppProject",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: v1alpha1.AppProjectSpec{
-			Description: description,
-		},
-	}
+		// Build the project spec
+		project := &v1alpha1.AppProject{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "AppProject",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Description: description,
+			},
+		}
 
-	// Parse source repositories
-	if sourceReposStr != "" {
-		project.Spec.SourceRepos = parseCommaSeparated(sourceReposStr)
-	}
-	if len(project.Spec.SourceRepos) == 0 {
-		project.Spec.SourceRepos = []string{"*"}
-	}
+		// Parse source repositories
+		if sourceReposStr != "" {
+			project.Spec.SourceRepos = parseCommaSeparated(sourceReposStr)
+		}
+		if len(project.Spec.SourceRepos) == 0 {
+			project.Spec.SourceRepos = []string{"*"}
+		}
 
-	// Set destination
-	project.Spec.Destinations = []v1alpha1.ApplicationDestination{
-		{
-			Server:    destServer,
-			Namespace: destNamespace,
-		},
-	}
+		// Set destination
+		project.Spec.Destinations = []v1alpha1.ApplicationDestination{
+			{
+				Server:    destServer,
+				Namespace: destNamespace,
+			},
+		}
 
-	// Parse cluster resource whitelist
-	if clusterWhitelistStr != "" {
-		project.Spec.ClusterResourceWhitelist = parseClusterResourceRestrictions(clusterWhitelistStr)
-	}
+		// Parse cluster resource whitelist
+		if clusterWhitelistStr != "" {
+			project.Spec.ClusterResourceWhitelist = parseClusterResourceRestrictions(clusterWhitelistStr)
+		}
 
-	// Parse namespace resource whitelist
-	if namespaceWhitelistStr != "" {
-		project.Spec.NamespaceResourceWhitelist = parseGroupKinds(namespaceWhitelistStr)
-	}
+		// Parse namespace resource whitelist
+		if namespaceWhitelistStr != "" {
+			project.Spec.NamespaceResourceWhitelist = parseGroupKinds(namespaceWhitelistStr)
+		}
 
-	// Parse namespace resource blacklist
-	if namespaceBlacklistStr != "" {
-		project.Spec.NamespaceResourceBlacklist = parseGroupKinds(namespaceBlacklistStr)
-	}
+		// Parse namespace resource blacklist
+		if namespaceBlacklistStr != "" {
+			project.Spec.NamespaceResourceBlacklist = parseGroupKinds(namespaceBlacklistStr)
+		}
 
-	// Create gRPC client
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-	}
+		argoClient := d.Client
 
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
+		// Use the handler function with the real client
+		return createProjectHandler(ctx, argoClient, project, upsert)
 	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return createProjectHandler(ctx, argoClient, project, upsert)
 }
 
 // createProjectHandler handles the core logic for creating a project.

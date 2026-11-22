@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -63,58 +63,46 @@ var GetApplicationLogsToolDefinition = mcp.NewTool("get_application_logs",
 	),
 )
 
-// HandleGetApplicationLogs processes get_application_logs tool requests
-func HandleGetApplicationLogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract required parameters
-	name := request.GetString("name", "")
-	if name == "" {
-		return mcp.NewToolResultError("name is required"), nil
+// makeGetApplicationLogs returns the handler for this tool bound to the shared client in d.
+func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract required parameters
+		name := request.GetString("name", "")
+		if name == "" {
+			return mcp.NewToolResultError("name is required"), nil
+		}
+
+		// Extract optional parameters
+		podName := request.GetString("pod_name", "")
+		container := request.GetString("container", "")
+		namespace := request.GetString("namespace", "")
+		resourceName := request.GetString("resource_name", "")
+		kind := request.GetString("kind", "")
+		group := request.GetString("group", "")
+		filter := request.GetString("filter", "")
+		appNamespace := request.GetString("app_namespace", "")
+		project := request.GetString("project", "")
+
+		// Extract numeric parameters with defaults
+		tailLines := int64(request.GetInt("tail_lines", 100))
+
+		var sinceSeconds *int64
+		if ss := request.GetInt("since_seconds", 0); ss > 0 {
+			sinceSecondsVal := int64(ss)
+			sinceSeconds = &sinceSecondsVal
+		}
+
+		// Extract boolean parameters
+		follow := request.GetBool("follow", false)
+		previous := request.GetBool("previous", false)
+
+		argoClient := d.Client
+
+		// Use the handler function with the real client
+		return getApplicationLogsHandler(ctx, argoClient, name, podName, container, namespace,
+			resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter,
+			appNamespace, project)
 	}
-
-	// Extract optional parameters
-	podName := request.GetString("pod_name", "")
-	container := request.GetString("container", "")
-	namespace := request.GetString("namespace", "")
-	resourceName := request.GetString("resource_name", "")
-	kind := request.GetString("kind", "")
-	group := request.GetString("group", "")
-	filter := request.GetString("filter", "")
-	appNamespace := request.GetString("app_namespace", "")
-	project := request.GetString("project", "")
-
-	// Extract numeric parameters with defaults
-	tailLines := int64(request.GetInt("tail_lines", 100))
-
-	var sinceSeconds *int64
-	if ss := request.GetInt("since_seconds", 0); ss > 0 {
-		sinceSecondsVal := int64(ss)
-		sinceSeconds = &sinceSecondsVal
-	}
-
-	// Extract boolean parameters
-	follow := request.GetBool("follow", false)
-	previous := request.GetBool("previous", false)
-
-	// Create gRPC client
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-	}
-
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return getApplicationLogsHandler(ctx, argoClient, name, podName, container, namespace,
-		resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter,
-		appNamespace, project)
 }
 
 // getApplicationLogsHandler handles the core logic for retrieving application logs.

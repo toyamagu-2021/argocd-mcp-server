@@ -5,10 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -23,31 +20,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
-
-// MaxGRPCMessageSize contains max grpc message size
-var MaxGRPCMessageSize = parseNumFromEnv("ARGOCD_GRPC_MAX_SIZE_MB", 200, 0, math.MaxInt32) * 1024 * 1024
-
-// parseNumFromEnv parses a number from environment variable with default and bounds
-func parseNumFromEnv(envVar string, defaultVal, min, max int) int {
-	envVal := os.Getenv(envVar)
-	if envVal == "" {
-		return defaultVal
-	}
-
-	val, err := strconv.Atoi(envVal)
-	if err != nil {
-		return defaultVal
-	}
-
-	if val < min {
-		return min
-	}
-	if val > max {
-		return max
-	}
-
-	return val
-}
 
 // Client provides a gRPC client for ArgoCD server operations
 type Client struct {
@@ -150,8 +122,8 @@ func (c *Client) connect() error {
 
 	// Configure gRPC message size limits
 	opts = append(opts, grpc.WithDefaultCallOptions(
-		grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize),
-		grpc.MaxCallSendMsgSize(MaxGRPCMessageSize),
+		grpc.MaxCallRecvMsgSize(c.config.maxGRPCMessageSize()),
+		grpc.MaxCallSendMsgSize(c.config.maxGRPCMessageSize()),
 	))
 
 	// Establish connection

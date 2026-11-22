@@ -4,11 +4,14 @@ import (
 	mcp_server "github.com/mark3labs/mcp-go/server"
 )
 
-// New creates and returns a new MCP server instance
-func New() *mcp_server.MCPServer {
+// Name is the MCP server name advertised to clients.
+const Name = "argocd-mcp-server"
+
+// New creates and returns a new MCP server instance advertising the given version.
+func New(version string) *mcp_server.MCPServer {
 	s := mcp_server.NewMCPServer(
-		"argocd-mcp-server",
-		"1.0.0",
+		Name,
+		version,
 		// Add recovery middleware to protect server from panics in handlers
 		mcp_server.WithRecovery(),
 	)

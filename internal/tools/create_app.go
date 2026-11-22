@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -54,41 +54,29 @@ var CreateAppTool = mcp.NewTool("create_application",
 	),
 )
 
-// HandleCreateApplication processes create_application tool requests
-func HandleCreateApplication(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract parameters
-	params := CreateAppParams{
-		Name:           request.GetString("name", ""),
-		Namespace:      request.GetString("namespace", "argocd"),
-		Project:        request.GetString("project", "default"),
-		RepoURL:        request.GetString("repo_url", ""),
-		Path:           request.GetString("path", "."),
-		TargetRevision: request.GetString("target_revision", "HEAD"),
-		DestServer:     request.GetString("dest_server", "https://kubernetes.default.svc"),
-		DestNamespace:  request.GetString("dest_namespace", ""),
-		Upsert:         request.GetBool("upsert", false),
-		AutoSync:       request.GetBool("auto_sync", false),
-		SelfHeal:       request.GetBool("self_heal", false),
-	}
+// makeCreateApplication returns the handler for this tool bound to the shared client in d.
+func makeCreateApplication(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract parameters
+		params := CreateAppParams{
+			Name:           request.GetString("name", ""),
+			Namespace:      request.GetString("namespace", "argocd"),
+			Project:        request.GetString("project", "default"),
+			RepoURL:        request.GetString("repo_url", ""),
+			Path:           request.GetString("path", "."),
+			TargetRevision: request.GetString("target_revision", "HEAD"),
+			DestServer:     request.GetString("dest_server", "https://kubernetes.default.svc"),
+			DestNamespace:  request.GetString("dest_namespace", ""),
+			Upsert:         request.GetBool("upsert", false),
+			AutoSync:       request.GetBool("auto_sync", false),
+			SelfHeal:       request.GetBool("self_heal", false),
+		}
 
-	// Create gRPC client
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-	}
+		argoClient := d.Client
 
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
+		// Use the handler function with the real client
+		return createApplicationHandler(ctx, argoClient, params)
 	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return createApplicationHandler(ctx, argoClient, params)
 }
 
 // CreateAppParams contains parameters for creating an application

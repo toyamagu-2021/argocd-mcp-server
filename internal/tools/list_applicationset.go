@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -24,27 +24,16 @@ var ListApplicationSetTool = mcp.NewTool("list_applicationset",
 	),
 )
 
-// HandleListApplicationSets processes list_applicationset tool requests
-func HandleListApplicationSets(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	project := request.GetString("project", "")
-	selector := request.GetString("selector", "")
+// makeListApplicationSets returns the handler for this tool bound to the shared client in d.
+func makeListApplicationSets(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		project := request.GetString("project", "")
+		selector := request.GetString("selector", "")
 
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
+		argoClient := d.Client
+
+		return listApplicationSetsHandler(ctx, argoClient, project, selector)
 	}
-
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-	}
-	defer func() { _ = argoClient.Close() }()
-
-	return listApplicationSetsHandler(ctx, argoClient, project, selector)
 }
 
 // listApplicationSetsHandler handles the core logic for listing ApplicationSets.

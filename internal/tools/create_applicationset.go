@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -51,48 +51,37 @@ var CreateApplicationSetTool = mcp.NewTool("create_applicationset",
 	),
 )
 
-// HandleCreateApplicationSet processes the creation of an ApplicationSet in ArgoCD
-func HandleCreateApplicationSet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name := request.GetString("name", "")
-	if name == "" {
-		return mcp.NewToolResultError("name is required"), nil
+// makeCreateApplicationSet returns the handler for this tool bound to the shared client in d.
+func makeCreateApplicationSet(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		name := request.GetString("name", "")
+		if name == "" {
+			return mcp.NewToolResultError("name is required"), nil
+		}
+
+		namespace := request.GetString("namespace", "argocd")
+		project := request.GetString("project", "default")
+
+		generatorsStr := request.GetString("generators", "")
+		if generatorsStr == "" {
+			return mcp.NewToolResultError("generators is required"), nil
+		}
+
+		templateStr := request.GetString("template", "")
+		if templateStr == "" {
+			return mcp.NewToolResultError("template is required"), nil
+		}
+
+		syncPolicyStr := request.GetString("sync_policy", "")
+		strategyStr := request.GetString("strategy", "")
+		goTemplate := request.GetBool("go_template", false)
+		upsert := request.GetBool("upsert", false)
+		dryRun := request.GetBool("dry_run", false)
+
+		argoClient := d.Client
+
+		return createApplicationSetHandler(ctx, argoClient, name, namespace, project, generatorsStr, templateStr, syncPolicyStr, strategyStr, goTemplate, upsert, dryRun)
 	}
-
-	namespace := request.GetString("namespace", "argocd")
-	project := request.GetString("project", "default")
-
-	generatorsStr := request.GetString("generators", "")
-	if generatorsStr == "" {
-		return mcp.NewToolResultError("generators is required"), nil
-	}
-
-	templateStr := request.GetString("template", "")
-	if templateStr == "" {
-		return mcp.NewToolResultError("template is required"), nil
-	}
-
-	syncPolicyStr := request.GetString("sync_policy", "")
-	strategyStr := request.GetString("strategy", "")
-	goTemplate := request.GetBool("go_template", false)
-	upsert := request.GetBool("upsert", false)
-	dryRun := request.GetBool("dry_run", false)
-
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-	}
-
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-	}
-	defer func() { _ = argoClient.Close() }()
-
-	return createApplicationSetHandler(ctx, argoClient, name, namespace, project, generatorsStr, templateStr, syncPolicyStr, strategyStr, goTemplate, upsert, dryRun)
 }
 
 func createApplicationSetHandler(

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -19,29 +19,17 @@ var ListProjectsTool = mcp.NewTool("list_project",
 	),
 )
 
-// HandleListProjects processes list_project tool requests
-func HandleListProjects(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Safely extract optional parameters from mcp.CallToolRequest
-	nameOnly := request.GetBool("name_only", false)
+// makeListProjects returns the handler for this tool bound to the shared client in d.
+func makeListProjects(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Safely extract optional parameters from mcp.CallToolRequest
+		nameOnly := request.GetBool("name_only", false)
 
-	// Create gRPC client and list projects
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
+		argoClient := d.Client
+
+		// Use the handler function with the real client
+		return listProjectsHandler(ctx, argoClient, nameOnly)
 	}
-
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return listProjectsHandler(ctx, argoClient, nameOnly)
 }
 
 // ProjectNameList represents a list of project names

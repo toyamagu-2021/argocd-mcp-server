@@ -20,6 +20,19 @@ type Config struct {
 	Headers           []string
 	UserAgent         string
 	Timeout           time.Duration
+	// MaxGRPCMessageSize is the max gRPC send/receive message size in bytes.
+	// Zero means DefaultMaxGRPCMessageSize.
+	MaxGRPCMessageSize int
+}
+
+// DefaultMaxGRPCMessageSize is used when Config.MaxGRPCMessageSize is zero (200 MiB).
+const DefaultMaxGRPCMessageSize = 200 * 1024 * 1024
+
+func (c *Config) maxGRPCMessageSize() int {
+	if c.MaxGRPCMessageSize > 0 {
+		return c.MaxGRPCMessageSize
+	}
+	return DefaultMaxGRPCMessageSize
 }
 
 // NewHTTPClient creates a new HTTP client with TLS configuration for gRPC-Web proxy

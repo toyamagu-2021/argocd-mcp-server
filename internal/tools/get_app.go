@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
@@ -20,29 +20,17 @@ var GetAppTool = mcp.NewTool("get_application",
 	),
 )
 
-// HandleGetApplication processes get_application tool requests
-func HandleGetApplication(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract required parameter from mcp.CallToolRequest
-	appName := request.GetString("name", "")
+// makeGetApplication returns the handler for this tool bound to the shared client in d.
+func makeGetApplication(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract required parameter from mcp.CallToolRequest
+		appName := request.GetString("name", "")
 
-	// Create gRPC client
-	config := &client.Config{
-		ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-		AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-		Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-		PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-		GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-		GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
+		argoClient := d.Client
+
+		// Use the handler function with the real client
+		return getApplicationHandler(ctx, argoClient, appName)
 	}
-
-	argoClient, err := client.New(config)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-	}
-	defer func() { _ = argoClient.Close() }()
-
-	// Use the handler function with the real client
-	return getApplicationHandler(ctx, argoClient, appName)
 }
 
 // getApplicationHandler handles the core logic for getting an application.
