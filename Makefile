@@ -46,15 +46,15 @@ tidy:
 	$(GOMOD) tidy
 
 # Linter versions. CI runs the Go version from go.mod with GOTOOLCHAIN=local,
-# so each pin has to build with that toolchain. These releases build on Go 1.24.
-STATICCHECK_VERSION ?= v0.6.1
+# so each pin has to build with that toolchain. These releases build on Go 1.27.
+STATICCHECK_VERSION ?= v0.8.2
 GOLINT_VERSION ?= v0.0.0-20241112194109-818c5a804067
 INEFFASSIGN_VERSION ?= v0.2.0
 MISSPELL_VERSION ?= v0.3.4
-ERRCHECK_VERSION ?= v1.10.0
-GOSEC_VERSION ?= v2.23.0
-REVIVE_VERSION ?= v1.14.0
-GOIMPORTS_VERSION ?= v0.42.0
+ERRCHECK_VERSION ?= v1.30.0
+GOSEC_VERSION ?= v2.30.0
+REVIVE_VERSION ?= v1.17.1
+GOIMPORTS_VERSION ?= v0.53.0
 
 # Linting
 .PHONY: fmt
