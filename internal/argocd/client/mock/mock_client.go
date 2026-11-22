@@ -127,21 +127,6 @@ func (mr *MockInterfaceMockRecorder) CreateApplicationSet(ctx, appSet, upsert, d
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateApplicationSet", reflect.TypeOf((*MockInterface)(nil).CreateApplicationSet), ctx, appSet, upsert, dryRun)
 }
 
-// CreateCluster mocks base method.
-func (m *MockInterface) CreateCluster(ctx context.Context, cluster *v1alpha1.Cluster, upsert bool) (*v1alpha1.Cluster, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateCluster", ctx, cluster, upsert)
-	ret0, _ := ret[0].(*v1alpha1.Cluster)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateCluster indicates an expected call of CreateCluster.
-func (mr *MockInterfaceMockRecorder) CreateCluster(ctx, cluster, upsert any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateCluster", reflect.TypeOf((*MockInterface)(nil).CreateCluster), ctx, cluster, upsert)
-}
-
 // CreateProject mocks base method.
 func (m *MockInterface) CreateProject(ctx context.Context, project *v1alpha1.AppProject, upsert bool) (*v1alpha1.AppProject, error) {
 	m.ctrl.T.Helper()
@@ -155,21 +140,6 @@ func (m *MockInterface) CreateProject(ctx context.Context, project *v1alpha1.App
 func (mr *MockInterfaceMockRecorder) CreateProject(ctx, project, upsert any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateProject", reflect.TypeOf((*MockInterface)(nil).CreateProject), ctx, project, upsert)
-}
-
-// CreateRepository mocks base method.
-func (m *MockInterface) CreateRepository(ctx context.Context, repo *v1alpha1.Repository, upsert bool) (*v1alpha1.Repository, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateRepository", ctx, repo, upsert)
-	ret0, _ := ret[0].(*v1alpha1.Repository)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateRepository indicates an expected call of CreateRepository.
-func (mr *MockInterfaceMockRecorder) CreateRepository(ctx, repo, upsert any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRepository", reflect.TypeOf((*MockInterface)(nil).CreateRepository), ctx, repo, upsert)
 }
 
 // DeleteApplication mocks base method.
@@ -198,48 +168,6 @@ func (m *MockInterface) DeleteApplicationSet(ctx context.Context, name, appsetNa
 func (mr *MockInterfaceMockRecorder) DeleteApplicationSet(ctx, name, appsetNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplicationSet", reflect.TypeOf((*MockInterface)(nil).DeleteApplicationSet), ctx, name, appsetNamespace)
-}
-
-// DeleteCluster mocks base method.
-func (m *MockInterface) DeleteCluster(ctx context.Context, server string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteCluster", ctx, server)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteCluster indicates an expected call of DeleteCluster.
-func (mr *MockInterfaceMockRecorder) DeleteCluster(ctx, server any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCluster", reflect.TypeOf((*MockInterface)(nil).DeleteCluster), ctx, server)
-}
-
-// DeleteProject mocks base method.
-func (m *MockInterface) DeleteProject(ctx context.Context, name string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteProject", ctx, name)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteProject indicates an expected call of DeleteProject.
-func (mr *MockInterfaceMockRecorder) DeleteProject(ctx, name any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProject", reflect.TypeOf((*MockInterface)(nil).DeleteProject), ctx, name)
-}
-
-// DeleteRepository mocks base method.
-func (m *MockInterface) DeleteRepository(ctx context.Context, repo string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteRepository", ctx, repo)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteRepository indicates an expected call of DeleteRepository.
-func (mr *MockInterfaceMockRecorder) DeleteRepository(ctx, repo any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRepository", reflect.TypeOf((*MockInterface)(nil).DeleteRepository), ctx, repo)
 }
 
 // GetApplication mocks base method.
@@ -482,21 +410,6 @@ func (mr *MockInterfaceMockRecorder) RefreshApplication(ctx, name, refreshType a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshApplication", reflect.TypeOf((*MockInterface)(nil).RefreshApplication), ctx, name, refreshType)
 }
 
-// RollbackApplication mocks base method.
-func (m *MockInterface) RollbackApplication(ctx context.Context, name string, id int64) (*v1alpha1.Application, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackApplication", ctx, name, id)
-	ret0, _ := ret[0].(*v1alpha1.Application)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RollbackApplication indicates an expected call of RollbackApplication.
-func (mr *MockInterfaceMockRecorder) RollbackApplication(ctx, name, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackApplication", reflect.TypeOf((*MockInterface)(nil).RollbackApplication), ctx, name, id)
-}
-
 // SyncApplication mocks base method.
 func (m *MockInterface) SyncApplication(ctx context.Context, name, revision string, prune, dryRun bool) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()
@@ -524,64 +437,4 @@ func (m *MockInterface) TerminateOperation(ctx context.Context, name, appNamespa
 func (mr *MockInterfaceMockRecorder) TerminateOperation(ctx, name, appNamespace, project any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TerminateOperation", reflect.TypeOf((*MockInterface)(nil).TerminateOperation), ctx, name, appNamespace, project)
-}
-
-// UpdateApplication mocks base method.
-func (m *MockInterface) UpdateApplication(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.Application, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateApplication", ctx, app)
-	ret0, _ := ret[0].(*v1alpha1.Application)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// UpdateApplication indicates an expected call of UpdateApplication.
-func (mr *MockInterfaceMockRecorder) UpdateApplication(ctx, app any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateApplication", reflect.TypeOf((*MockInterface)(nil).UpdateApplication), ctx, app)
-}
-
-// UpdateCluster mocks base method.
-func (m *MockInterface) UpdateCluster(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateCluster", ctx, cluster)
-	ret0, _ := ret[0].(*v1alpha1.Cluster)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// UpdateCluster indicates an expected call of UpdateCluster.
-func (mr *MockInterfaceMockRecorder) UpdateCluster(ctx, cluster any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCluster", reflect.TypeOf((*MockInterface)(nil).UpdateCluster), ctx, cluster)
-}
-
-// UpdateProject mocks base method.
-func (m *MockInterface) UpdateProject(ctx context.Context, project *v1alpha1.AppProject) (*v1alpha1.AppProject, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateProject", ctx, project)
-	ret0, _ := ret[0].(*v1alpha1.AppProject)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// UpdateProject indicates an expected call of UpdateProject.
-func (mr *MockInterfaceMockRecorder) UpdateProject(ctx, project any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProject", reflect.TypeOf((*MockInterface)(nil).UpdateProject), ctx, project)
-}
-
-// UpdateRepository mocks base method.
-func (m *MockInterface) UpdateRepository(ctx context.Context, repo *v1alpha1.Repository) (*v1alpha1.Repository, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateRepository", ctx, repo)
-	ret0, _ := ret[0].(*v1alpha1.Repository)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// UpdateRepository indicates an expected call of UpdateRepository.
-func (mr *MockInterfaceMockRecorder) UpdateRepository(ctx, repo any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRepository", reflect.TypeOf((*MockInterface)(nil).UpdateRepository), ctx, repo)
 }
