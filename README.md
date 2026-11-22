@@ -40,7 +40,8 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 
 ## Prerequisites
 
-- Go 1.21+
+- Go 1.27+ (to build from source)
+- Argo CD **3.6.x** (the only supported version)
 - Access to an ArgoCD server with API token
 
 ## Installation
@@ -506,15 +507,13 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 ## Architecture
 
-- `internal/argocd/client/` - ArgoCD gRPC client implementation
-- `internal/argocd/` - ArgoCD data models and types
-- `internal/api/` - Legacy REST API client (deprecated)
-- `internal/server/` - MCP server core logic  
-- `internal/tools/` - MCP tool definitions and handlers
-- `internal/logging/` - Structured logging configuration
-- `internal/errors/` - Custom error types and handling
+- `cmd/argocd-mcp-server/` - Main entry point; wiring only (config → one client → tools)
+- `internal/config/` - Loads and validates configuration from environment variables
+- `internal/argocd/client/` - ArgoCD gRPC client (one per process), its `Interface` and response sanitizing
 - `internal/grpcwebproxy/` - gRPC-Web proxy for environments without direct gRPC access
-- `cmd/argocd-mcp-server/` - Main entry point
+- `internal/server/` - MCP server construction
+- `internal/tools/` - MCP tool definitions and handlers (`Register(s, Deps)`)
+- `internal/logging/` - Structured logging configuration
 
 ## Implementation Details
 

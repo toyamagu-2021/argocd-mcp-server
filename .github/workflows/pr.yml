@@ -87,5 +87,13 @@ jobs:
           source .env
           ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test-cover
 
+      # Design D5: exercise the gRPC-Web transport end to end at least once.
+      - name: Run gRPC-Web E2E tests
+        run: |
+          source .env
+          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} \
+            ARGOCD_MCP_E2E_GRPC_WEB=1 \
+            go test -count=1 -v -timeout 20m -run 'TestRealArgoCD_Suite/gRPC-Web/IndependentTests' ./test/argocd_e2e
+
       - name: Build binary
         run: make build

@@ -255,3 +255,21 @@ func TestDeleteApplication_CascadeDefaultsToFalse(t *testing.T) {
 	assert.Contains(t, DeleteAppTool.Description, "cascade: true")
 	assert.Contains(t, DeleteAppTool.Description, "Argo CD CLI")
 }
+
+// D18: follow=true must fail fast instead of hanging the stdio call.
+func TestGetApplicationLogs_FollowRejected(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl) // no GetApplicationLogs expectation: must not be called
+	res := callTool(t, newTestServer(t, Deps{Client: m}), "get_application_logs", map[string]interface{}{
+		"name": "app1", "follow": true,
+	})
+	require.True(t, res.IsError)
+	text, ok := mcp.AsTextContent(res.Content[0])
+	require.True(t, ok)
+	assert.Contains(t, text.Text, "follow=true is not supported")
+
+	res2, err := getApplicationLogsHandler(context.Background(), m, client.LogsOptions{Name: "app1", Follow: true})
+	require.NoError(t, err)
+	assert.True(t, res2.IsError)
+	assert.Contains(t, GetApplicationLogsToolDefinition.Description, "follow=true")
+}

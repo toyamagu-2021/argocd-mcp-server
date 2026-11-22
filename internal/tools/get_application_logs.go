@@ -14,7 +14,7 @@ import (
 
 // GetApplicationLogsToolDefinition defines the schema for the get_application_logs tool
 var GetApplicationLogsToolDefinition = mcp.NewTool("get_application_logs",
-	mcp.WithDescription("Retrieves logs from pods in an ArgoCD application. Returns log entries from the specified pod or container."),
+	mcp.WithDescription("Retrieves logs from pods in an ArgoCD application. Returns log entries from the specified pod or container. Streaming (follow=true) is not supported over stdio and is rejected; use tail_lines / since_seconds instead."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	// Required parameters
@@ -48,7 +48,7 @@ var GetApplicationLogsToolDefinition = mcp.NewTool("get_application_logs",
 		mcp.Description("Optional. Only return logs newer than this many seconds"),
 	),
 	mcp.WithBoolean("follow",
-		mcp.Description("Optional. Whether to follow the log stream. Default is false"),
+		mcp.Description("Not supported: must be false or omitted. follow=true would never return over the stdio transport and is rejected with an error."),
 	),
 	mcp.WithBoolean("previous",
 		mcp.Description("Optional. Return logs from the previous terminated container. Default is false"),
@@ -95,6 +95,9 @@ func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
 
 		// Extract boolean parameters
 		follow := request.GetBool("follow", false)
+		if follow {
+			return mcp.NewToolResultError(errFollowUnsupported), nil
+		}
 		previous := request.GetBool("previous", false)
 
 		argoClient := d.Client
@@ -119,6 +122,10 @@ func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
 	}
 }
 
+// errFollowUnsupported is returned for follow=true (design D18): a never-ending
+// log stream would block the stdio tool call forever.
+const errFollowUnsupported = "follow=true is not supported: streaming logs cannot be returned over the stdio MCP transport. Omit follow (or set it to false) and use tail_lines / since_seconds instead."
+
 // getApplicationLogsHandler handles the core logic for retrieving application logs.
 // This is separated out to enable testing with mocked clients.
 func getApplicationLogsHandler(
@@ -127,6 +134,9 @@ func getApplicationLogsHandler(
 	opts client.LogsOptions,
 ) (*mcp.CallToolResult, error) {
 	name, podName, container := opts.Name, opts.PodName, opts.Container
+	if opts.Follow {
+		return mcp.NewToolResultError(errFollowUnsupported), nil
+	}
 
 	logs, err := argoClient.GetApplicationLogs(ctx, opts)
 	if err != nil {
