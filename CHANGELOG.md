@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. The GitHub Release for each tag
 links to the matching section.
 
-## v0.3.0 (unreleased)
+## v0.3.0 (2026-11-23)
 
 The 0.3 zero-based refactor ([design](docs/design/refactor-0.3.md)). Supported Argo CD
 version: **3.6.x only**.
