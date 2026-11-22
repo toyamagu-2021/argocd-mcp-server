@@ -6,12 +6,16 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    # Publishing the release and keyless signing need write tokens.
+    # Keep them on this job so the workflow token stays read-only.
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
