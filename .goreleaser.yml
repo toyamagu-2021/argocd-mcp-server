@@ -47,6 +47,21 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--yes"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+    artifacts: checksum
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
