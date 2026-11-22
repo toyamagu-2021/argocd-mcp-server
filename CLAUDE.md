@@ -47,11 +47,10 @@ make test-coverprofile
 make test-coverage-pretty
 
 # Run specific package tests
-go test ./internal/api/
 go test ./internal/argocd/
 go test ./internal/argocd/client/
 go test ./internal/tools/
-go test ./internal/errors/
+go test ./internal/config/
 go test ./internal/grpcwebproxy/
 go test ./internal/server/
 ```
@@ -139,7 +138,7 @@ make check-tools
 # Create Kind cluster for testing (cluster name: argocd-mcp-server)
 make kind-create
 
-# Install ArgoCD v2.14.14 in the cluster
+# Install Argo CD v3.6.2 in the cluster
 make install-argocd
 
 # Complete E2E setup (cluster + ArgoCD + .env generation)
@@ -186,12 +185,13 @@ This is a Model Context Protocol (MCP) server that exposes ArgoCD operations as 
 
 **Tools Layer** (`internal/tools/`)
 - Defines MCP tool schemas and handlers for ArgoCD operations
-- Each tool (list, get, sync, delete) has its own file with handler and tests
-- `tools.go` registers all tools with the server
+- Each tool has its own file: schema, `makeX(d Deps)` closure, and a testable `xHandler(ctx, client, ...)`
+- `register.go` registers all tools with `Register(s, Deps{Client, ReadOnly})`; state-changing tools are skipped when `ARGOCD_MCP_READ_ONLY=true`
+- Handlers use the process-wide client from `Deps` and never read env, dial or close it
 
 **gRPC Client Layer** (`internal/argocd/client/`)
 - Direct gRPC client for ArgoCD server communication
-- Uses ArgoCD v2.14 protocol buffer definitions
+- Uses Argo CD v3.6 protocol buffer definitions (Argo CD 3.6.x is the only supported version)
 - Handles JWT authentication via gRPC credentials
 - Provides type-safe request/response handling
 - Supports both secure and insecure connections
@@ -204,18 +204,9 @@ This is a Model Context Protocol (MCP) server that exposes ArgoCD operations as 
 - Handles streaming responses and proper resource cleanup
 - Automatically enabled when ARGOCD_GRPC_WEB=true
 
-**Legacy API Client Layer** (`internal/api/`)
-- REST API client (deprecated, to be removed)
-- Previously used for ArgoCD server communication
-- Contains applications.go, client.go and tests
-
-**Type Definitions** (`internal/argocd/`)
-- Contains ArgoCD data models and types
-- Defines Application, ApplicationList, and related structures
-
-**Error Handling** (`internal/errors/`)
-- Custom error types for better error reporting
-- Structured error handling across the application
+**Configuration** (`internal/config/`)
+- `config.Load()` is the only place that reads connection env vars
+- `ToClientConfig()` converts to `client.Config`
 
 **Logging** (`internal/logging/`)
 - Structured logging using logrus
@@ -249,7 +240,7 @@ This is a Model Context Protocol (MCP) server that exposes ArgoCD operations as 
 - `get_application_events`: Gets Kubernetes events for resources belonging to an application
 - `create_application`: Creates a new ArgoCD application with source and destination configuration
 - `sync_application`: Triggers application sync with prune/dry-run options
-- `delete_application`: Deletes applications with cascade control
+- `delete_application`: Deletes applications (`cascade` defaults to false)
 
 ### Project Management
 - `list_project`: Lists all ArgoCD projects

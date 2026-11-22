@@ -14,7 +14,6 @@ type Config struct {
 	Insecure          bool
 	GRPCWeb           bool
 	GRPCWebRootPath   string
-	CertFile          string
 	ClientCertFile    string
 	ClientCertKeyFile string
 	Headers           []string
