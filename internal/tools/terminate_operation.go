@@ -9,7 +9,7 @@ import (
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
-// Define the tool schema
+// TerminateOperationTool terminates the currently running operation on an ArgoCD application.
 var TerminateOperationTool = mcp.NewTool("terminate_operation",
 	mcp.WithDescription("Terminates the currently running operation (sync, refresh, etc.) on an ArgoCD application"),
 	mcp.WithString("name",

@@ -147,7 +147,9 @@ func TestGetClusterHandler(t *testing.T) {
 							Insecure: false,
 						},
 					},
-					ServerVersion: "1.28",
+					Info: v1alpha1.ClusterInfo{
+						ServerVersion: "1.28",
+					},
 				}
 				m.EXPECT().GetCluster(gomock.Any(), "https://kubernetes.default.svc").Return(expectedCluster, nil)
 			},
