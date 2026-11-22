@@ -1,5 +1,7 @@
 # ArgoCD MCP Server
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/toyamagu-2021/argocd-mcp-server/badge)](https://scorecard.dev/viewer/?uri=github.com/toyamagu-2021/argocd-mcp-server)
+
 A Model Context Protocol (MCP) server that provides ArgoCD functionality as tools for LLMs via gRPC API.
 
 ## Features
