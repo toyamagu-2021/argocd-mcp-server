@@ -13,7 +13,7 @@ import (
 // RefreshAppTool defines the refresh_application tool schema
 var RefreshAppTool = mcp.NewTool("refresh_application",
 	mcp.WithDescription("Refreshes the status of a specific ArgoCD application by fetching the latest state from Git and the cluster."),
-	mcp.WithReadOnlyHintAnnotation(false),
+	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithIdempotentHintAnnotation(true),
 	mcp.WithString("name",

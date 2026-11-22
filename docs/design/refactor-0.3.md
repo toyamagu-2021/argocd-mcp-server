@@ -18,7 +18,7 @@
 | D8 | get / list / sync / delete（+ refresh / manifests）に任意 `app_namespace` |
 | D9 | Breaking は **0.3**。0.2 に混ぜない |
 | D10 | ツール allowlist なし。RBAC + read-only |
-| D11 | `refresh`: `readOnly=false`, `destructive=false`, `idempotent=true`。READ_ONLY では未登録 |
+| D11 | （改訂）`refresh` は読み取り扱い: `readOnly=true`, `destructive=false`, `idempotent=true`。READ_ONLY でも登録する（実体は `Get` + refresh。App への refresh 注釈と再 reconcile は起きるが、クラスタ上のリソースは変更しない） |
 | D12 | （撤回）Application source 5箇所の values 全 redact は **やらない** |
 | D13 | Cluster/Repository の手書き拒否リスト禁止 → `(*Cluster).Sanitized()` / `(*Repository).Sanitized()` |
 | D14 | list の project は `ApplicationQuery.Projects` のみ（`Project` と両方セットしない） |
@@ -68,7 +68,7 @@ mcp_server.ServeStdio(s)
 
 ### READ_ONLY で外すツール
 
-`create_application`, `sync_application`, `refresh_application`, `delete_application`,
+`create_application`, `sync_application`, `delete_application`,
 `terminate_operation`, `create_project`, `create_applicationset`, `delete_applicationset`
 
 ### Interface
@@ -100,7 +100,7 @@ destination `cluster` / `namespace` は tools 側 client-side filter 継続。
 
 - `delete_application`: cascade 既定 false。description に「省略時は App のみ。リソース削除は `cascade: true`。Argo CD CLI 既定(true)とは異なる」を明記
 - 読み取り: `ReadOnlyHint=true`
-- `refresh`: destructive=false, idempotent=true
+- `refresh`: readOnly=true, destructive=false, idempotent=true（D11 改訂）
 - `list_application.namespace` = destination ns。`app_namespace` = App CR の metadata.namespace（併存・ドキュメント明記）
 - `delete_applicationset`: `app_namespace`（旧 `appsetNamespace` も移行受理）。README から cascade 誤記削除
 - `get_application_logs`: `follow=true` → ツールエラー
@@ -133,7 +133,7 @@ HTTP/SSE、ツール allowlist、Argo CD v2、新書き込みツール、tools �
 
 - Client 1・tool 内 dial/env 0
 - Interface ⊆ 公開ツール
-- READ_ONLY で変更系が消える（refresh 含む）
+- READ_ONLY で変更系が消える（refresh は読み取り扱いで残る）
 - Cluster/Repo に生秘密が載らない（Sanitized）
 - cascade 省略 = false かつ description 明記
 - `app_namespace` が get/list/sync/delete 系で使える
