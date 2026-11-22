@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Test the tool handler with environment variables
 // Test the tool schema
 func TestGetAppEventsTool_Schema(t *testing.T) {
 	// Verify tool is properly defined
