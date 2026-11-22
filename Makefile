@@ -45,12 +45,23 @@ deps:
 tidy:
 	$(GOMOD) tidy
 
+# Linter versions. CI runs the Go version from go.mod with GOTOOLCHAIN=local,
+# so each pin has to build with that toolchain. These releases build on Go 1.24.
+STATICCHECK_VERSION ?= v0.6.1
+GOLINT_VERSION ?= v0.0.0-20241112194109-818c5a804067
+INEFFASSIGN_VERSION ?= v0.2.0
+MISSPELL_VERSION ?= v0.3.4
+ERRCHECK_VERSION ?= v1.10.0
+GOSEC_VERSION ?= v2.23.0
+REVIVE_VERSION ?= v1.14.0
+GOIMPORTS_VERSION ?= v0.42.0
+
 # Linting
 .PHONY: fmt
 fmt:
 	$(GOFMT) -w .
 	$(GOCMD) fmt ./...
-	@which goimports > /dev/null || go install golang.org/x/tools/cmd/goimports@latest
+	@which goimports > /dev/null || go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 	goimports -w .
 
 .PHONY: fmt-check
@@ -58,7 +69,7 @@ fmt-check:
 	@echo "Checking formatting..."
 	@test -z "$$($(GOFMT) -l .)" || (echo "Files need formatting. Run 'make fmt'" && $(GOFMT) -l . && exit 1)
 	@echo "Checking imports formatting..."
-	@which goimports > /dev/null || go install golang.org/x/tools/cmd/goimports@latest
+	@which goimports > /dev/null || go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 	@test -z "$$(goimports -l .)" || (echo "Files need import formatting. Run 'make fmt'" && goimports -l . && exit 1)
 
 .PHONY: vet
@@ -68,19 +79,19 @@ vet:
 .PHONY: lint
 lint: fmt-check vet
 	@echo "Running staticcheck..."
-	@which staticcheck > /dev/null || go install honnef.co/go/tools/cmd/staticcheck@latest
+	@which staticcheck > /dev/null || go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
 	staticcheck ./...
 	@echo "Running golint..."
-	@which golint > /dev/null || go install golang.org/x/lint/golint@latest
+	@which golint > /dev/null || go install golang.org/x/lint/golint@$(GOLINT_VERSION)
 	golint ./...
 	@echo "Running ineffassign..."
-	@which ineffassign > /dev/null || go install github.com/gordonklaus/ineffassign@latest
+	@which ineffassign > /dev/null || go install github.com/gordonklaus/ineffassign@$(INEFFASSIGN_VERSION)
 	ineffassign ./...
 	@echo "Running errcheck..."
-	@which errcheck > /dev/null || go install github.com/kisielk/errcheck@latest
+	@which errcheck > /dev/null || go install github.com/kisielk/errcheck@$(ERRCHECK_VERSION)
 	errcheck ./...
 	@echo "Running misspell..."
-	@which misspell > /dev/null || go install github.com/client9/misspell/cmd/misspell@latest
+	@which misspell > /dev/null || go install github.com/client9/misspell/cmd/misspell@$(MISSPELL_VERSION)
 	misspell -error .
 
 .PHONY: lint-basic
@@ -89,22 +100,22 @@ lint-basic: fmt-check vet
 
 .PHONY: lint-install
 lint-install:
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	go install golang.org/x/lint/golint@latest
-	go install github.com/gordonklaus/ineffassign@latest
-	go install github.com/client9/misspell/cmd/misspell@latest
-	go install github.com/kisielk/errcheck@latest
-	go install github.com/securego/gosec/v2/cmd/gosec@latest
-	go install github.com/mgechev/revive@latest
-	go install golang.org/x/tools/cmd/goimports@latest
+	go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
+	go install golang.org/x/lint/golint@$(GOLINT_VERSION)
+	go install github.com/gordonklaus/ineffassign@$(INEFFASSIGN_VERSION)
+	go install github.com/client9/misspell/cmd/misspell@$(MISSPELL_VERSION)
+	go install github.com/kisielk/errcheck@$(ERRCHECK_VERSION)
+	go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)
+	go install github.com/mgechev/revive@$(REVIVE_VERSION)
+	go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 
 .PHONY: lint-advanced
 lint-advanced: lint
 	@echo "Running gosec (security)..."
-	@which gosec > /dev/null || go install github.com/securego/gosec/v2/cmd/gosec@latest
+	@which gosec > /dev/null || go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)
 	gosec -fmt text ./...
 	@echo "Running revive..."
-	@which revive > /dev/null || go install github.com/mgechev/revive@latest
+	@which revive > /dev/null || go install github.com/mgechev/revive@$(REVIVE_VERSION)
 	revive -config .revive.toml ./... || revive ./...
 
 # All checks
