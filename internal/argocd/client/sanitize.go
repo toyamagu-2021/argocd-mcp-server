@@ -18,9 +18,9 @@ func sanitizeCluster(c *v1alpha1.Cluster) *v1alpha1.Cluster {
 	}
 	s := c.Sanitized()
 	// Populated by the server after Sanitized() (server/cluster toAPIResponse).
-	//nolint:staticcheck // deprecated fields kept for backward compatibility
+	//lint:ignore SA1019 deprecated field still populated by the Argo CD server for backward compatibility
 	s.ServerVersion = c.ServerVersion
-	//nolint:staticcheck // deprecated fields kept for backward compatibility
+	//lint:ignore SA1019 deprecated field still populated by the Argo CD server for backward compatibility
 	s.ConnectionState = c.ConnectionState
 	return s
 }
