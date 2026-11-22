@@ -33,9 +33,9 @@ func rawCluster() *v1alpha1.Cluster {
 			},
 		},
 		Info: v1alpha1.ClusterInfo{ServerVersion: "1.37"},
-		//nolint:staticcheck
+		//lint:ignore SA1019 deprecated field still populated by the Argo CD server for backward compatibility
 		ServerVersion: "1.37",
-		//nolint:staticcheck
+		//lint:ignore SA1019 deprecated field still populated by the Argo CD server for backward compatibility
 		ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
 	}
 }
@@ -74,9 +74,9 @@ func TestSanitizeCluster(t *testing.T) {
 	assert.True(t, out.Config.Insecure)
 	assert.Equal(t, "kube", out.Config.ServerName)
 	assert.Equal(t, "1.37", out.Info.ServerVersion)
-	//nolint:staticcheck
+	//lint:ignore SA1019 deprecated field still populated by the Argo CD server for backward compatibility
 	assert.Equal(t, "1.37", out.ServerVersion)
-	//nolint:staticcheck
+	//lint:ignore SA1019 deprecated field still populated by the Argo CD server for backward compatibility
 	assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, out.ConnectionState.Status)
 	// input is not mutated
 	assert.Equal(t, secret, in.Config.BearerToken)

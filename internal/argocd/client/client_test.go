@@ -122,3 +122,20 @@ func TestConfig_NewHTTPClient(t *testing.T) {
 		})
 	}
 }
+
+type countingCloser struct{ n int }
+
+func (c *countingCloser) Close() error { c.n++; return nil }
+
+func TestClientClose_Idempotent(t *testing.T) {
+	cc := &countingCloser{}
+	c := &Client{proxyCloser: cc}
+	for i := 0; i < 2; i++ {
+		if err := c.Close(); err != nil {
+			t.Fatalf("Close() #%d: %v", i+1, err)
+		}
+	}
+	if cc.n != 1 {
+		t.Fatalf("proxy closer called %d times, want 1", cc.n)
+	}
+}
