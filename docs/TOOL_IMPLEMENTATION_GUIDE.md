@@ -1,40 +1,49 @@
 # Tool Implementation Guide
 
-This guide provides step-by-step instructions for implementing new tools in the ArgoCD MCP server. It covers the complete implementation process including the tool handler, tests, and integration.
+How tools are built in the Argo CD MCP server (0.3 layout), and what to touch when you add
+or change one.
+
+> **Scope (design D1):** the server exposes a fixed set of 23 public tools. New write
+> (state-changing) tools are out of scope for 0.3 — see
+> [`docs/design/refactor-0.3.md`](design/refactor-0.3.md) §0 and §7. The same steps apply
+> when you change an existing tool or add a read-only one.
 
 ## Table of Contents
 
-1. [Overview](#overview)
+1. [Architecture in one minute](#architecture-in-one-minute)
 2. [Implementation Steps](#implementation-steps)
 3. [File Structure](#file-structure)
-4. [Code Examples](#code-examples)
-5. [Testing Strategy](#testing-strategy)
-6. [Checklist](#checklist)
+4. [Testing Strategy](#testing-strategy)
+5. [Checklist](#checklist)
+6. [Common Patterns](#common-patterns)
+7. [Troubleshooting](#troubleshooting)
 
-## Overview
+## Architecture in one minute
 
-Each tool in the ArgoCD MCP server follows a consistent pattern:
-- Tool handler that processes MCP requests
-- Unit tests for the handler logic
-- E2E tests with real ArgoCD server
-- Mock E2E tests for CI/CD environments
-- Integration with the MCP server
+```
+main  ── config.Load() ──► client.New(cfg.ToClientConfig())   // one client per process
+  │                                   │
+  └── tools.Register(s, tools.Deps{Client: argo, ReadOnly: cfg.ReadOnly})
+                │
+                └── for each tool: s.AddTool(tool, makeX(deps))
+```
+
+- **`internal/config`** is the only place that reads connection environment variables.
+- **One `client.Client` per process.** `main` creates it and closes it on shutdown. With
+  gRPC-Web enabled, the client also owns the single local proxy.
+- **Handlers never** call `os.Getenv`, `client.New`, or `Close()`. They use `d.Client`.
+- Each tool file has three parts:
+  1. the schema (`var XTool = mcp.NewTool(...)`),
+  2. `makeX(d Deps) server.ToolHandlerFunc` — reads MCP arguments and calls the handler,
+  3. `xHandler(ctx, client.Interface, ...)` — the logic, unit-tested with the gomock client.
+- **`ARGOCD_MCP_READ_ONLY=true`** skips every entry marked `mutating` in `register.go`.
 
 ## Implementation Steps
 
-### Step 1: Implement the Tool Handler
+### Step 1: Define the schema and handler
 
-Create a new file in `internal/tools/` for your tool handler.
-
-**File naming convention:**
-- List operations: `list_<resource>.go`
-- Get operations: `get_<resource>.go`
-- Create operations: `create_<resource>.go`
-- Update operations: `update_<resource>.go`
-- Delete operations: `delete_<resource>.go`
-- Action operations: `<action>_<resource>.go`
-
-**Handler structure:**
+Create `internal/tools/<verb>_<resource>.go`
+(`list_`, `get_`, `create_`, `delete_`, or `<action>_<resource>.go`).
 
 ```go
 package tools
@@ -43,572 +52,256 @@ import (
     "context"
     "encoding/json"
     "fmt"
-    "os"
 
     "github.com/mark3labs/mcp-go/mcp"
+    "github.com/mark3labs/mcp-go/server"
     "github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
-// Define the tool schema
-var <ToolName>Tool = mcp.NewTool("<tool_name>",
-    mcp.WithDescription("Description of what the tool does"),
-    // Add required parameters
-    mcp.WithString("param_name",
+// GetWidgetTool defines the get_widget tool schema.
+var GetWidgetTool = mcp.NewTool("get_widget",
+    mcp.WithDescription("Retrieves a widget."),
+    // Hints: read tools are readOnly and non-destructive. Write tools must set
+    // ReadOnlyHint(false) and an honest DestructiveHint.
+    mcp.WithReadOnlyHintAnnotation(true),
+    mcp.WithDestructiveHintAnnotation(false),
+    mcp.WithString("name",
         mcp.Required(),
-        mcp.Description("Parameter description"),
+        mcp.Description("The name of the widget."),
     ),
-    // Add optional parameters
-    mcp.WithString("optional_param",
-        mcp.Description("Optional parameter description"),
+    mcp.WithString("app_namespace",
+        mcp.Description("Namespace of the Application resource (its metadata.namespace). Only needed for apps-in-any-namespace."),
     ),
 )
 
-// Handle<ToolName> processes <tool_name> tool requests
-func Handle<ToolName>(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-    // Extract parameters
-    requiredParam := request.GetString("param_name", "")
-    if requiredParam == "" {
-        return mcp.NewToolResultError("param_name is required"), nil
+// makeGetWidget returns the handler for this tool bound to the shared client in d.
+func makeGetWidget(d Deps) server.ToolHandlerFunc {
+    return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+        name := request.GetString("name", "")
+        appNamespace := request.GetString("app_namespace", "")
+        return getWidgetHandler(ctx, d.Client, name, appNamespace)
     }
-    
-    optionalParam := request.GetString("optional_param", "default_value")
-    
-    // Create gRPC client
-    config := &client.Config{
-        ServerAddr:      os.Getenv("ARGOCD_SERVER"),
-        AuthToken:       os.Getenv("ARGOCD_AUTH_TOKEN"),
-        Insecure:        os.Getenv("ARGOCD_INSECURE") == "true",
-        PlainText:       os.Getenv("ARGOCD_PLAINTEXT") == "true",
-        GRPCWeb:         os.Getenv("ARGOCD_GRPC_WEB") == "true",
-        GRPCWebRootPath: os.Getenv("ARGOCD_GRPC_WEB_ROOT_PATH"),
-    }
-    
-    argoClient, err := client.New(config)
-    if err != nil {
-        return mcp.NewToolResultError(fmt.Sprintf("Failed to create gRPC client: %v", err)), nil
-    }
-    defer func() { _ = argoClient.Close() }()
-    
-    // Use the handler function with the real client
-    return <toolName>Handler(ctx, argoClient, requiredParam, optionalParam)
 }
 
-// <toolName>Handler handles the core logic for the tool.
-// This is separated out to enable testing with mocked clients.
-func <toolName>Handler(
-    ctx context.Context,
-    argoClient client.Interface,
-    requiredParam string,
-    optionalParam string,
-) (*mcp.CallToolResult, error) {
-    // Call the appropriate client method
-    result, err := argoClient.<ClientMethod>(ctx, requiredParam)
-    if err != nil {
-        return mcp.NewToolResultError(fmt.Sprintf("Failed to <action>: %v", err)), nil
+// getWidgetHandler holds the tool logic; it is unit-tested with a mocked client.
+func getWidgetHandler(ctx context.Context, argoClient client.Interface, name, appNamespace string) (*mcp.CallToolResult, error) {
+    if name == "" {
+        return mcp.NewToolResultError("name is required"), nil
     }
-    
-    // Convert to JSON for better readability in MCP responses
-    jsonData, err := json.MarshalIndent(result, "", "  ")
+    w, err := argoClient.GetWidget(ctx, name, appNamespace)
+    if err != nil {
+        return mcp.NewToolResultError(fmt.Sprintf("Failed to get widget: %v", err)), nil
+    }
+    jsonData, err := json.MarshalIndent(w, "", "  ")
     if err != nil {
         return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
     }
-    
     return mcp.NewToolResultText(string(jsonData)), nil
 }
 ```
 
-### Step 2: Add Unit Tests
+Conventions:
 
-Create a test file alongside your tool handler: `<tool_name>_test.go`
+- Argument names are `snake_case`. Use `app_namespace` for the Application's own namespace;
+  `namespace` in `list_application` means the **destination** namespace.
+- Defaults that are surprising, or that differ from the Argo CD CLI, go in the description
+  (for example `delete_application`: `cascade` defaults to `false`).
+- Anything that would block the stdio call forever (for example streaming with
+  `follow=true`) must return a tool error instead.
 
-**Test structure:**
+### Step 2: Register the tool
+
+Add one entry to `entries()` in `internal/tools/register.go`:
 
 ```go
-package tools
-
-import (
-    "context"
-    "encoding/json"
-    "testing"
-
-    "github.com/mark3labs/mcp-go/mcp"
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
-    "github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client/mock"
-    "go.uber.org/mock/gomock"
-)
-
-// Test the tool handler with environment variables
-func TestHandle<ToolName>(t *testing.T) {
-    tests := []struct {
-        name          string
-        request       mcp.CallToolRequest
-        envVars       map[string]string
-        wantError     bool
-        errorContains string
-    }{
-        {
-            name: "missing environment variables",
-            request: mcp.CallToolRequest{
-                Params: mcp.CallToolParams{
-                    Name:      "<tool_name>",
-                    Arguments: map[string]interface{}{},
-                },
-            },
-            envVars: map[string]string{
-                "ARGOCD_AUTH_TOKEN": "",
-                "ARGOCD_SERVER":     "",
-            },
-            wantError:     true,
-            errorContains: "server address is required",
-        },
-        // Add more test cases
-    }
-    
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            // Set environment variables
-            for k, v := range tt.envVars {
-                t.Setenv(k, v)
-            }
-            
-            // Execute handler
-            result, err := Handle<ToolName>(context.Background(), tt.request)
-            
-            // Check expectations
-            if tt.wantError {
-                require.Nil(t, err)
-                require.NotNil(t, result)
-                assert.True(t, result.IsError)
-                if tt.errorContains != "" && len(result.Content) > 0 {
-                    assert.Contains(t, result.Content[0], tt.errorContains)
-                }
-            } else {
-                require.Nil(t, err)
-                require.NotNil(t, result)
-                assert.False(t, result.IsError)
-            }
-        })
-    }
-}
-
-// Test the tool schema
-func Test<ToolName>Tool_Schema(t *testing.T) {
-    // Verify tool is properly defined
-    if <ToolName>Tool.Name != "<tool_name>" {
-        t.Errorf("Expected tool name '<tool_name>', got %s", <ToolName>Tool.Name)
-    }
-    
-    // Verify tool has description
-    if <ToolName>Tool.Description == "" {
-        t.Error("Tool description should not be empty")
-    }
-    
-    // Check input schema exists
-    if <ToolName>Tool.InputSchema.Type != "object" {
-        t.Errorf("Expected schema type 'object', got %s", <ToolName>Tool.InputSchema.Type)
-    }
-    
-    // Check required parameters
-    // Add specific checks for your tool's parameters
-}
-
-// Test the handler logic with mocked client
-func Test<ToolName>Handler(t *testing.T) {
-    tests := []struct {
-        name        string
-        param1      string
-        param2      string
-        setupMock   func(*mock.MockInterface)
-        wantError   bool
-        wantMessage string
-    }{
-        {
-            name:   "successful operation",
-            param1: "value1",
-            param2: "value2",
-            setupMock: func(m *mock.MockInterface) {
-                // Setup mock expectations
-                m.EXPECT().<ClientMethod>(gomock.Any(), "value1").Return(expectedResult, nil)
-            },
-            wantError: false,
-        },
-        {
-            name:   "operation fails",
-            param1: "value1",
-            param2: "value2",
-            setupMock: func(m *mock.MockInterface) {
-                m.EXPECT().<ClientMethod>(gomock.Any(), "value1").Return(nil, assert.AnError)
-            },
-            wantError: true,
-        },
-    }
-    
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            ctrl := gomock.NewController(t)
-            defer ctrl.Finish()
-            
-            mockClient := mock.NewMockInterface(ctrl)
-            tt.setupMock(mockClient)
-            
-            result, err := <toolName>Handler(context.Background(), mockClient, tt.param1, tt.param2)
-            
-            if tt.wantError {
-                require.Nil(t, err)
-                require.NotNil(t, result)
-                assert.True(t, result.IsError)
-            } else {
-                require.Nil(t, err)
-                require.NotNil(t, result)
-                assert.False(t, result.IsError)
-                
-                if tt.wantMessage != "" {
-                    require.Len(t, result.Content, 1)
-                    textContent, ok := mcp.AsTextContent(result.Content[0])
-                    require.True(t, ok)
-                    assert.Contains(t, textContent.Text, tt.wantMessage)
-                }
-            }
-        })
-    }
-}
+{GetWidgetTool, makeGetWidget, false}, // third field: mutating
 ```
 
-### Step 3: Register the Tool
+Set `mutating` to `true` for any tool that changes Argo CD state. Those tools are not
+registered when `ARGOCD_MCP_READ_ONLY=true`. `refresh_application` is deliberately **not**
+mutating (design D11, revised).
 
-Add your tool to `internal/tools/tools.go`:
+Then update the locked lists in `internal/tools/register_test.go`:
+
+- `publicTools` — every public tool name;
+- `mutatingTools` — the tools removed in read-only mode.
+
+`TestToolHints` fails if the `mutating` flag and the `readOnlyHint` annotation disagree.
+
+### Step 3: Client method (if needed)
+
+1. Add the method to `Interface` in `internal/argocd/client/interface.go`. The interface only
+   contains what public tools call.
+2. Implement it in `internal/argocd/client/client.go`:
+   - Return typed results (no `interface{}`).
+   - With many optional arguments, take an options struct (see `LogsOptions`,
+     `EventsOptions`, `ListApplicationsOptions`) instead of a long list of strings.
+   - Send optional request fields only when set.
+   - Endpoints that need the app's namespace/project for authorization can find them with
+     `lookupApplication`.
+   - **Cluster / Repository responses** must go through `sanitizeCluster` /
+     `sanitizeRepository` (upstream `Sanitized()`), never a hand-written deny-list.
+3. Regenerate the mock:
+
+   ```bash
+   cd internal/argocd/client && go run go.uber.org/mock/mockgen \
+     -source=interface.go -destination=mock/mock_client.go -package=mock
+   ```
+
+4. Test the request construction in `internal/argocd/client/query_test.go` with the fake
+   gRPC service client there.
+
+### Step 4: Unit tests
+
+In `internal/tools/<tool>_test.go`:
+
+- **Schema test** — name, description, required parameters.
+- **Handler test** — table-driven, with `mock.NewMockInterface`, covering success, client
+  errors and validation errors.
+
+In `internal/tools/wiring_test.go` (or `register_test.go`), add a row that calls the tool
+**through the registered server** and asserts the exact client call. This catches typos in
+argument names, which handler tests cannot:
 
 ```go
-func RegisterAll(s *server.MCPServer) {
-    // ... existing tools ...
-    
-    // Register your new tool
-    s.AddTool(<ToolName>Tool, Handle<ToolName>)
-}
+{
+    name: "get_widget",
+    tool: "get_widget",
+    args: map[string]interface{}{"name": "w", "app_namespace": "team-a"},
+    expect: func(m *mock.MockInterface) {
+        m.EXPECT().GetWidget(gomock.Any(), "w", "team-a").Return(&Widget{}, nil)
+    },
+},
 ```
 
-### Step 4: Update gRPC Client (if needed)
+Configuration and environment handling are tested in `internal/config`, not in tool tests.
 
-If your tool requires new client methods, add them to:
+### Step 5: Mock server and mock E2E tests
 
-1. **Interface definition** in `internal/argocd/client/interface.go`:
-```go
-type Interface interface {
-    // ... existing methods ...
-    
-    // Your new method
-    <MethodName>(ctx context.Context, param string) (*ReturnType, error)
-}
-```
-
-2. **Implementation** in `internal/argocd/client/client.go`:
-```go
-func (c *Client) <MethodName>(ctx context.Context, param string) (*ReturnType, error) {
-    req := &servicepkg.RequestType{
-        Field: param,
-    }
-    resp, err := c.serviceClient.Method(ctx, req)
-    if err != nil {
-        return nil, fmt.Errorf("failed to <action>: %w", err)
-    }
-    return resp, nil
-}
-```
-
-### Step 5: Add E2E Tests
-
-Create E2E tests in `test/argocd_e2e/`:
+If the tool uses a new gRPC service or method, implement it in `test/mock/server.go`. Check
+the `authorization: Bearer test-token` metadata like the existing services do. Then add a
+test in `test/mock_argocd_e2e/`:
 
 ```go
-func test<ToolName>(t *testing.T) {
-    mcpCmd, stdin, stdout := startMCPServer(t)
-    defer func() {
-        _ = mcpCmd.Process.Kill()
-        _ = mcpCmd.Wait()
-    }()
-    
-    initializeMCPConnection(t, stdin, stdout)
-    
-    callToolRequest := map[string]interface{}{
-        "jsonrpc": "2.0",
-        "id":      2,
-        "method":  "tools/call",
-        "params": map[string]interface{}{
-            "name": "<tool_name>",
-            "arguments": map[string]interface{}{
-                "param_name": "value",
-            },
-        },
-    }
-    
-    response := sendRequest(t, stdin, stdout, callToolRequest)
-    
-    // Verify response
-    result, ok := response["result"].(map[string]interface{})
-    if !ok {
-        t.Fatalf("expected result to be a map, got %T", response["result"])
-    }
-    
-    // Add specific assertions for your tool
-}
-```
-
-Add the test to the test suite in `argocd_test.go`:
-
-```go
-// In TestRealArgoCD_Suite function
-t.Run("gRPC", func(t *testing.T) {
-    // ... existing tests ...
-    t.Run("<ToolName>", test<ToolName>)
-})
-
-t.Run("gRPC-Web", func(t *testing.T) {
-    // ... existing tests ...
-    t.Run("<ToolName>", test<ToolName>GRPCWeb)
-})
-```
-
-### Step 6: Add Mock Server Support
-
-If your tool uses a new service, update `test/mock/server.go`:
-
-```go
-// Add mock service implementation
-type mock<Service>Service struct {
-    service.Unimplemented<Service>ServiceServer
-}
-
-func (s *mock<Service>Service) <Method>(ctx context.Context, req *service.RequestType) (*service.ResponseType, error) {
-    // Verify authentication
-    md, ok := metadata.FromIncomingContext(ctx)
-    if !ok {
-        return nil, status.Error(codes.Unauthenticated, "missing metadata")
-    }
-    
-    auth := md.Get("authorization")
-    if len(auth) == 0 || auth[0] != "Bearer test-token" {
-        return nil, status.Error(codes.Unauthenticated, "invalid authorization")
-    }
-    
-    // Return mock data
-    return &service.ResponseType{
-        // ... mock response ...
-    }, nil
-}
-
-// Register in main()
-func main() {
-    // ... existing code ...
-    
-    s := grpc.NewServer()
-    // ... existing registrations ...
-    service.Register<Service>ServiceServer(s, &mock<Service>Service{})
-}
-```
-
-### Step 7: Add Mock E2E Tests
-
-Create mock E2E tests in `test/mock_argocd_e2e/`:
-
-```go
-func TestParallel_<ToolName>(t *testing.T) {
+func TestParallel_GetWidget(t *testing.T) {
     t.Parallel()
-    
-    callToolRequest := map[string]interface{}{
+    response := sendSharedRequest(t, map[string]interface{}{
         "jsonrpc": "2.0",
         "method":  "tools/call",
         "params": map[string]interface{}{
-            "name": "<tool_name>",
-            "arguments": map[string]interface{}{
-                "param_name": "value",
-            },
+            "name":      "get_widget",
+            "arguments": map[string]interface{}{"name": "w"},
         },
+    })
+    if _, ok := response["result"].(map[string]interface{}); !ok {
+        t.Fatalf("expected result map, got %T", response["result"])
     }
-    
-    response := sendSharedRequest(t, callToolRequest)
-    
-    // Verify response
-    result, ok := response["result"].(map[string]interface{})
-    if !ok {
-        t.Fatalf("expected result to be a map, got %T", response["result"])
-    }
-    
-    // Add specific assertions for your tool
 }
 ```
 
-### Step 8: Update Documentation
+### Step 6: Real Argo CD E2E tests
 
-After completing the implementation, update the documentation to reflect the new tool:
+Add a `test<ToolName>(t)` function in `test/argocd_e2e/` and call it from
+`TestRealArgoCD_Suite` in `argocd_parallel_test.go`. The suite runs once over gRPC and, when
+`ARGOCD_MCP_E2E_GRPC_WEB` is set, once over gRPC-Web. CI runs both against Argo CD 3.6.2 in
+Kind (the gRPC-Web pass runs the independent tests).
 
-1. **Update todo-tools.md**: Move the implemented tool from the TODO section to the Completed section in `docs/todo-tools.md`
-2. **Update README if needed**: Add the new tool to the README if it's a major feature
-3. **Add usage examples**: Document how to use the new tool with example MCP requests
+### Step 7: Documentation
+
+- `README.md` — feature list, an example request, and safety notes for write tools.
+- `CLAUDE.md` — the tool list.
+- `docs/todo-tools.md` — the public tool inventory.
 
 ## File Structure
 
-After implementing a new tool, you should have the following files:
-
 ```
 argocd-mcp-server/
+├── cmd/argocd-mcp-server/main.go     # wiring only
 ├── internal/
-│   ├── tools/
-│   │   ├── <tool_name>.go           # Tool handler implementation
-│   │   ├── <tool_name>_test.go      # Unit tests
-│   │   └── tools.go                 # Tool registration (updated)
-│   └── argocd/
-│       └── client/
-│           ├── client.go            # Client implementation (if updated)
-│           └── interface.go         # Interface definition (if updated)
+│   ├── config/                       # env → Config (the only env reader)
+│   ├── argocd/client/
+│   │   ├── interface.go              # Interface + options structs
+│   │   ├── client.go                 # gRPC implementation
+│   │   ├── sanitize.go               # Cluster/Repository Sanitized()
+│   │   └── mock/mock_client.go       # generated (mockgen)
+│   ├── grpcwebproxy/                 # gRPC-Web proxy (owned by the client)
+│   ├── server/                       # MCP server construction
+│   └── tools/
+│       ├── deps.go                   # Deps{Client, ReadOnly}
+│       ├── register.go               # entries() + Register
+│       ├── register_test.go          # locked tool lists, hints, read-only
+│       ├── wiring_test.go            # argument → client call wiring
+│       └── <verb>_<resource>.go(+_test.go)
 ├── test/
-│   ├── argocd_e2e/
-│   │   └── <resource>_test.go       # E2E tests with real ArgoCD
-│   ├── mock/
-│   │   └── server.go                # Mock server (if updated)
-│   └── mock_argocd_e2e/
-│       └── <resource>_e2e_test.go   # Mock E2E tests
+│   ├── mock/server.go                # mock Argo CD gRPC server
+│   ├── mock_argocd_e2e/              # E2E against the mock server
+│   └── argocd_e2e/                   # E2E against a real Argo CD
 └── docs/
-    ├── TOOL_IMPLEMENTATION_GUIDE.md  # This guide
-    └── todo-tools.md                 # Tool implementation status (update this!)
+    ├── design/refactor-0.3.md
+    ├── TOOL_IMPLEMENTATION_GUIDE.md
+    └── todo-tools.md
 ```
-
-## Code Examples
-
-### Example: List Tool
-
-See `internal/tools/list_projects.go` for a complete example of a list operation.
-
-### Example: Get Tool
-
-See `internal/tools/get_project.go` for a complete example of a get operation.
-
-### Example: Action Tool
-
-See `internal/tools/sync_app.go` for a complete example of an action operation.
 
 ## Testing Strategy
 
-### 1. Unit Tests
-- Test tool schema validation
-- Test parameter extraction
-- Test handler logic with mocked clients
-- Test error handling
-
-### 2. Integration Tests
-- Test with real gRPC client (mocked responses)
-- Test environment variable configuration
-- Test connection errors
-
-### 3. E2E Tests
-- Test with real ArgoCD server (optional, requires setup)
-- Test with mock ArgoCD server (required for CI/CD)
-- Test both gRPC and gRPC-Web modes
-
-### Running Tests
+| Layer | Where | What |
+|---|---|---|
+| Config | `internal/config` | env parsing, defaults, validation |
+| Client | `internal/argocd/client` | request construction (fake service), sanitizing, Close |
+| Tools | `internal/tools` | schema, handler logic (gomock), argument wiring, registration and hints |
+| Mock E2E | `test/mock_argocd_e2e` | the real binary over stdio against the mock gRPC server |
+| Real E2E | `test/argocd_e2e` | the real binary against Argo CD 3.6.x (gRPC and gRPC-Web) |
 
 ```bash
-# Run unit tests
-go test ./internal/tools -v -run Test<ToolName>
-
-# Run mock E2E tests
-go test ./test/mock_argocd_e2e -v -run TestParallel_<ToolName>
-
-# Run real E2E tests (requires ArgoCD server)
-ARGOCD_SERVER=<server> ARGOCD_AUTH_TOKEN=<token> \
-  go test ./test/argocd_e2e -v -run Test<ToolName>
-
-# Run all tests
-make test
+go test ./internal/...                         # unit tests
+go test ./test/mock_argocd_e2e/                # mock E2E
+ARGOCD_SERVER=<server> ARGOCD_AUTH_TOKEN=<token> ARGOCD_INSECURE=true \
+  go test ./test/argocd_e2e -run TestRealArgoCD_Suite   # real E2E
+make test                                      # everything
 ```
 
 ## Checklist
 
-When implementing a new tool, ensure you complete all these steps:
-
-- [ ] **Tool Implementation**
-  - [ ] Create tool handler file (`internal/tools/<tool_name>.go`)
-  - [ ] Define tool schema with proper descriptions
-  - [ ] Implement handler function with error handling
-  - [ ] Separate handler logic for testability
-  - [ ] Format response as JSON
-
-- [ ] **Unit Tests**
-  - [ ] Create test file (`internal/tools/<tool_name>_test.go`)
-  - [ ] Test tool schema
-  - [ ] Test handler with various inputs
-  - [ ] Test error cases
-  - [ ] Use mocked client for handler tests
-
-- [ ] **Integration**
-  - [ ] Register tool in `tools.go`
-  - [ ] Update client interface if needed
-  - [ ] Implement client method if needed
-
-- [ ] **E2E Tests**
-  - [ ] Add E2E test function
-  - [ ] Register in test suite
-  - [ ] Test both gRPC and gRPC-Web modes
-  - [ ] Handle authentication errors gracefully
-  - [ ] Handle not-found errors appropriately
-
-- [ ] **Mock Tests**
-  - [ ] Update mock server if new service
-  - [ ] Add mock E2E test
-  - [ ] Test parallel execution
-  - [ ] Verify response format
-
-- [ ] **Documentation**
-  - [ ] Update README if major feature
-  - [ ] Add usage examples
-  - [ ] Document environment variables
-  - [ ] Update `docs/todo-tools.md` to move completed tools from TODO to Completed section
-
-- [ ] **Code Quality**
-  - [ ] Run `make fmt` to format code
-  - [ ] Run `make lint` to check for issues
-  - [ ] Run `make test` to verify all tests pass
-  - [ ] Ensure no sensitive data in logs
+- [ ] **Tool**
+  - [ ] Schema with clear descriptions, and every surprising default documented
+  - [ ] Correct hints (`readOnlyHint`, `destructiveHint`, `idempotentHint` where relevant)
+  - [ ] `makeX(d Deps)` reads the arguments; `xHandler` holds the logic
+  - [ ] No `os.Getenv`, `client.New` or `Close()` in the tool
+- [ ] **Registration**
+  - [ ] Entry in `register.go` with the right `mutating` flag
+  - [ ] `publicTools` / `mutatingTools` updated in `register_test.go`
+- [ ] **Client** (if needed)
+  - [ ] Typed return value; options struct for many optional arguments
+  - [ ] Cluster/Repository results sanitized
+  - [ ] Mock regenerated; request construction tested
+- [ ] **Tests**
+  - [ ] Schema, handler and wiring tests
+  - [ ] Mock server and mock E2E test
+  - [ ] Real E2E test added to the suite
+- [ ] **Docs**: README, CLAUDE.md, `docs/todo-tools.md`
+- [ ] **Quality**: `make fmt`, `make lint`, `make test`
 
 ## Common Patterns
 
-### Error Handling
+### Error handling
 
-Always return errors as tool results, not Go errors:
+Return errors as tool results, not Go errors:
 
 ```go
-// Good
 if err != nil {
     return mcp.NewToolResultError(fmt.Sprintf("Failed to %s: %v", action, err)), nil
 }
-
-// Bad - this will crash the MCP server
-if err != nil {
-    return nil, err
-}
 ```
 
-### Parameter Extraction
-
-Use the helper methods for safe parameter extraction:
+### Parameter extraction
 
 ```go
-// String parameters
-name := request.GetString("name", "default_value")
-
-// Boolean parameters
-dryRun := request.GetBool("dry_run", false)
-
-// Required parameters - check and return error
-name := request.GetString("name", "")
-if name == "" {
-    return mcp.NewToolResultError("name is required"), nil
-}
+name := request.GetString("name", "")        // required: validate in xHandler
+dryRun := request.GetBool("dry_run", false)  // optional with default
+tail := int64(request.GetInt("tail_lines", 100))
 ```
 
-### Response Formatting
-
-Always format responses as JSON for consistency:
+### Response formatting
 
 ```go
 jsonData, err := json.MarshalIndent(result, "", "  ")
@@ -618,47 +311,27 @@ if err != nil {
 return mcp.NewToolResultText(string(jsonData)), nil
 ```
 
-### Resource Cleanup
+Large list responses may offer a compact TSV format (see `list_apps_tsv.go`).
 
-Always defer cleanup operations:
+### Client lifetime
+
+Tools never create or close the client. `main` owns it:
 
 ```go
-argoClient, err := client.New(config)
-if err != nil {
-    return mcp.NewToolResultError(fmt.Sprintf("Failed to create client: %v", err)), nil
-}
-defer func() { _ = argoClient.Close() }()
+argo, err := client.New(cfg.ToClientConfig())
+if err != nil { /* fatal at startup */ }
+defer func() { _ = argo.Close() }() // Close is idempotent
+tools.Register(s, tools.Deps{Client: argo, ReadOnly: cfg.ReadOnly})
 ```
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **"unknown service" error in tests**
-   - Ensure the service is registered in the mock server
-   - Check that you're using the updated mock server code
-
-2. **"HTTP/1.x transport connection broken" error**
-   - Ensure `ARGOCD_GRPC_WEB=false` for plain gRPC connections
-   - Check that the server supports the connection type
-
-3. **Tests hanging or timing out**
-   - Check for proper cleanup in defer statements
-   - Ensure processes are killed after tests
-   - Look for port conflicts (use `lsof -i :<port>`)
-
-4. **"Failed to parse JSON" in tests**
-   - Log the actual response to debug
-   - Check for error messages in the response
-   - Verify the mock data format matches expectations
-
-## Conclusion
-
-Following this guide ensures consistent, well-tested tool implementations that integrate smoothly with the ArgoCD MCP server. Always prioritize:
-
-1. **Testability** - Separate business logic from I/O operations
-2. **Error handling** - Return user-friendly error messages
-3. **Consistency** - Follow existing patterns and conventions
-4. **Documentation** - Keep code self-documenting with clear names
-
-For questions or improvements to this guide, please submit a pull request or open an issue.
+1. **gomock "missing call" or "unexpected call" in wiring tests** — an argument name in the
+   schema or in `makeX` doesn't match what the test sends, or a default changed.
+2. **`TestRegister_AllPublicTools` or `TestToolHints` fails** — update `publicTools` /
+   `mutatingTools`, or fix the `mutating` flag or the hints.
+3. **"unknown service" in mock E2E** — register the service in `test/mock/server.go`.
+4. **"HTTP/1.x transport connection broken"** — check that `ARGOCD_GRPC_WEB` matches what
+   the server supports.
+5. **Tests hang** — make sure test MCP processes are killed. Never add a tool that streams
+   forever over stdio.
