@@ -91,7 +91,7 @@ func TestListApplications_Query(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "a=b", f.list.GetSelector())
 	assert.Equal(t, []string{"p1"}, f.list.Projects)
-	//nolint:staticcheck // D14: the deprecated singular field must stay unset
+	// D14: only Projects is used; the singular Project field must stay unset.
 	assert.Empty(t, f.list.Project)
 	assert.Equal(t, "team-a", f.list.GetAppNamespace())
 }

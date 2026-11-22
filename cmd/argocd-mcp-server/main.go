@@ -46,9 +46,17 @@ func main() {
 		"pid":     os.Getpid(),
 	}).Info("Starting ArgoCD MCP Server")
 
+	if err := run(log); err != nil {
+		log.WithError(err).Fatal("ArgoCD MCP Server failed")
+	}
+}
+
+// run wires the server and blocks serving stdio. Returning (instead of
+// exiting) lets the deferred Close of the process-wide client run exactly once.
+func run(log *logrus.Logger) error {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	log.WithField("server", cfg.Server).Debug("ArgoCD server configured")
 
@@ -56,7 +64,7 @@ func main() {
 	// also owns the single local proxy.
 	argo, err := client.New(cfg.ToClientConfig())
 	if err != nil {
-		log.WithError(err).Fatal("Failed to create Argo CD client")
+		return fmt.Errorf("failed to create Argo CD client: %w", err)
 	}
 	defer func() { _ = argo.Close() }()
 
@@ -70,8 +78,7 @@ func main() {
 	// Start server via stdio
 	log.Info("ArgoCD MCP Server started. Waiting for requests on stdin...")
 	if err := mcp_server.ServeStdio(s); err != nil {
-		log.WithError(err).Error("Server error")
-		_ = argo.Close()
-		os.Exit(1)
+		return fmt.Errorf("server error: %w", err)
 	}
+	return nil
 }
