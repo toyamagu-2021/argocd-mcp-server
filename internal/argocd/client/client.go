@@ -463,7 +463,7 @@ func (c *Client) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clusters: %w", err)
 	}
-	return resp, nil
+	return sanitizeClusterList(resp), nil
 }
 
 // GetCluster retrieves a single ArgoCD cluster by server address
@@ -477,7 +477,7 @@ func (c *Client) GetCluster(ctx context.Context, server string) (*v1alpha1.Clust
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster: %w", err)
 	}
-	return resp, nil
+	return sanitizeCluster(resp), nil
 }
 
 // Project operations
@@ -526,7 +526,7 @@ func (c *Client) ListRepositories(ctx context.Context) (*v1alpha1.RepositoryList
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
-	return resp, nil
+	return sanitizeRepositoryList(resp), nil
 }
 
 // GetRepository retrieves a single ArgoCD repository by URL
@@ -538,7 +538,7 @@ func (c *Client) GetRepository(ctx context.Context, repo string) (*v1alpha1.Repo
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository: %w", err)
 	}
-	return resp, nil
+	return sanitizeRepository(resp), nil
 }
 
 // ListApplicationSets lists all ArgoCD ApplicationSets, optionally filtered by project
