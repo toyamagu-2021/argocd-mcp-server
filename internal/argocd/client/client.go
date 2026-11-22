@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
@@ -30,6 +31,9 @@ type Client struct {
 	// gRPC-Web proxy support
 	grpcWebProxy *grpcwebproxy.GRPCWebProxy
 	proxyCloser  io.Closer
+
+	closeOnce sync.Once
+	closeErr  error
 
 	// Service clients
 	appClient     applicationpkg.ApplicationServiceClient
@@ -145,8 +149,14 @@ func (c *Client) connect() error {
 	return nil
 }
 
-// Close closes the gRPC connection and any associated resources
+// Close closes the gRPC connection and any associated resources.
+// It is safe to call more than once; only the first call does any work.
 func (c *Client) Close() error {
+	c.closeOnce.Do(func() { c.closeErr = c.close() })
+	return c.closeErr
+}
+
+func (c *Client) close() error {
 	var err error
 
 	// Close gRPC connection
