@@ -343,7 +343,7 @@ e2e-teardown: kind-delete
 	@echo "E2E test environment teardown complete"
 
 # Mock generation. Pin matches the go.uber.org/mock module in go.mod.
-MOCKGEN_VERSION ?= v0.5.2
+MOCKGEN_VERSION ?= v0.6.0
 GOTESTSUM_VERSION ?= v1.13.0
 
 .PHONY: mockgen-install
