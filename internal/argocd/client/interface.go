@@ -4,8 +4,10 @@ import (
 	"context"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 )
 
 //go:generate mockgen -source=interface.go -destination=mock/mock_client.go -package=mock
@@ -24,6 +26,17 @@ type ListApplicationsOptions struct {
 	Projects []string
 	// AppNamespace is the namespace of the Application resources (metadata.namespace).
 	AppNamespace string
+}
+
+// EventsOptions are the parameters of GetApplicationEvents. Empty fields are
+// not sent; AppNamespace and Project are looked up from the application when empty.
+type EventsOptions struct {
+	Name              string
+	ResourceNamespace string
+	ResourceName      string
+	ResourceUID       string
+	AppNamespace      string
+	Project           string
 }
 
 // LogsOptions are the parameters of GetApplicationLogs.
@@ -53,8 +66,8 @@ type Interface interface {
 	DeleteApplication(ctx context.Context, name string, cascade bool, appNamespace string) error
 	SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool, appNamespace string) (*v1alpha1.Application, error)
 	RefreshApplication(ctx context.Context, name string, refreshType string, appNamespace string) (*v1alpha1.Application, error)
-	GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (interface{}, error)
-	GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error)
+	GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (*repoapiclient.ManifestResponse, error)
+	GetApplicationEvents(ctx context.Context, opts EventsOptions) (*eventspkg.EventList, error)
 	GetApplicationLogs(ctx context.Context, opts LogsOptions) (LogStream, error)
 	GetApplicationResourceTree(ctx context.Context, name string, appNamespace string, project string) (*v1alpha1.ApplicationTree, error)
 	TerminateOperation(ctx context.Context, name string, appNamespace string, project string) error

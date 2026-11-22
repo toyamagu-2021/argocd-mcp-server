@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,14 +54,14 @@ func TestGetAppManifestsTool_Schema(t *testing.T) {
 // Test the handler logic with mocked client
 func TestGetApplicationManifestsHandler(t *testing.T) {
 	// Sample manifest response - simulate what ArgoCD returns
-	mockManifestResponse := map[string]interface{}{
-		"manifests": []string{
+	mockManifestResponse := &repoapiclient.ManifestResponse{
+		Manifests: []string{
 			"apiVersion: v1\nkind: Service\nmetadata:\n  name: test-service\n",
 			"apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-deployment\n",
 		},
-		"namespace": "default",
-		"server":    "https://kubernetes.default.svc",
-		"revision":  "abc123",
+		Namespace: "default",
+		Server:    "https://kubernetes.default.svc",
+		Revision:  "abc123",
 	}
 
 	tests := []struct {

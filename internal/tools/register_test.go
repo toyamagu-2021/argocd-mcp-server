@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
@@ -197,7 +198,7 @@ func TestRegister_AppNamespace(t *testing.T) {
 			m.EXPECT().DeleteApplication(gomock.Any(), "app1", true, "team-a").Return(nil)
 		}},
 		{"get_application_manifests", map[string]interface{}{"name": "app1", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
-			m.EXPECT().GetApplicationManifests(gomock.Any(), "app1", "", "team-a").Return(map[string]interface{}{}, nil)
+			m.EXPECT().GetApplicationManifests(gomock.Any(), "app1", "", "team-a").Return(&repoapiclient.ManifestResponse{}, nil)
 		}},
 		{"list_application", map[string]interface{}{"project": "p1", "selector": "a=b", "app_namespace": "team-a", "output_format": "json"}, func(m *mock.MockInterface) {
 			m.EXPECT().ListApplications(gomock.Any(), client.ListApplicationsOptions{

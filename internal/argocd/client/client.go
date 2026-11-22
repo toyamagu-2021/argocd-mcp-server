@@ -12,10 +12,12 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/grpcwebproxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -285,7 +287,7 @@ func (c *Client) SyncApplication(ctx context.Context, name string, revision stri
 }
 
 // GetApplicationManifests retrieves the rendered manifests of an ArgoCD application
-func (c *Client) GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (interface{}, error) {
+func (c *Client) GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (*repoapiclient.ManifestResponse, error) {
 	// First get the application to retrieve its namespace and project
 	// This is required for proper authorization in gRPC-Web mode
 	app, err := c.lookupApplication(ctx, name, appNamespace)
@@ -311,45 +313,34 @@ func (c *Client) GetApplicationManifests(ctx context.Context, name string, revis
 }
 
 // GetApplicationEvents retrieves Kubernetes events for resources belonging to an ArgoCD application
-func (c *Client) GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error) {
-	// Build the query with optional filters
-	req := &applicationpkg.ApplicationResourceEventsQuery{
-		Name: &name,
+func (c *Client) GetApplicationEvents(ctx context.Context, opts EventsOptions) (*eventspkg.EventList, error) {
+	name := opts.Name
+	req := &applicationpkg.ApplicationResourceEventsQuery{Name: &name}
+	setIf := func(dst **string, v string) {
+		if v != "" {
+			*dst = &v
+		}
 	}
+	setIf(&req.ResourceNamespace, opts.ResourceNamespace)
+	setIf(&req.ResourceName, opts.ResourceName)
+	setIf(&req.ResourceUID, opts.ResourceUID)
 
-	// Add optional filters if provided
-	if resourceNamespace != "" {
-		req.ResourceNamespace = &resourceNamespace
-	}
-	if resourceName != "" {
-		req.ResourceName = &resourceName
-	}
-	if resourceUID != "" {
-		req.ResourceUID = &resourceUID
-	}
-	if appNamespace != "" {
-		req.AppNamespace = &appNamespace
-	}
-	if project != "" {
-		req.Project = &project
-	}
-
+	appNamespace, project := opts.AppNamespace, opts.Project
 	// If appNamespace or project not provided, get them from the application
 	if appNamespace == "" || project == "" {
 		app, err := c.lookupApplication(ctx, name, appNamespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get application details: %w", err)
 		}
-
 		if appNamespace == "" {
-			namespace := app.ObjectMeta.Namespace
-			req.AppNamespace = &namespace
+			appNamespace = app.ObjectMeta.Namespace
 		}
 		if project == "" {
-			projectName := app.Spec.Project
-			req.Project = &projectName
+			project = app.Spec.Project
 		}
 	}
+	setIf(&req.AppNamespace, appNamespace)
+	setIf(&req.Project, project)
 
 	resp, err := c.appClient.ListResourceEvents(ctx, req)
 	if err != nil {

@@ -3,10 +3,12 @@ package tools
 import (
 	"testing"
 
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client/mock"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,8 +37,10 @@ func TestToolArgumentWiring(t *testing.T) {
 				"resource_uid": "uid", "app_namespace": "ans", "project": "proj",
 			},
 			expect: func(m *mock.MockInterface) {
-				m.EXPECT().GetApplicationEvents(gomock.Any(), "app", "rns", "rname", "uid", "ans", "proj").
-					Return(map[string]interface{}{"items": []interface{}{}}, nil)
+				m.EXPECT().GetApplicationEvents(gomock.Any(), client.EventsOptions{
+					Name: "app", ResourceNamespace: "rns", ResourceName: "rname",
+					ResourceUID: "uid", AppNamespace: "ans", Project: "proj",
+				}).Return(&eventspkg.EventList{}, nil)
 			},
 		},
 		{

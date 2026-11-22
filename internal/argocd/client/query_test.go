@@ -6,6 +6,7 @@ import (
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,12 @@ type fakeAppService struct {
 	sync      *applicationpkg.ApplicationSyncRequest
 	manifests *applicationpkg.ApplicationManifestQuery
 	logs      *applicationpkg.ApplicationPodLogsQuery
+	events    *applicationpkg.ApplicationResourceEventsQuery
+}
+
+func (f *fakeAppService) ListResourceEvents(_ context.Context, q *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*eventspkg.EventList, error) {
+	f.events = q
+	return &eventspkg.EventList{}, nil
 }
 
 func (f *fakeAppService) Get(_ context.Context, q *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
@@ -158,6 +165,27 @@ func TestAppNamespace_Propagation(t *testing.T) {
 		_, err := c.GetApplicationLogs(ctx, LogsOptions{Name: "app", AppNamespace: "ns", Project: "p"})
 		require.NoError(t, err)
 		assert.Empty(t, f.gets)
+	})
+
+	t.Run("events: filters, lookup in app namespace", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationEvents(ctx, EventsOptions{Name: "app", ResourceName: "pod-1", AppNamespace: "team-a"})
+		require.NoError(t, err)
+		require.Len(t, f.gets, 1)
+		assert.Equal(t, "team-a", f.gets[0].GetAppNamespace())
+		assert.Equal(t, "pod-1", f.events.GetResourceName())
+		assert.Nil(t, f.events.ResourceNamespace)
+		assert.Nil(t, f.events.ResourceUID)
+		assert.Equal(t, "team-a", f.events.GetAppNamespace())
+		assert.Equal(t, "proj", f.events.GetProject())
+	})
+
+	t.Run("events with namespace and project skips lookup", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationEvents(ctx, EventsOptions{Name: "app", AppNamespace: "ns", Project: "p"})
+		require.NoError(t, err)
+		assert.Empty(t, f.gets)
+		assert.Equal(t, "p", f.events.GetProject())
 	})
 
 	t.Run("applicationset delete", func(t *testing.T) {

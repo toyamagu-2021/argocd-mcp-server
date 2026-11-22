@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"testing"
 
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client/mock"
 	"go.uber.org/mock/gomock"
 	v1 "k8s.io/api/core/v1"
@@ -50,14 +52,14 @@ func TestGetAppEventsTool_Schema(t *testing.T) {
 // Test the handler logic with mocked client
 func TestGetApplicationEventsHandler(t *testing.T) {
 	// Mock event data
-	mockEvents := &v1.EventList{
-		Items: []v1.Event{
+	mockEvents := &eventspkg.EventList{
+		Items: []eventspkg.Event{
 			{
-				ObjectMeta: metav1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name:      "test-event-1",
 					Namespace: "default",
 				},
-				InvolvedObject: v1.ObjectReference{
+				InvolvedObject: eventspkg.ObjectReference{
 					Kind:      "Pod",
 					Name:      "test-pod",
 					Namespace: "default",
@@ -67,11 +69,11 @@ func TestGetApplicationEventsHandler(t *testing.T) {
 				Message: "0/3 nodes are available: 3 Insufficient cpu.",
 			},
 			{
-				ObjectMeta: metav1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name:      "test-event-2",
 					Namespace: "default",
 				},
-				InvolvedObject: v1.ObjectReference{
+				InvolvedObject: eventspkg.ObjectReference{
 					Kind:      "Pod",
 					Name:      "test-pod",
 					Namespace: "default",
@@ -99,15 +101,7 @@ func TestGetApplicationEventsHandler(t *testing.T) {
 			name:    "successful get events - minimal params",
 			appName: "test-app",
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().GetApplicationEvents(
-					gomock.Any(),
-					"test-app",
-					"",
-					"",
-					"",
-					"",
-					"",
-				).Return(mockEvents, nil)
+				m.EXPECT().GetApplicationEvents(gomock.Any(), client.EventsOptions{Name: "test-app"}).Return(mockEvents, nil)
 			},
 			wantError: false,
 		},
@@ -117,15 +111,7 @@ func TestGetApplicationEventsHandler(t *testing.T) {
 			resourceNamespace: "default",
 			resourceName:      "test-pod",
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().GetApplicationEvents(
-					gomock.Any(),
-					"test-app",
-					"default",
-					"test-pod",
-					"",
-					"",
-					"",
-				).Return(mockEvents, nil)
+				m.EXPECT().GetApplicationEvents(gomock.Any(), client.EventsOptions{Name: "test-app", ResourceNamespace: "default", ResourceName: "test-pod"}).Return(mockEvents, nil)
 			},
 			wantError: false,
 		},
@@ -135,15 +121,7 @@ func TestGetApplicationEventsHandler(t *testing.T) {
 			appNamespace: "argocd",
 			project:      "default",
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().GetApplicationEvents(
-					gomock.Any(),
-					"test-app",
-					"",
-					"",
-					"",
-					"argocd",
-					"default",
-				).Return(mockEvents, nil)
+				m.EXPECT().GetApplicationEvents(gomock.Any(), client.EventsOptions{Name: "test-app", AppNamespace: "argocd", Project: "default"}).Return(mockEvents, nil)
 			},
 			wantError: false,
 		},
@@ -151,15 +129,7 @@ func TestGetApplicationEventsHandler(t *testing.T) {
 			name:    "application not found",
 			appName: "non-existent-app",
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().GetApplicationEvents(
-					gomock.Any(),
-					"non-existent-app",
-					"",
-					"",
-					"",
-					"",
-					"",
-				).Return(nil, assert.AnError)
+				m.EXPECT().GetApplicationEvents(gomock.Any(), client.EventsOptions{Name: "non-existent-app"}).Return(nil, assert.AnError)
 			},
 			wantError:   true,
 			wantMessage: "Failed to get application events",
@@ -185,16 +155,14 @@ func TestGetApplicationEventsHandler(t *testing.T) {
 				tt.setupMock(mockClient)
 			}
 
-			result, err := getApplicationEventsHandler(
-				context.Background(),
-				mockClient,
-				tt.appName,
-				tt.resourceNamespace,
-				tt.resourceName,
-				tt.resourceUID,
-				tt.appNamespace,
-				tt.project,
-			)
+			result, err := getApplicationEventsHandler(context.Background(), mockClient, client.EventsOptions{
+				Name:              tt.appName,
+				ResourceNamespace: tt.resourceNamespace,
+				ResourceName:      tt.resourceName,
+				ResourceUID:       tt.resourceUID,
+				AppNamespace:      tt.appNamespace,
+				Project:           tt.project,
+			})
 
 			if tt.wantError {
 				require.Nil(t, err)

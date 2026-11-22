@@ -14,8 +14,10 @@ import (
 	reflect "reflect"
 
 	application "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	events "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	session "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	client "github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -186,18 +188,18 @@ func (mr *MockInterfaceMockRecorder) GetApplication(ctx, name, appNamespace any)
 }
 
 // GetApplicationEvents mocks base method.
-func (m *MockInterface) GetApplicationEvents(ctx context.Context, name, resourceNamespace, resourceName, resourceUID, appNamespace, project string) (any, error) {
+func (m *MockInterface) GetApplicationEvents(ctx context.Context, opts client.EventsOptions) (*events.EventList, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetApplicationEvents", ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project)
-	ret0, _ := ret[0].(any)
+	ret := m.ctrl.Call(m, "GetApplicationEvents", ctx, opts)
+	ret0, _ := ret[0].(*events.EventList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetApplicationEvents indicates an expected call of GetApplicationEvents.
-func (mr *MockInterfaceMockRecorder) GetApplicationEvents(ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) GetApplicationEvents(ctx, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationEvents", reflect.TypeOf((*MockInterface)(nil).GetApplicationEvents), ctx, name, resourceNamespace, resourceName, resourceUID, appNamespace, project)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationEvents", reflect.TypeOf((*MockInterface)(nil).GetApplicationEvents), ctx, opts)
 }
 
 // GetApplicationLogs mocks base method.
@@ -216,10 +218,10 @@ func (mr *MockInterfaceMockRecorder) GetApplicationLogs(ctx, opts any) *gomock.C
 }
 
 // GetApplicationManifests mocks base method.
-func (m *MockInterface) GetApplicationManifests(ctx context.Context, name, revision, appNamespace string) (any, error) {
+func (m *MockInterface) GetApplicationManifests(ctx context.Context, name, revision, appNamespace string) (*apiclient.ManifestResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetApplicationManifests", ctx, name, revision, appNamespace)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(*apiclient.ManifestResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
