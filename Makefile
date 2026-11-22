@@ -342,10 +342,13 @@ e2e-setup: kind-create install-argocd generate-env generate-token
 e2e-teardown: kind-delete
 	@echo "E2E test environment teardown complete"
 
-# Mock generation
+# Mock generation. Pin matches the go.uber.org/mock module in go.mod.
+MOCKGEN_VERSION ?= v0.5.2
+GOTESTSUM_VERSION ?= v1.13.0
+
 .PHONY: mockgen-install
 mockgen-install:
-	go install go.uber.org/mock/mockgen@latest
+	go install go.uber.org/mock/mockgen@$(MOCKGEN_VERSION)
 
 .PHONY: generate-mocks
 generate-mocks:
@@ -364,7 +367,7 @@ clean-mocks:
 # Testing
 .PHONY: test
 test:
-	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
+	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION)
 	gotestsum --format testname -- ./...
 
 .PHONY: test-basic
@@ -391,12 +394,12 @@ test-coverprofile:
 
 .PHONY: test-watch
 test-watch:
-	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
+	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION)
 	gotestsum --watch --format testname -- ./...
 
 .PHONY: test-coverage-pretty
 test-coverage-pretty:
-	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
+	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION)
 	gotestsum --format testname -- -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
