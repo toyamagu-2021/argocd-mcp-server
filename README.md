@@ -519,6 +519,12 @@ The server uses JWT token authentication with the ArgoCD gRPC API:
 - JWT token is sent as gRPC metadata with each request
 - Supports both TLS and plaintext connections
 
+### Secrets in Responses
+
+- **Clusters and repositories**: the Argo CD API server already removes credentials from these responses. As defence in depth, this server additionally passes every Cluster and Repository through the upstream `Sanitized()` methods before returning it, so bearer tokens, passwords, TLS keys, SSH keys and exec-provider args/env are never included.
+- **Applications and ApplicationSets**: returned as-is, at the same level of detail as the Argo CD UI and CLI. Helm `values` / `parameters` are **not** redacted. Do not put secrets in Application specs; use a secret manager or Kubernetes Secrets instead.
+- **Manifests**: `Secret` data in `get_application_manifests` is already hidden by the Argo CD server.
+
 ### Logging
 
 Structured logging is implemented using logrus:
