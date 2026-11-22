@@ -243,3 +243,15 @@ func TestResolveAppSetNamespace(t *testing.T) {
 	_, err := resolveAppSetNamespace("a", "b")
 	assert.Error(t, err)
 }
+
+// D7: omitting cascade must not delete cluster resources.
+func TestDeleteApplication_CascadeDefaultsToFalse(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().DeleteApplication(gomock.Any(), "app1", false, "").Return(nil)
+	res := callTool(t, newTestServer(t, Deps{Client: m}), "delete_application", map[string]interface{}{"name": "app1"})
+	assert.False(t, res.IsError)
+
+	assert.Contains(t, DeleteAppTool.Description, "cascade: true")
+	assert.Contains(t, DeleteAppTool.Description, "Argo CD CLI")
+}

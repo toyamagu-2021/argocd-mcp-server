@@ -11,7 +11,7 @@ import (
 
 // DeleteAppTool defines the delete_application tool schema
 var DeleteAppTool = mcp.NewTool("delete_application",
-	mcp.WithDescription("Deletes an ArgoCD application. Use with caution as this operation is destructive."),
+	mcp.WithDescription("Deletes an ArgoCD application. By default only the Application is deleted and the Kubernetes resources it manages are left in the cluster; pass cascade: true to delete those resources too. Note: this default differs from the Argo CD CLI, where cascade defaults to true."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
@@ -21,7 +21,7 @@ var DeleteAppTool = mcp.NewTool("delete_application",
 		mcp.Description("Namespace of the Application resource (its metadata.namespace). Only needed when Argo CD manages Applications outside its own namespace (apps-in-any-namespace). Defaults to the Argo CD namespace."),
 	),
 	mcp.WithBoolean("cascade",
-		mcp.Description("Whether to perform a cascading delete to remove the application's resources from the cluster (default: true)."),
+		mcp.Description("If true, also delete the Kubernetes resources managed by the application. Default: false (only the Application is deleted; its resources are left in the cluster). Unlike the Argo CD CLI, whose default is true."),
 	),
 )
 
@@ -30,7 +30,7 @@ func makeDeleteApplication(d Deps) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract parameters from mcp.CallToolRequest
 		appName := request.GetString("name", "")
-		cascade := request.GetBool("cascade", true)
+		cascade := request.GetBool("cascade", false)
 		appNamespace := request.GetString("app_namespace", "")
 
 		argoClient := d.Client
