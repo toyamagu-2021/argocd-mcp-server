@@ -100,9 +100,22 @@ func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return getApplicationLogsHandler(ctx, argoClient, name, podName, container, namespace,
-			resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter,
-			appNamespace, project)
+		return getApplicationLogsHandler(ctx, argoClient, client.LogsOptions{
+			Name:         name,
+			PodName:      podName,
+			Container:    container,
+			Namespace:    namespace,
+			ResourceName: resourceName,
+			Kind:         kind,
+			Group:        group,
+			TailLines:    tailLines,
+			SinceSeconds: sinceSeconds,
+			Follow:       follow,
+			Previous:     previous,
+			Filter:       filter,
+			AppNamespace: appNamespace,
+			Project:      project,
+		})
 	}
 }
 
@@ -111,25 +124,11 @@ func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
 func getApplicationLogsHandler(
 	ctx context.Context,
 	argoClient client.Interface,
-	name string,
-	podName string,
-	container string,
-	namespace string,
-	resourceName string,
-	kind string,
-	group string,
-	tailLines int64,
-	sinceSeconds *int64,
-	follow bool,
-	previous bool,
-	filter string,
-	appNamespace string,
-	project string,
+	opts client.LogsOptions,
 ) (*mcp.CallToolResult, error) {
-	// Call the GetApplicationLogs method
-	logs, err := argoClient.GetApplicationLogs(ctx, name, podName, container, namespace,
-		resourceName, kind, group, tailLines, sinceSeconds, follow, previous, filter,
-		appNamespace, project)
+	name, podName, container := opts.Name, opts.PodName, opts.Container
+
+	logs, err := argoClient.GetApplicationLogs(ctx, opts)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get application logs: %v", err)), nil
 	}

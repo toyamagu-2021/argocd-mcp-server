@@ -81,7 +81,7 @@ func TestGetApplicationHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().GetApplication(gomock.Any(), "test-app").Return(app, nil)
+				m.EXPECT().GetApplication(gomock.Any(), "test-app", "").Return(app, nil)
 			},
 			wantError: false,
 			checkApp: func(t *testing.T, app *v1alpha1.Application) {
@@ -103,7 +103,7 @@ func TestGetApplicationHandler(t *testing.T) {
 			name:    "application not found",
 			appName: "nonexistent-app",
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().GetApplication(gomock.Any(), "nonexistent-app").Return(nil, assert.AnError)
+				m.EXPECT().GetApplication(gomock.Any(), "nonexistent-app", "").Return(nil, assert.AnError)
 			},
 			wantError:   false,
 			wantMessage: "Failed to get application",
@@ -137,7 +137,7 @@ func TestGetApplicationHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().GetApplication(gomock.Any(), "multi-source-app").Return(app, nil)
+				m.EXPECT().GetApplication(gomock.Any(), "multi-source-app", "").Return(app, nil)
 			},
 			wantError: false,
 			checkApp: func(t *testing.T, app *v1alpha1.Application) {
@@ -159,7 +159,7 @@ func TestGetApplicationHandler(t *testing.T) {
 			tt.setupMock(mockClient)
 
 			ctx := context.Background()
-			result, err := getApplicationHandler(ctx, mockClient, tt.appName)
+			result, err := getApplicationHandler(ctx, mockClient, tt.appName, "")
 
 			if tt.wantError {
 				require.Error(t, err)

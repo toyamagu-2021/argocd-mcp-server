@@ -15,18 +15,47 @@ type LogStream interface {
 	Recv() (*applicationpkg.LogEntry, error)
 }
 
+// ListApplicationsOptions are the server-side filters for ListApplications.
+// Destination cluster/namespace filtering is not supported by ApplicationQuery
+// and is done by the caller.
+type ListApplicationsOptions struct {
+	Selector string
+	// Projects limits results to these projects (ApplicationQuery.Projects).
+	Projects []string
+	// AppNamespace is the namespace of the Application resources (metadata.namespace).
+	AppNamespace string
+}
+
+// LogsOptions are the parameters of GetApplicationLogs.
+type LogsOptions struct {
+	Name         string
+	PodName      string
+	Container    string
+	Namespace    string
+	ResourceName string
+	Kind         string
+	Group        string
+	TailLines    int64
+	SinceSeconds *int64
+	Follow       bool
+	Previous     bool
+	Filter       string
+	AppNamespace string
+	Project      string
+}
+
 // Interface defines the contract for ArgoCD client operations
 type Interface interface {
 	// Application operations
-	GetApplication(ctx context.Context, name string) (*v1alpha1.Application, error)
-	ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error)
+	GetApplication(ctx context.Context, name string, appNamespace string) (*v1alpha1.Application, error)
+	ListApplications(ctx context.Context, opts ListApplicationsOptions) (*v1alpha1.ApplicationList, error)
 	CreateApplication(ctx context.Context, app *v1alpha1.Application, upsert bool) (*v1alpha1.Application, error)
-	DeleteApplication(ctx context.Context, name string, cascade bool) error
-	SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool) (*v1alpha1.Application, error)
-	RefreshApplication(ctx context.Context, name string, refreshType string) (*v1alpha1.Application, error)
-	GetApplicationManifests(ctx context.Context, name string, revision string) (interface{}, error)
+	DeleteApplication(ctx context.Context, name string, cascade bool, appNamespace string) error
+	SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool, appNamespace string) (*v1alpha1.Application, error)
+	RefreshApplication(ctx context.Context, name string, refreshType string, appNamespace string) (*v1alpha1.Application, error)
+	GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (interface{}, error)
 	GetApplicationEvents(ctx context.Context, name string, resourceNamespace string, resourceName string, resourceUID string, appNamespace string, project string) (interface{}, error)
-	GetApplicationLogs(ctx context.Context, name string, podName string, container string, namespace string, resourceName string, kind string, group string, tailLines int64, sinceSeconds *int64, follow bool, previous bool, filter string, appNamespace string, project string) (LogStream, error)
+	GetApplicationLogs(ctx context.Context, opts LogsOptions) (LogStream, error)
 	GetApplicationResourceTree(ctx context.Context, name string, appNamespace string, project string) (*v1alpha1.ApplicationTree, error)
 	TerminateOperation(ctx context.Context, name string, appNamespace string, project string) error
 
@@ -47,7 +76,7 @@ type Interface interface {
 	ListApplicationSets(ctx context.Context, project string) (*v1alpha1.ApplicationSetList, error)
 	GetApplicationSet(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error)
 	CreateApplicationSet(ctx context.Context, appSet *v1alpha1.ApplicationSet, upsert bool, dryRun bool) (*v1alpha1.ApplicationSet, error)
-	DeleteApplicationSet(ctx context.Context, name string, appsetNamespace string) error
+	DeleteApplicationSet(ctx context.Context, name string, appNamespace string) error
 
 	// Session operations
 	GetUserInfo(ctx context.Context) (*sessionpkg.GetUserInfoResponse, error)

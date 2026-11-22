@@ -9,6 +9,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client/mock"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,7 +76,7 @@ func TestRegister_UsesInjectedClient(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	m := mock.NewMockInterface(ctrl)
 	// No Close() expectation: gomock fails the test if a handler closes the client.
-	m.EXPECT().GetApplication(gomock.Any(), "app1").Return(&v1alpha1.Application{
+	m.EXPECT().GetApplication(gomock.Any(), "app1", "").Return(&v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{Name: "app1", Namespace: "argocd"},
 	}, nil).Times(2)
 
@@ -98,7 +99,7 @@ func TestRegister_ArgumentWiring(t *testing.T) {
 			tool: "sync_application",
 			args: map[string]interface{}{"name": "app1", "prune": true, "dry_run": true},
 			expect: func(m *mock.MockInterface) {
-				m.EXPECT().SyncApplication(gomock.Any(), "app1", gomock.Any(), true, true).
+				m.EXPECT().SyncApplication(gomock.Any(), "app1", gomock.Any(), true, true, "").
 					Return(&v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "app1"}}, nil)
 			},
 		},
@@ -107,7 +108,7 @@ func TestRegister_ArgumentWiring(t *testing.T) {
 			tool: "delete_application",
 			args: map[string]interface{}{"name": "app1", "cascade": false},
 			expect: func(m *mock.MockInterface) {
-				m.EXPECT().DeleteApplication(gomock.Any(), "app1", false).Return(nil)
+				m.EXPECT().DeleteApplication(gomock.Any(), "app1", false, "").Return(nil)
 			},
 		},
 	}
@@ -175,4 +176,70 @@ func TestToolHints(t *testing.T) {
 	assert.False(t, *r.DestructiveHint)
 	require.NotNil(t, r.IdempotentHint)
 	assert.True(t, *r.IdempotentHint)
+}
+
+func TestRegister_AppNamespace(t *testing.T) {
+	app := &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "app1", Namespace: "team-a"}}
+	tests := []struct {
+		tool   string
+		args   map[string]interface{}
+		expect func(m *mock.MockInterface)
+	}{
+		{"get_application", map[string]interface{}{"name": "app1", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
+			m.EXPECT().GetApplication(gomock.Any(), "app1", "team-a").Return(app, nil)
+		}},
+		{"sync_application", map[string]interface{}{"name": "app1", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
+			m.EXPECT().SyncApplication(gomock.Any(), "app1", "", false, false, "team-a").Return(app, nil)
+		}},
+		{"refresh_application", map[string]interface{}{"name": "app1", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
+			m.EXPECT().RefreshApplication(gomock.Any(), "app1", "normal", "team-a").Return(app, nil)
+		}},
+		{"delete_application", map[string]interface{}{"name": "app1", "cascade": true, "app_namespace": "team-a"}, func(m *mock.MockInterface) {
+			m.EXPECT().DeleteApplication(gomock.Any(), "app1", true, "team-a").Return(nil)
+		}},
+		{"get_application_manifests", map[string]interface{}{"name": "app1", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
+			m.EXPECT().GetApplicationManifests(gomock.Any(), "app1", "", "team-a").Return(map[string]interface{}{}, nil)
+		}},
+		{"list_application", map[string]interface{}{"project": "p1", "selector": "a=b", "app_namespace": "team-a", "output_format": "json"}, func(m *mock.MockInterface) {
+			m.EXPECT().ListApplications(gomock.Any(), client.ListApplicationsOptions{
+				Selector: "a=b", Projects: []string{"p1"}, AppNamespace: "team-a",
+			}).Return(&v1alpha1.ApplicationList{}, nil)
+		}},
+		{"delete_applicationset", map[string]interface{}{"name": "set", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
+			m.EXPECT().DeleteApplicationSet(gomock.Any(), "set", "team-a").Return(nil)
+		}},
+		{"delete_applicationset", map[string]interface{}{"name": "set", "appsetNamespace": "legacy"}, func(m *mock.MockInterface) {
+			m.EXPECT().DeleteApplicationSet(gomock.Any(), "set", "legacy").Return(nil)
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.tool, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			m := mock.NewMockInterface(ctrl)
+			tt.expect(m)
+			res := callTool(t, newTestServer(t, Deps{Client: m}), tt.tool, tt.args)
+			assert.False(t, res.IsError)
+		})
+	}
+}
+
+func TestDeleteApplicationSet_ConflictingNamespaces(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	s := newTestServer(t, Deps{Client: mock.NewMockInterface(ctrl)})
+	res := callTool(t, s, "delete_applicationset", map[string]interface{}{
+		"name": "set", "app_namespace": "a", "appsetNamespace": "b",
+	})
+	assert.True(t, res.IsError)
+}
+
+func TestResolveAppSetNamespace(t *testing.T) {
+	for _, tt := range []struct{ app, legacy, want string }{
+		{"", "", ""}, {"a", "", "a"}, {"", "b", "b"}, {"a", "a", "a"},
+	} {
+		got, err := resolveAppSetNamespace(tt.app, tt.legacy)
+		require.NoError(t, err)
+		assert.Equal(t, tt.want, got)
+	}
+	_, err := resolveAppSetNamespace("a", "b")
+	assert.Error(t, err)
 }

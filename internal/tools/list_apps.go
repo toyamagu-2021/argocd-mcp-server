@@ -24,7 +24,10 @@ var ListAppsTool = mcp.NewTool("list_application",
 		mcp.Description("Filter applications by destination cluster name or URL."),
 	),
 	mcp.WithString("namespace",
-		mcp.Description("Filter applications by destination namespace."),
+		mcp.Description("Filter applications by destination namespace (spec.destination.namespace). Not to be confused with app_namespace."),
+	),
+	mcp.WithString("app_namespace",
+		mcp.Description("Only list Application resources in this namespace (their metadata.namespace), for Argo CD apps-in-any-namespace. Unrelated to the destination 'namespace' filter."),
 	),
 	mcp.WithString("selector",
 		mcp.Description("Filter applications by a label selector (e.g., 'key=value')."),
@@ -50,6 +53,7 @@ func makeListApplications(d Deps) server.ToolHandlerFunc {
 		project := request.GetString("project", "")
 		cluster := request.GetString("cluster", "")
 		namespace := request.GetString("namespace", "")
+		appNamespace := request.GetString("app_namespace", "")
 		selector := request.GetString("selector", "")
 		detailed := request.GetBool("detailed", false)
 		nameOnly := request.GetBool("name_only", false)
@@ -67,7 +71,7 @@ func makeListApplications(d Deps) server.ToolHandlerFunc {
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector, detailed, nameOnly, outputFormat, optionalFields)
+		return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector, detailed, nameOnly, outputFormat, optionalFields, appNamespace)
 	}
 }
 
@@ -120,8 +124,13 @@ func listApplicationsHandler(
 	nameOnly bool,
 	outputFormat string,
 	optionalFields []string,
+	appNamespace string,
 ) (*mcp.CallToolResult, error) {
-	appList, err := argoClient.ListApplications(ctx, selector)
+	opts := client.ListApplicationsOptions{Selector: selector, AppNamespace: appNamespace}
+	if project != "" {
+		opts.Projects = []string{project}
+	}
+	appList, err := argoClient.ListApplications(ctx, opts)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to list applications: %v", err)), nil
 	}

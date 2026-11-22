@@ -19,6 +19,9 @@ var GetAppTool = mcp.NewTool("get_application",
 		mcp.Required(),
 		mcp.Description("The name of the application to retrieve."),
 	),
+	mcp.WithString("app_namespace",
+		mcp.Description("Namespace of the Application resource (its metadata.namespace). Only needed when Argo CD manages Applications outside its own namespace (apps-in-any-namespace). Defaults to the Argo CD namespace."),
+	),
 )
 
 // makeGetApplication returns the handler for this tool bound to the shared client in d.
@@ -26,11 +29,12 @@ func makeGetApplication(d Deps) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract required parameter from mcp.CallToolRequest
 		appName := request.GetString("name", "")
+		appNamespace := request.GetString("app_namespace", "")
 
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return getApplicationHandler(ctx, argoClient, appName)
+		return getApplicationHandler(ctx, argoClient, appName, appNamespace)
 	}
 }
 
@@ -40,12 +44,13 @@ func getApplicationHandler(
 	ctx context.Context,
 	argoClient client.Interface,
 	appName string,
+	appNamespace string,
 ) (*mcp.CallToolResult, error) {
 	if appName == "" {
 		return mcp.NewToolResultError("Application name is required"), nil
 	}
 
-	app, err := argoClient.GetApplication(ctx, appName)
+	app, err := argoClient.GetApplication(ctx, appName, appNamespace)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get application: %v", err)), nil
 	}

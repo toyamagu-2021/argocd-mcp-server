@@ -1,0 +1,168 @@
+package client
+
+import (
+	"context"
+	"testing"
+
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// fakeAppService records the requests sent to the Argo CD application service.
+type fakeAppService struct {
+	applicationpkg.ApplicationServiceClient
+	gets      []*applicationpkg.ApplicationQuery
+	list      *applicationpkg.ApplicationQuery
+	del       *applicationpkg.ApplicationDeleteRequest
+	sync      *applicationpkg.ApplicationSyncRequest
+	manifests *applicationpkg.ApplicationManifestQuery
+	logs      *applicationpkg.ApplicationPodLogsQuery
+}
+
+func (f *fakeAppService) Get(_ context.Context, q *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	f.gets = append(f.gets, q)
+	ns := "argocd"
+	if q.AppNamespace != nil {
+		ns = *q.AppNamespace
+	}
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: q.GetName(), Namespace: ns},
+		Spec:       v1alpha1.ApplicationSpec{Project: "proj"},
+	}, nil
+}
+
+func (f *fakeAppService) List(_ context.Context, q *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
+	f.list = q
+	return &v1alpha1.ApplicationList{}, nil
+}
+
+func (f *fakeAppService) Delete(_ context.Context, r *applicationpkg.ApplicationDeleteRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	f.del = r
+	return &applicationpkg.ApplicationResponse{}, nil
+}
+
+func (f *fakeAppService) Sync(_ context.Context, r *applicationpkg.ApplicationSyncRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	f.sync = r
+	return &v1alpha1.Application{}, nil
+}
+
+func (f *fakeAppService) GetManifests(_ context.Context, q *applicationpkg.ApplicationManifestQuery, _ ...grpc.CallOption) (*repoapiclient.ManifestResponse, error) {
+	f.manifests = q
+	return nil, nil
+}
+
+func (f *fakeAppService) PodLogs(_ context.Context, q *applicationpkg.ApplicationPodLogsQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
+	f.logs = q
+	return nil, nil
+}
+
+type fakeAppSetService struct {
+	applicationsetpkg.ApplicationSetServiceClient
+	del *applicationsetpkg.ApplicationSetDeleteRequest
+}
+
+func (f *fakeAppSetService) Delete(_ context.Context, r *applicationsetpkg.ApplicationSetDeleteRequest, _ ...grpc.CallOption) (*applicationsetpkg.ApplicationSetResponse, error) {
+	f.del = r
+	return &applicationsetpkg.ApplicationSetResponse{}, nil
+}
+
+func newFakeClient() (*Client, *fakeAppService, *fakeAppSetService) {
+	a, s := &fakeAppService{}, &fakeAppSetService{}
+	return &Client{appClient: a, appSetClient: s}, a, s
+}
+
+func TestListApplications_Query(t *testing.T) {
+	ctx := context.Background()
+	c, f, _ := newFakeClient()
+
+	_, err := c.ListApplications(ctx, ListApplicationsOptions{})
+	require.NoError(t, err)
+	assert.Nil(t, f.list.Selector)
+	assert.Empty(t, f.list.Projects)
+	assert.Nil(t, f.list.AppNamespace)
+
+	_, err = c.ListApplications(ctx, ListApplicationsOptions{Selector: "a=b", Projects: []string{"p1"}, AppNamespace: "team-a"})
+	require.NoError(t, err)
+	assert.Equal(t, "a=b", f.list.GetSelector())
+	assert.Equal(t, []string{"p1"}, f.list.Projects)
+	// D14: only Projects is used; the singular Project field must stay unset.
+	assert.Empty(t, f.list.Project)
+	assert.Equal(t, "team-a", f.list.GetAppNamespace())
+}
+
+func TestAppNamespace_Propagation(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("get", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplication(ctx, "app", "team-a")
+		require.NoError(t, err)
+		assert.Equal(t, "team-a", f.gets[0].GetAppNamespace())
+
+		_, err = c.GetApplication(ctx, "app", "")
+		require.NoError(t, err)
+		assert.Nil(t, f.gets[1].AppNamespace)
+	})
+
+	t.Run("refresh", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.RefreshApplication(ctx, "app", "hard", "team-a")
+		require.NoError(t, err)
+		assert.Equal(t, "team-a", f.gets[0].GetAppNamespace())
+		assert.Equal(t, "hard", f.gets[0].GetRefresh())
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		require.NoError(t, c.DeleteApplication(ctx, "app", false, "team-a"))
+		assert.Equal(t, "team-a", f.del.GetAppNamespace())
+		assert.False(t, f.del.GetCascade())
+	})
+
+	t.Run("sync", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.SyncApplication(ctx, "app", "", true, true, "team-a")
+		require.NoError(t, err)
+		assert.Equal(t, "team-a", f.sync.GetAppNamespace())
+	})
+
+	t.Run("manifests looks up the app in its namespace", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationManifests(ctx, "app", "", "team-a")
+		require.NoError(t, err)
+		assert.Equal(t, "team-a", f.gets[0].GetAppNamespace())
+		assert.Equal(t, "team-a", f.manifests.GetAppNamespace())
+		assert.Equal(t, "proj", f.manifests.GetProject())
+	})
+
+	t.Run("logs", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationLogs(ctx, LogsOptions{Name: "app", TailLines: 10, Container: "c", AppNamespace: "team-a"})
+		require.NoError(t, err)
+		assert.Equal(t, "team-a", f.gets[0].GetAppNamespace())
+		assert.Equal(t, "team-a", f.logs.GetAppNamespace())
+		assert.Equal(t, "proj", f.logs.GetProject())
+		assert.Equal(t, "c", f.logs.GetContainer())
+		assert.Nil(t, f.logs.PodName)
+		assert.Equal(t, int64(10), f.logs.GetTailLines())
+	})
+
+	t.Run("logs with namespace and project skips lookup", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationLogs(ctx, LogsOptions{Name: "app", AppNamespace: "ns", Project: "p"})
+		require.NoError(t, err)
+		assert.Empty(t, f.gets)
+	})
+
+	t.Run("applicationset delete", func(t *testing.T) {
+		c, _, s := newFakeClient()
+		require.NoError(t, c.DeleteApplicationSet(ctx, "set", "team-a"))
+		assert.Equal(t, "team-a", s.del.AppsetNamespace)
+	})
+}

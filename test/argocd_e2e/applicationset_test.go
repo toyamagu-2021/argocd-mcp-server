@@ -354,8 +354,8 @@ func testDeleteApplicationSetWithNamespace(t *testing.T) {
 		"params": map[string]interface{}{
 			"name": "delete_applicationset",
 			"arguments": map[string]interface{}{
-				"name":            "test-appset-e2e",
-				"appsetNamespace": "argocd",
+				"name":          "test-appset-e2e",
+				"app_namespace": "argocd",
 			},
 		},
 	}

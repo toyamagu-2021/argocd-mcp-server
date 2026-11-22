@@ -17,6 +17,9 @@ var DeleteAppTool = mcp.NewTool("delete_application",
 		mcp.Required(),
 		mcp.Description("The name of the application to delete."),
 	),
+	mcp.WithString("app_namespace",
+		mcp.Description("Namespace of the Application resource (its metadata.namespace). Only needed when Argo CD manages Applications outside its own namespace (apps-in-any-namespace). Defaults to the Argo CD namespace."),
+	),
 	mcp.WithBoolean("cascade",
 		mcp.Description("Whether to perform a cascading delete to remove the application's resources from the cluster (default: true)."),
 	),
@@ -28,11 +31,12 @@ func makeDeleteApplication(d Deps) server.ToolHandlerFunc {
 		// Extract parameters from mcp.CallToolRequest
 		appName := request.GetString("name", "")
 		cascade := request.GetBool("cascade", true)
+		appNamespace := request.GetString("app_namespace", "")
 
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return deleteApplicationHandler(ctx, argoClient, appName, cascade)
+		return deleteApplicationHandler(ctx, argoClient, appName, cascade, appNamespace)
 	}
 }
 
@@ -43,12 +47,13 @@ func deleteApplicationHandler(
 	argoClient client.Interface,
 	appName string,
 	cascade bool,
+	appNamespace string,
 ) (*mcp.CallToolResult, error) {
 	if appName == "" {
 		return mcp.NewToolResultError("Application name is required"), nil
 	}
 
-	err := argoClient.DeleteApplication(ctx, appName, cascade)
+	err := argoClient.DeleteApplication(ctx, appName, cascade, appNamespace)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to delete application: %v", err)), nil
 	}

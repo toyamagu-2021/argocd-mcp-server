@@ -10,6 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client/mock"
 	"go.uber.org/mock/gomock"
 )
@@ -112,23 +113,7 @@ func TestGetApplicationLogsHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().GetApplicationLogs(
-					gomock.Any(),
-					"test-app",
-					"test-pod",
-					"test-container",
-					"",
-					"",
-					"",
-					"",
-					int64(50),
-					nil,
-					false,
-					false,
-					"",
-					"",
-					"",
-				).Return(logStream, nil)
+				m.EXPECT().GetApplicationLogs(gomock.Any(), client.LogsOptions{Name: "test-app", PodName: "test-pod", Container: "test-container", TailLines: int64(50)}).Return(logStream, nil)
 			},
 			wantError:    false,
 			wantLogCount: 2,
@@ -140,23 +125,7 @@ func TestGetApplicationLogsHandler(t *testing.T) {
 			podName:   "test-pod",
 			tailLines: 100,
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().GetApplicationLogs(
-					gomock.Any(),
-					"test-app",
-					"test-pod",
-					"",
-					"",
-					"",
-					"",
-					"",
-					int64(100),
-					nil,
-					false,
-					false,
-					"",
-					"",
-					"",
-				).Return(nil, fmt.Errorf("failed to get logs"))
+				m.EXPECT().GetApplicationLogs(gomock.Any(), client.LogsOptions{Name: "test-app", PodName: "test-pod", TailLines: int64(100)}).Return(nil, fmt.Errorf("failed to get logs"))
 			},
 			wantError: true,
 		},
@@ -181,23 +150,7 @@ func TestGetApplicationLogsHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().GetApplicationLogs(
-					gomock.Any(),
-					"test-app",
-					"",
-					"",
-					"",
-					"test-deployment",
-					"Deployment",
-					"apps",
-					int64(20),
-					nil,
-					false,
-					false,
-					"",
-					"",
-					"",
-				).Return(logStream, nil)
+				m.EXPECT().GetApplicationLogs(gomock.Any(), client.LogsOptions{Name: "test-app", ResourceName: "test-deployment", Kind: "Deployment", Group: "apps", TailLines: int64(20)}).Return(logStream, nil)
 			},
 			wantError:    false,
 			wantLogCount: 1,
@@ -213,24 +166,22 @@ func TestGetApplicationLogsHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := getApplicationLogsHandler(
-				context.Background(),
-				mockClient,
-				tt.appName,
-				tt.podName,
-				tt.container,
-				tt.namespace,
-				tt.resourceName,
-				tt.kind,
-				tt.group,
-				tt.tailLines,
-				tt.sinceSeconds,
-				tt.follow,
-				tt.previous,
-				tt.filter,
-				tt.appNamespace,
-				tt.project,
-			)
+			result, err := getApplicationLogsHandler(context.Background(), mockClient, client.LogsOptions{
+				Name:         tt.appName,
+				PodName:      tt.podName,
+				Container:    tt.container,
+				Namespace:    tt.namespace,
+				ResourceName: tt.resourceName,
+				Kind:         tt.kind,
+				Group:        tt.group,
+				TailLines:    tt.tailLines,
+				SinceSeconds: tt.sinceSeconds,
+				Follow:       tt.follow,
+				Previous:     tt.previous,
+				Filter:       tt.filter,
+				AppNamespace: tt.appNamespace,
+				Project:      tt.project,
+			})
 
 			if tt.wantError {
 				require.Nil(t, err)

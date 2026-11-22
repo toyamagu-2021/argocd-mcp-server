@@ -17,8 +17,11 @@ var DeleteApplicationSetTool = mcp.NewTool("delete_applicationset",
 		mcp.Required(),
 		mcp.Description("The name of the ApplicationSet to delete."),
 	),
+	mcp.WithString("app_namespace",
+		mcp.Description("The namespace of the ApplicationSet resource (its metadata.namespace). If not specified, uses the Argo CD namespace."),
+	),
 	mcp.WithString("appsetNamespace",
-		mcp.Description("The namespace of the ApplicationSet. If not specified, uses the ArgoCD control plane namespace."),
+		mcp.Description("Deprecated: use app_namespace. Still accepted during the 0.3 migration period."),
 	),
 )
 
@@ -27,12 +30,31 @@ func makeDeleteApplicationSet(d Deps) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract parameters from mcp.CallToolRequest
 		appSetName := request.GetString("name", "")
-		appSetNamespace := request.GetString("appsetNamespace", "")
+		appSetNamespace, err := resolveAppSetNamespace(
+			request.GetString("app_namespace", ""),
+			request.GetString("appsetNamespace", ""),
+		)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 
 		argoClient := d.Client
 
 		// Use the handler function with the real client
 		return deleteApplicationSetHandler(ctx, argoClient, appSetName, appSetNamespace)
+	}
+}
+
+// resolveAppSetNamespace merges app_namespace with its deprecated alias
+// appsetNamespace (design D17). Conflicting values are rejected.
+func resolveAppSetNamespace(appNamespace, legacy string) (string, error) {
+	switch {
+	case appNamespace == "":
+		return legacy, nil
+	case legacy == "" || legacy == appNamespace:
+		return appNamespace, nil
+	default:
+		return "", fmt.Errorf("conflicting namespaces: app_namespace=%q, appsetNamespace=%q (appsetNamespace is deprecated; use app_namespace only)", appNamespace, legacy)
 	}
 }
 

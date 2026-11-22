@@ -79,7 +79,7 @@ func TestGetApplicationManifestsHandler(t *testing.T) {
 			setupMock: func(m *mock.MockInterface) {
 				// The mock interface's GetApplicationManifests should just return the result
 				// The real client implementation handles the GetApplication internally
-				m.EXPECT().GetApplicationManifests(gomock.Any(), "test-app", "").Return(mockManifestResponse, nil)
+				m.EXPECT().GetApplicationManifests(gomock.Any(), "test-app", "", "").Return(mockManifestResponse, nil)
 			},
 			wantError: false,
 		},
@@ -90,7 +90,7 @@ func TestGetApplicationManifestsHandler(t *testing.T) {
 			setupMock: func(m *mock.MockInterface) {
 				// The mock interface's GetApplicationManifests should just return the result
 				// The real client implementation handles the GetApplication internally
-				m.EXPECT().GetApplicationManifests(gomock.Any(), "test-app", "v1.0.0").Return(mockManifestResponse, nil)
+				m.EXPECT().GetApplicationManifests(gomock.Any(), "test-app", "v1.0.0", "").Return(mockManifestResponse, nil)
 			},
 			wantError: false,
 		},
@@ -100,7 +100,7 @@ func TestGetApplicationManifestsHandler(t *testing.T) {
 			revision: "",
 			setupMock: func(m *mock.MockInterface) {
 				// The mock returns an error when manifests are requested
-				m.EXPECT().GetApplicationManifests(gomock.Any(), "nonexistent-app", "").Return(nil, assert.AnError)
+				m.EXPECT().GetApplicationManifests(gomock.Any(), "nonexistent-app", "", "").Return(nil, assert.AnError)
 			},
 			wantError:   true,
 			wantMessage: "Failed to get application manifests",
@@ -127,7 +127,7 @@ func TestGetApplicationManifestsHandler(t *testing.T) {
 				tt.setupMock(mockClient)
 			}
 
-			result, err := getApplicationManifestsHandler(context.Background(), mockClient, tt.appName, tt.revision)
+			result, err := getApplicationManifestsHandler(context.Background(), mockClient, tt.appName, tt.revision, "")
 
 			if tt.wantError {
 				require.Nil(t, err)

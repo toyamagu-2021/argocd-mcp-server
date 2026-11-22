@@ -70,7 +70,7 @@ func TestRefreshApplicationHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().RefreshApplication(gomock.Any(), "test-app", "normal").Return(expectedApp, nil)
+				m.EXPECT().RefreshApplication(gomock.Any(), "test-app", "normal", "").Return(expectedApp, nil)
 			},
 			wantError:   false,
 			wantMessage: "test-app",
@@ -90,7 +90,7 @@ func TestRefreshApplicationHandler(t *testing.T) {
 						},
 					},
 				}
-				m.EXPECT().RefreshApplication(gomock.Any(), "test-app", "hard").Return(expectedApp, nil)
+				m.EXPECT().RefreshApplication(gomock.Any(), "test-app", "hard", "").Return(expectedApp, nil)
 			},
 			wantError:   false,
 			wantMessage: "test-app",
@@ -100,7 +100,7 @@ func TestRefreshApplicationHandler(t *testing.T) {
 			appName:     "test-app",
 			hardRefresh: false,
 			setupMock: func(m *mock.MockInterface) {
-				m.EXPECT().RefreshApplication(gomock.Any(), "test-app", "normal").Return(nil, assert.AnError)
+				m.EXPECT().RefreshApplication(gomock.Any(), "test-app", "normal", "").Return(nil, assert.AnError)
 			},
 			wantError: true,
 		},
@@ -121,7 +121,7 @@ func TestRefreshApplicationHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := refreshApplicationHandler(context.Background(), mockClient, tt.appName, tt.hardRefresh)
+			result, err := refreshApplicationHandler(context.Background(), mockClient, tt.appName, tt.hardRefresh, "")
 
 			if tt.wantError {
 				require.Nil(t, err)

@@ -179,23 +179,33 @@ func (c *Client) close() error {
 // Application operations
 
 // GetApplication retrieves a single ArgoCD application by name
-func (c *Client) GetApplication(ctx context.Context, name string) (*v1alpha1.Application, error) {
-	req := &applicationpkg.ApplicationQuery{
-		Name: &name,
-	}
-	resp, err := c.appClient.Get(ctx, req)
+func (c *Client) GetApplication(ctx context.Context, name string, appNamespace string) (*v1alpha1.Application, error) {
+	resp, err := c.appClient.Get(ctx, appQuery(name, appNamespace))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get application: %w", err)
 	}
 	return resp, nil
 }
 
-// RefreshApplication refreshes an ArgoCD application by fetching the latest state
-func (c *Client) RefreshApplication(ctx context.Context, name string, refreshType string) (*v1alpha1.Application, error) {
-	req := &applicationpkg.ApplicationQuery{
-		Name:    &name,
-		Refresh: &refreshType,
+// appQuery builds an ApplicationQuery for a single app, optionally scoped to its namespace.
+func appQuery(name, appNamespace string) *applicationpkg.ApplicationQuery {
+	req := &applicationpkg.ApplicationQuery{Name: &name}
+	if appNamespace != "" {
+		req.AppNamespace = &appNamespace
 	}
+	return req
+}
+
+// lookupApplication fetches an app to learn its namespace and project, which some
+// endpoints need for authorization (notably via gRPC-Web).
+func (c *Client) lookupApplication(ctx context.Context, name, appNamespace string) (*v1alpha1.Application, error) {
+	return c.appClient.Get(ctx, appQuery(name, appNamespace))
+}
+
+// RefreshApplication refreshes an ArgoCD application by fetching the latest state
+func (c *Client) RefreshApplication(ctx context.Context, name string, refreshType string, appNamespace string) (*v1alpha1.Application, error) {
+	req := appQuery(name, appNamespace)
+	req.Refresh = &refreshType
 	resp, err := c.appClient.Get(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh application: %w", err)
@@ -203,11 +213,18 @@ func (c *Client) RefreshApplication(ctx context.Context, name string, refreshTyp
 	return resp, nil
 }
 
-// ListApplications retrieves all ArgoCD applications with optional selector filtering
-func (c *Client) ListApplications(ctx context.Context, selector string) (*v1alpha1.ApplicationList, error) {
+// ListApplications retrieves ArgoCD applications filtered server-side by opts.
+func (c *Client) ListApplications(ctx context.Context, opts ListApplicationsOptions) (*v1alpha1.ApplicationList, error) {
 	req := &applicationpkg.ApplicationQuery{}
-	if selector != "" {
-		req.Selector = &selector
+	if opts.Selector != "" {
+		req.Selector = &opts.Selector
+	}
+	// D14: use Projects only; never set the deprecated Project field as well.
+	if len(opts.Projects) > 0 {
+		req.Projects = opts.Projects
+	}
+	if opts.AppNamespace != "" {
+		req.AppNamespace = &opts.AppNamespace
 	}
 	resp, err := c.appClient.List(ctx, req)
 	if err != nil {
@@ -232,10 +249,13 @@ func (c *Client) CreateApplication(ctx context.Context, app *v1alpha1.Applicatio
 }
 
 // DeleteApplication deletes an ArgoCD application
-func (c *Client) DeleteApplication(ctx context.Context, name string, cascade bool) error {
+func (c *Client) DeleteApplication(ctx context.Context, name string, cascade bool, appNamespace string) error {
 	req := &applicationpkg.ApplicationDeleteRequest{
 		Name:    &name,
 		Cascade: &cascade,
+	}
+	if appNamespace != "" {
+		req.AppNamespace = &appNamespace
 	}
 	_, err := c.appClient.Delete(ctx, req)
 	if err != nil {
@@ -245,7 +265,7 @@ func (c *Client) DeleteApplication(ctx context.Context, name string, cascade boo
 }
 
 // SyncApplication triggers a sync operation for an ArgoCD application
-func (c *Client) SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool) (*v1alpha1.Application, error) {
+func (c *Client) SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool, appNamespace string) (*v1alpha1.Application, error) {
 	strategy := &v1alpha1.SyncStrategy{}
 	req := &applicationpkg.ApplicationSyncRequest{
 		Name:     &name,
@@ -253,6 +273,9 @@ func (c *Client) SyncApplication(ctx context.Context, name string, revision stri
 		Prune:    &prune,
 		DryRun:   &dryRun,
 		Strategy: strategy,
+	}
+	if appNamespace != "" {
+		req.AppNamespace = &appNamespace
 	}
 	resp, err := c.appClient.Sync(ctx, req)
 	if err != nil {
@@ -262,13 +285,10 @@ func (c *Client) SyncApplication(ctx context.Context, name string, revision stri
 }
 
 // GetApplicationManifests retrieves the rendered manifests of an ArgoCD application
-func (c *Client) GetApplicationManifests(ctx context.Context, name string, revision string) (interface{}, error) {
+func (c *Client) GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (interface{}, error) {
 	// First get the application to retrieve its namespace and project
 	// This is required for proper authorization in gRPC-Web mode
-	appReq := &applicationpkg.ApplicationQuery{
-		Name: &name,
-	}
-	app, err := c.appClient.Get(ctx, appReq)
+	app, err := c.lookupApplication(ctx, name, appNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get application details: %w", err)
 	}
@@ -316,10 +336,7 @@ func (c *Client) GetApplicationEvents(ctx context.Context, name string, resource
 
 	// If appNamespace or project not provided, get them from the application
 	if appNamespace == "" || project == "" {
-		appReq := &applicationpkg.ApplicationQuery{
-			Name: &name,
-		}
-		app, err := c.appClient.Get(ctx, appReq)
+		app, err := c.lookupApplication(ctx, name, appNamespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get application details: %w", err)
 		}
@@ -345,10 +362,7 @@ func (c *Client) GetApplicationEvents(ctx context.Context, name string, resource
 func (c *Client) GetApplicationResourceTree(ctx context.Context, name string, appNamespace string, project string) (*v1alpha1.ApplicationTree, error) {
 	// If appNamespace or project not provided, get them from the application
 	if appNamespace == "" || project == "" {
-		appReq := &applicationpkg.ApplicationQuery{
-			Name: &name,
-		}
-		app, err := c.appClient.Get(ctx, appReq)
+		app, err := c.lookupApplication(ctx, name, appNamespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get application details: %w", err)
 		}
@@ -374,47 +388,36 @@ func (c *Client) GetApplicationResourceTree(ctx context.Context, name string, ap
 }
 
 // GetApplicationLogs retrieves logs from pods in an ArgoCD application
-func (c *Client) GetApplicationLogs(ctx context.Context, name string, podName string, container string, namespace string, resourceName string, kind string, group string, tailLines int64, sinceSeconds *int64, follow bool, previous bool, filter string, appNamespace string, project string) (LogStream, error) {
-	// Build the query
+func (c *Client) GetApplicationLogs(ctx context.Context, opts LogsOptions) (LogStream, error) {
+	name := opts.Name
+	appNamespace := opts.AppNamespace
+	project := opts.Project
 	req := &applicationpkg.ApplicationPodLogsQuery{
 		Name:      &name,
-		TailLines: &tailLines,
-		Follow:    &follow,
-		Previous:  &previous,
+		TailLines: &opts.TailLines,
+		Follow:    &opts.Follow,
+		Previous:  &opts.Previous,
 	}
 
-	// Add optional parameters
-	if podName != "" {
-		req.PodName = &podName
+	setIf := func(dst **string, v string) {
+		if v != "" {
+			*dst = &v
+		}
 	}
-	if container != "" {
-		req.Container = &container
-	}
-	if namespace != "" {
-		req.Namespace = &namespace
-	}
-	if resourceName != "" {
-		req.ResourceName = &resourceName
-	}
-	if kind != "" {
-		req.Kind = &kind
-	}
-	if group != "" {
-		req.Group = &group
-	}
-	if filter != "" {
-		req.Filter = &filter
-	}
-	if sinceSeconds != nil {
-		req.SinceSeconds = sinceSeconds
+	setIf(&req.PodName, opts.PodName)
+	setIf(&req.Container, opts.Container)
+	setIf(&req.Namespace, opts.Namespace)
+	setIf(&req.ResourceName, opts.ResourceName)
+	setIf(&req.Kind, opts.Kind)
+	setIf(&req.Group, opts.Group)
+	setIf(&req.Filter, opts.Filter)
+	if opts.SinceSeconds != nil {
+		req.SinceSeconds = opts.SinceSeconds
 	}
 
 	// If appNamespace or project not provided, get them from the application
 	if appNamespace == "" || project == "" {
-		appReq := &applicationpkg.ApplicationQuery{
-			Name: &name,
-		}
-		app, err := c.appClient.Get(ctx, appReq)
+		app, err := c.lookupApplication(ctx, name, appNamespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get application for logs: %w", err)
 		}
@@ -427,14 +430,9 @@ func (c *Client) GetApplicationLogs(ctx context.Context, name string, podName st
 	}
 
 	// Set namespace and project for proper authorization
-	if appNamespace != "" {
-		req.AppNamespace = &appNamespace
-	}
-	if project != "" {
-		req.Project = &project
-	}
+	setIf(&req.AppNamespace, appNamespace)
+	setIf(&req.Project, project)
 
-	// Get the log stream
 	stream, err := c.appClient.PodLogs(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get application logs: %w", err)
@@ -594,10 +592,10 @@ func (c *Client) CreateApplicationSet(ctx context.Context, appSet *v1alpha1.Appl
 }
 
 // DeleteApplicationSet deletes an ArgoCD ApplicationSet
-func (c *Client) DeleteApplicationSet(ctx context.Context, name string, appsetNamespace string) error {
+func (c *Client) DeleteApplicationSet(ctx context.Context, name string, appNamespace string) error {
 	req := &applicationsetpkg.ApplicationSetDeleteRequest{
 		Name:            name,
-		AppsetNamespace: appsetNamespace,
+		AppsetNamespace: appNamespace,
 	}
 	_, err := c.appSetClient.Delete(ctx, req)
 	if err != nil {

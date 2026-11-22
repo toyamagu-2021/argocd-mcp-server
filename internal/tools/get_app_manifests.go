@@ -22,6 +22,9 @@ var GetAppManifestsTool = mcp.NewTool("get_application_manifests",
 	mcp.WithString("revision",
 		mcp.Description("The git revision to retrieve manifests for. If not specified, uses the currently deployed revision."),
 	),
+	mcp.WithString("app_namespace",
+		mcp.Description("Namespace of the Application resource (its metadata.namespace). Only needed when Argo CD manages Applications outside its own namespace (apps-in-any-namespace). Defaults to the Argo CD namespace."),
+	),
 )
 
 // makeGetApplicationManifests returns the handler for this tool bound to the shared client in d.
@@ -30,11 +33,12 @@ func makeGetApplicationManifests(d Deps) server.ToolHandlerFunc {
 		// Extract parameters from mcp.CallToolRequest
 		appName := request.GetString("name", "")
 		revision := request.GetString("revision", "")
+		appNamespace := request.GetString("app_namespace", "")
 
 		argoClient := d.Client
 
 		// Use the handler function with the real client
-		return getApplicationManifestsHandler(ctx, argoClient, appName, revision)
+		return getApplicationManifestsHandler(ctx, argoClient, appName, revision, appNamespace)
 	}
 }
 
@@ -45,12 +49,13 @@ func getApplicationManifestsHandler(
 	argoClient client.Interface,
 	appName string,
 	revision string,
+	appNamespace string,
 ) (*mcp.CallToolResult, error) {
 	if appName == "" {
 		return mcp.NewToolResultError("Application name is required"), nil
 	}
 
-	manifests, err := argoClient.GetApplicationManifests(ctx, appName, revision)
+	manifests, err := argoClient.GetApplicationManifests(ctx, appName, revision, appNamespace)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get application manifests: %v", err)), nil
 	}
