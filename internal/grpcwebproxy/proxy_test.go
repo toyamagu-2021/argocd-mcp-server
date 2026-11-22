@@ -3,9 +3,14 @@ package grpcwebproxy
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestToFrame(t *testing.T) {
@@ -335,6 +340,129 @@ func TestParseGRPCTrailer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseGRPCStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want codes.Code
+	}{
+		{name: "ok", in: "0", want: codes.OK},
+		{name: "ok with surrounding whitespace", in: " 0 ", want: codes.OK},
+		{name: "canceled", in: "1", want: codes.Canceled},
+		{name: "unknown", in: "2", want: codes.Unknown},
+		{name: "not found", in: "5", want: codes.NotFound},
+		{name: "internal", in: "13", want: codes.Internal},
+		{name: "unauthenticated", in: "16", want: codes.Unauthenticated},
+		{name: "max uint32", in: "4294967295", want: codes.Code(math.MaxUint32)},
+		{name: "empty", in: "", want: codes.Unknown},
+		{name: "whitespace only", in: " \t ", want: codes.Unknown},
+		{name: "negative", in: "-1", want: codes.Unknown},
+		{name: "non-numeric", in: "not-a-code", want: codes.Unknown},
+		{name: "greater than max uint32", in: "4294967296", want: codes.Unknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseGRPCStatus(tt.in); got != tt.want {
+				t.Errorf("parseGRPCStatus(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseGRPCTrailerStatusBounds(t *testing.T) {
+	tests := []struct {
+		name    string
+		trailer string
+		wantErr bool
+		want    codes.Code
+	}{
+		{
+			name:    "zero is ok",
+			trailer: "grpc-status: 0\r\ngrpc-message: fine\r\n",
+			wantErr: false,
+		},
+		{
+			name:    "valid non-zero code",
+			trailer: "grpc-status: 5\r\ngrpc-message: not found\r\n",
+			wantErr: true,
+			want:    codes.NotFound,
+		},
+		{
+			name:    "max uint32",
+			trailer: "grpc-status: 4294967295\r\ngrpc-message: big\r\n",
+			wantErr: true,
+			want:    codes.Code(math.MaxUint32),
+		},
+		{
+			name:    "negative",
+			trailer: "grpc-status: -1\r\ngrpc-message: bad\r\n",
+			wantErr: true,
+			want:    codes.Unknown,
+		},
+		{
+			name:    "non-numeric",
+			trailer: "grpc-status: nope\r\ngrpc-message: bad\r\n",
+			wantErr: true,
+			want:    codes.Unknown,
+		},
+		{
+			name:    "greater than max uint32",
+			trailer: "grpc-status: 4294967296\r\ngrpc-message: overflow\r\n",
+			wantErr: true,
+			want:    codes.Unknown,
+		},
+		{
+			name:    "empty status",
+			trailer: "grpc-status:\r\n",
+			wantErr: true,
+			want:    codes.Unknown,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := parseGRPCTrailer([]byte(tt.trailer))
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			st, ok := status.FromError(err)
+			if !ok {
+				t.Fatalf("error = %v, want a status with code %v", err, tt.want)
+			}
+			if st.Code() != tt.want {
+				t.Errorf("code = %v, want %v", st.Code(), tt.want)
+			}
+		})
+	}
+}
+
+func FuzzParseGRPCStatus(f *testing.F) {
+	f.Add("0")
+	f.Add("5")
+	f.Add("")
+	f.Add("-1")
+	f.Add("not-a-code")
+	f.Add("4294967296")
+	f.Add(" 16 ")
+	f.Fuzz(func(t *testing.T, s string) {
+		got := parseGRPCStatus(s)
+		n, err := strconv.ParseUint(strings.TrimSpace(s), 10, 32)
+		if err != nil {
+			if got != codes.Unknown {
+				t.Fatalf("parseGRPCStatus(%q) = %v, want Unknown", s, got)
+			}
+			return
+		}
+		if got != codes.Code(n) {
+			t.Fatalf("parseGRPCStatus(%q) = %v, want %v", s, got, codes.Code(n))
+		}
+	})
 }
 
 func TestParseHeaders(t *testing.T) {
