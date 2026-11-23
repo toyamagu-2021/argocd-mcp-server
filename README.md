@@ -25,13 +25,13 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 
 ### ApplicationSet Management
 - `list_applicationset` - Page of ApplicationSet summaries (`detailed=false` by default, `limit` 50). Generators and Helm values are detailed-only
-- `get_applicationset` - Retrieve detailed information about a specific ApplicationSet
+- `get_applicationset` - One ApplicationSet summary (`detailed=false` by default). Generators and Helm values are detailed-only
 - `create_applicationset` - Create a new ApplicationSet with generators and templates
 - `delete_applicationset` - Delete an ApplicationSet (Argo CD also deletes the Applications it generated)
 
 ### Project Management
 - `list_project` - Page of project summaries (`detailed=false` by default, `limit` 50). `name_only` returns name strings. Roles and tokens are detailed-only
-- `get_project` - Retrieve detailed project information by name
+- `get_project` - One project summary (`detailed=false` by default). Roles and tokens are detailed-only
 - `create_project` - Create new ArgoCD project with access controls and deployment restrictions
 
 ### Cluster Management

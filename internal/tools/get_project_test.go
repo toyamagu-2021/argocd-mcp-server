@@ -3,10 +3,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client/mock"
@@ -20,10 +20,7 @@ func TestGetProjectTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_project', got %s", GetProjectTool.Name)
 	}
 
-	// Verify tool has description
-	if GetProjectTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetProjectTool.Description, "detailed=false")
 
 	// Check input schema exists
 	if GetProjectTool.InputSchema.Type != "object" {
@@ -121,7 +118,7 @@ func TestGetProjectHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := getProjectHandler(context.Background(), mockClient, tt.projectName)
+			result, err := getProjectHandler(context.Background(), mockClient, tt.projectName, false)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -132,17 +129,73 @@ func TestGetProjectHandler(t *testing.T) {
 				require.NotNil(t, result)
 				assert.False(t, result.IsError)
 
-				// Parse the JSON response
-				require.Len(t, result.Content, 1)
-				textContent, ok := mcp.AsTextContent(result.Content[0])
-				require.True(t, ok)
+				text := toolText(t, result)
+				assert.NotContains(t, text, "totalItems")
+				assert.NotContains(t, text, `"roles"`)
+				assert.NotContains(t, text, "metadata")
 
-				var project v1alpha1.AppProject
-				err := json.Unmarshal([]byte(textContent.Text), &project)
+				var summary projectSummary
+				err := json.Unmarshal([]byte(text), &summary)
 				require.NoError(t, err)
-				assert.Equal(t, tt.wantProject.Name, project.Name)
-				assert.Equal(t, tt.wantProject.Spec.Description, project.Spec.Description)
+				assert.Equal(t, tt.wantProject.Name, summary.Name)
+				assert.Equal(t, tt.wantProject.Spec.Description, summary.Description)
+				assert.Equal(t, len(tt.wantProject.Spec.SourceRepos), summary.SourceRepoCount)
+				assert.Equal(t, len(tt.wantProject.Spec.Destinations), summary.DestinationCount)
+				assert.Equal(t, len(tt.wantProject.Spec.Roles), summary.RoleCount)
 			}
 		})
 	}
+}
+
+func TestGetProjectSummarySize(t *testing.T) {
+	token := "jwt-marker:" + strings.Repeat("j", 2048)
+	project := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:          "fat",
+			ManagedFields: []metav1.ManagedFieldsEntry{{Manager: "kubectl"}},
+			Annotations:   map[string]string{lastAppliedAnnotation: "applied"},
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			Description: "desc",
+			SourceRepos: []string{"https://example.com/repo"},
+			Destinations: []v1alpha1.ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "default",
+			}},
+			Roles: []v1alpha1.ProjectRole{{
+				Name:      "admin",
+				JWTTokens: []v1alpha1.JWTToken{{ID: token}},
+			}},
+		},
+	}
+	before, err := json.MarshalIndent(project, "", "  ")
+	require.NoError(t, err)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetProject(gomock.Any(), "fat").Return(project, nil).Times(2)
+
+	summaryRes, err := getProjectHandler(context.Background(), m, "fat", false)
+	require.NoError(t, err)
+	summary := toolText(t, summaryRes)
+	assert.NotContains(t, summary, "jwt-marker")
+	assert.NotContains(t, summary, `"roles"`)
+	assert.NotContains(t, summary, "totalItems")
+	assert.Contains(t, summary, `"roleCount":1`)
+	assert.Contains(t, summary, `"name":"fat"`)
+	tokenBytes := strings.Count(string(before), token) * len(token)
+	t.Logf("before_bytes=%d after_bytes=%d jwt_bytes=%d", len(before), len(summary), tokenBytes)
+	assert.Less(t, len(summary), len(before)/5)
+
+	detailedRes, err := getProjectHandler(context.Background(), m, "fat", true)
+	require.NoError(t, err)
+	detailed := toolText(t, detailedRes)
+	assert.Contains(t, detailed, "jwt-marker")
+	assert.Contains(t, detailed, `"roles"`)
+	assert.NotContains(t, detailed, "managedFields")
+	assert.NotContains(t, detailed, lastAppliedAnnotation)
+	assert.NotContains(t, detailed, "totalItems")
+	assert.Less(t, len(detailed), len(before))
+	var full v1alpha1.AppProject
+	require.NoError(t, json.Unmarshal([]byte(detailed), &full))
+	assert.Equal(t, "fat", full.Name)
+	assert.Equal(t, token, full.Spec.Roles[0].JWTTokens[0].ID)
 }

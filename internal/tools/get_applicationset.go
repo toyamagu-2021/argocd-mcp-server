@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -10,14 +9,17 @@ import (
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
-// GetApplicationSetTool defines the get_applicationset tool schema
+// GetApplicationSetTool defines the get_applicationset tool schema.
 var GetApplicationSetTool = mcp.NewTool("get_applicationset",
-	mcp.WithDescription("Gets detailed information about a specific ArgoCD ApplicationSet"),
+	mcp.WithDescription("Retrieves an ArgoCD ApplicationSet. detailed=false (the default) returns one compact JSON summary with name, namespace, project, and generatorCount. Generators and the template, including Helm values, are omitted. detailed=true returns the full ApplicationSet as compact JSON without managedFields or the last-applied annotation."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the ApplicationSet to retrieve."),
+	),
+	mcp.WithBoolean("detailed",
+		mcp.Description("If true, returns the full ApplicationSet, including generators and Helm values (can be very large). If false (default), returns the summary."),
 	),
 )
 
@@ -28,10 +30,7 @@ func makeGetApplicationSet(d Deps) server.ToolHandlerFunc {
 		if name == "" {
 			return mcp.NewToolResultError("name is required"), nil
 		}
-
-		argoClient := d.Client
-
-		return getApplicationSetHandler(ctx, argoClient, name)
+		return getApplicationSetHandler(ctx, d.Client, name, request.GetBool("detailed", false))
 	}
 }
 
@@ -41,16 +40,23 @@ func getApplicationSetHandler(
 	ctx context.Context,
 	argoClient client.Interface,
 	name string,
+	detailed bool,
 ) (*mcp.CallToolResult, error) {
 	appSet, err := argoClient.GetApplicationSet(ctx, name)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get ApplicationSet: %v", err)), nil
 	}
-
-	jsonData, err := json.MarshalIndent(appSet, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if appSet == nil {
+		return writeCompact(nil)
 	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	if detailed {
+		stripped := stripApplicationSet(*appSet)
+		return writeCompact(&stripped)
+	}
+	return writeCompact(applicationSetSummary{
+		Name:           appSet.Name,
+		Namespace:      appSet.Namespace,
+		Project:        appSet.Spec.Template.Spec.Project,
+		GeneratorCount: len(appSet.Spec.Generators),
+	})
 }
