@@ -127,7 +127,9 @@ destination `cluster` / `namespace` は tools 側 client-side filter 継続。
 
 ## 7. 非ゴール
 
-HTTP/SSE、ツール allowlist、Argo CD v2、`update_application` と `rollback_application` 以外の新書き込みツール、tools 大規模ディレクトリ分割、Helm values のキー名選択 redact / 全 redact、長さ制限・ハッシュ。
+HTTP/SSE、ツール allowlist、Argo CD v2、`update_application` と `rollback_application` 以外の新書き込みツール、tools 大規模ディレクトリ分割、Helm values のキー名選択 redact / 全 redact、フィールド値のハッシュ。
+
+ツール結果の長さ制限は非ゴールではない。summary 既定、`limit`/`offset`、切り詰め通知の正は [token-efficiency.md](token-efficiency.md)。
 
 ## 8. 成功定義
 
