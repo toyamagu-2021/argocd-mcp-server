@@ -867,6 +867,177 @@ func testSyncCreatedApplication(t *testing.T) {
 	t.Logf("Response snippet: %.500s...", text)
 }
 
+func testUpdateCreatedApplication(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e"
+	}
+	testRepoURL := os.Getenv("TEST_CREATE_REPO_URL")
+	if testRepoURL == "" {
+		testRepoURL = "https://github.com/argoproj/argocd-example-apps.git"
+	}
+	testPath := os.Getenv("TEST_CREATE_PATH")
+	if testPath == "" {
+		testPath = "guestbook"
+	}
+	testDestNamespace := os.Getenv("TEST_CREATE_DEST_NAMESPACE")
+	if testDestNamespace == "" {
+		testDestNamespace = "default"
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+	initializeMCPConnection(t, stdin, stdout)
+
+	response := sendRequest(t, stdin, stdout, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "update_application",
+			"arguments": map[string]interface{}{
+				"name": testAppName,
+				"spec": map[string]interface{}{
+					"project": "default",
+					"source": map[string]interface{}{
+						"repoURL":        testRepoURL,
+						"path":           testPath,
+						"targetRevision": "HEAD",
+					},
+					"destination": map[string]interface{}{
+						"server":    "https://kubernetes.default.svc",
+						"namespace": testDestNamespace,
+					},
+					"revisionHistoryLimit": 10,
+				},
+			},
+		},
+	})
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Fatalf("Error calling update_application: %v", errObj["message"])
+	}
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+	if isErr, _ := result["isError"].(bool); isErr {
+		t.Fatalf("update_application failed: %v", result["content"])
+	}
+	content, _ := result["content"].([]interface{})
+	if len(content) == 0 {
+		t.Fatal("expected update_application content")
+	}
+	textContent, _ := content[0].(map[string]interface{})
+	text, _ := textContent["text"].(string)
+	if !strings.Contains(text, "revisionHistoryLimit") {
+		t.Fatalf("updated spec missing revisionHistoryLimit: %s", text)
+	}
+	t.Logf("Updated spec of %s", testAppName)
+}
+
+func testRollbackCreatedApplication(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e"
+	}
+
+	// Sync is accepted before status.history is written. Poll get_application,
+	// then dry-run a rollback to a real history id.
+	var historyID int64
+	var found bool
+	for attempt := 1; attempt <= 8; attempt++ {
+		text, toolErr := callCreatedAppTool(t, "get_application", map[string]interface{}{"name": testAppName})
+		if toolErr == "" {
+			if id, ok := lastHistoryID(text); ok {
+				historyID = id
+				found = true
+				break
+			}
+		} else {
+			t.Logf("get_application attempt %d: %s", attempt, toolErr)
+		}
+		time.Sleep(3 * time.Second)
+	}
+	if !found {
+		t.Fatal("application has no status.history after sync; rollback was not exercised")
+	}
+
+	_, toolErr := callCreatedAppTool(t, "rollback_application", map[string]interface{}{
+		"name":    testAppName,
+		"id":      historyID,
+		"dry_run": true,
+	})
+	if toolErr != "" {
+		t.Fatalf("rollback_application dry-run of history id %d failed: %s", historyID, toolErr)
+	}
+	t.Logf("Rollback dry-run of history id %d succeeded for %s", historyID, testAppName)
+}
+
+func callCreatedAppTool(t *testing.T, name string, args map[string]interface{}) (string, string) {
+	t.Helper()
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	initializeMCPConnection(t, stdin, stdout)
+	response := sendRequest(t, stdin, stdout, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name":      name,
+			"arguments": args,
+		},
+	})
+	_ = mcpCmd.Process.Kill()
+	_ = mcpCmd.Wait()
+
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Fatalf("Error calling %s: %v", name, errObj["message"])
+	}
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+	content, _ := result["content"].([]interface{})
+	text := ""
+	if len(content) > 0 {
+		if textContent, ok := content[0].(map[string]interface{}); ok {
+			text, _ = textContent["text"].(string)
+		}
+	}
+	if isErr, _ := result["isError"].(bool); isErr {
+		return text, text
+	}
+	return text, ""
+}
+
+func lastHistoryID(appJSON string) (int64, bool) {
+	var app struct {
+		Status struct {
+			History []struct {
+				ID int64 `json:"id"`
+			} `json:"history"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(appJSON), &app); err != nil || len(app.Status.History) == 0 {
+		return 0, false
+	}
+	return app.Status.History[len(app.Status.History)-1].ID, true
+}
+
 func testManagedResourcesCreatedApplication(t *testing.T) {
 	testMutex.Lock()
 	defer testMutex.Unlock()

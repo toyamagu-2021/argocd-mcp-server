@@ -27,6 +27,8 @@ type fakeAppService struct {
 	events    *applicationpkg.ApplicationResourceEventsQuery
 	managed   *applicationpkg.ResourcesQuery
 	resource  *applicationpkg.ApplicationResourceRequest
+	update    *applicationpkg.ApplicationUpdateSpecRequest
+	rollback  *applicationpkg.ApplicationRollbackRequest
 }
 
 func (f *fakeAppService) ListResourceEvents(_ context.Context, q *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*eventspkg.EventList, error) {
@@ -64,6 +66,16 @@ func (f *fakeAppService) Sync(_ context.Context, r *applicationpkg.ApplicationSy
 func (f *fakeAppService) GetManifests(_ context.Context, q *applicationpkg.ApplicationManifestQuery, _ ...grpc.CallOption) (*repoapiclient.ManifestResponse, error) {
 	f.manifests = q
 	return nil, nil
+}
+
+func (f *fakeAppService) UpdateSpec(_ context.Context, q *applicationpkg.ApplicationUpdateSpecRequest, _ ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
+	f.update = q
+	return q.GetSpec(), nil
+}
+
+func (f *fakeAppService) Rollback(_ context.Context, q *applicationpkg.ApplicationRollbackRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	f.rollback = q
+	return &v1alpha1.Application{}, nil
 }
 
 func (f *fakeAppService) ManagedResources(_ context.Context, q *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
@@ -246,6 +258,42 @@ func TestAppNamespace_Propagation(t *testing.T) {
 		assert.Equal(t, "prod", f.resource.GetNamespace())
 		assert.Equal(t, "team-a", f.resource.GetAppNamespace())
 		assert.Equal(t, "proj", f.resource.GetProject())
+	})
+
+	t.Run("update spec sends validate false and leaves metadata to the server", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		limit := int64(10)
+		spec := &v1alpha1.ApplicationSpec{
+			Project:              "default",
+			Source:               &v1alpha1.ApplicationSource{RepoURL: "https://example.com", Path: "guestbook"},
+			RevisionHistoryLimit: &limit,
+		}
+		_, err := c.UpdateApplicationSpec(ctx, UpdateSpecOptions{
+			Name: "app", AppNamespace: "team-a", Project: "proj", Spec: spec, Validate: false,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "app", f.update.GetName())
+		assert.Equal(t, "team-a", f.update.GetAppNamespace())
+		assert.Equal(t, "proj", f.update.GetProject())
+		require.NotNil(t, f.update.Validate)
+		assert.False(t, f.update.GetValidate())
+		require.NotNil(t, f.update.GetSpec())
+		assert.Equal(t, "guestbook", f.update.GetSpec().Source.Path)
+		assert.Equal(t, int64(10), *f.update.GetSpec().RevisionHistoryLimit)
+	})
+
+	t.Run("rollback sends id zero and prune false", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.RollbackApplication(ctx, RollbackOptions{Name: "app", ID: 0, DryRun: true, AppNamespace: "team-a"})
+		require.NoError(t, err)
+		assert.Equal(t, "app", f.rollback.GetName())
+		require.NotNil(t, f.rollback.Id)
+		assert.Equal(t, int64(0), f.rollback.GetId())
+		require.NotNil(t, f.rollback.Prune)
+		assert.False(t, f.rollback.GetPrune())
+		assert.True(t, f.rollback.GetDryRun())
+		assert.Equal(t, "team-a", f.rollback.GetAppNamespace())
+		assert.Nil(t, f.rollback.Project)
 	})
 
 	t.Run("applicationset delete", func(t *testing.T) {

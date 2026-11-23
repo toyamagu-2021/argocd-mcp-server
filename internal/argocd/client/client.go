@@ -250,6 +250,35 @@ func (c *Client) CreateApplication(ctx context.Context, app *v1alpha1.Applicatio
 	return resp, nil
 }
 
+// UpdateApplicationSpec replaces an Application spec via ApplicationService.UpdateSpec.
+// The server loads the Application and assigns spec, so metadata and status are not
+// taken from the caller.
+func (c *Client) UpdateApplicationSpec(ctx context.Context, opts UpdateSpecOptions) (*v1alpha1.ApplicationSpec, error) {
+	if opts.Spec == nil {
+		return nil, fmt.Errorf("application spec is required")
+	}
+	name := opts.Name
+	validate := opts.Validate
+	req := &applicationpkg.ApplicationUpdateSpecRequest{
+		Name:     &name,
+		Spec:     opts.Spec,
+		Validate: &validate,
+	}
+	if opts.AppNamespace != "" {
+		ns := opts.AppNamespace
+		req.AppNamespace = &ns
+	}
+	if opts.Project != "" {
+		project := opts.Project
+		req.Project = &project
+	}
+	resp, err := c.appClient.UpdateSpec(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update application spec: %w", err)
+	}
+	return resp, nil
+}
+
 // DeleteApplication deletes an ArgoCD application
 func (c *Client) DeleteApplication(ctx context.Context, name string, cascade bool, appNamespace string) error {
 	req := &applicationpkg.ApplicationDeleteRequest{
@@ -264,6 +293,33 @@ func (c *Client) DeleteApplication(ctx context.Context, name string, cascade boo
 		return fmt.Errorf("failed to delete application: %w", err)
 	}
 	return nil
+}
+
+// RollbackApplication rolls an application back to a status.history id.
+func (c *Client) RollbackApplication(ctx context.Context, opts RollbackOptions) (*v1alpha1.Application, error) {
+	name := opts.Name
+	id := opts.ID
+	dryRun := opts.DryRun
+	prune := opts.Prune
+	req := &applicationpkg.ApplicationRollbackRequest{
+		Name:   &name,
+		Id:     &id,
+		DryRun: &dryRun,
+		Prune:  &prune,
+	}
+	if opts.AppNamespace != "" {
+		ns := opts.AppNamespace
+		req.AppNamespace = &ns
+	}
+	if opts.Project != "" {
+		project := opts.Project
+		req.Project = &project
+	}
+	resp, err := c.appClient.Rollback(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to rollback application: %w", err)
+	}
+	return resp, nil
 }
 
 // SyncApplication triggers a sync operation for an ArgoCD application

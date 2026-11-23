@@ -180,9 +180,11 @@ func TestRealArgoCD_Suite(t *testing.T) {
 					t.Run("02_GetCreatedApplication", testGetCreatedApplication)
 					t.Run("03_ListApplicationsWithCreated", testListApplicationsWithCreated)
 					t.Run("04_RefreshCreatedApplication", testRefreshCreatedApplication)
+					t.Run("04b_UpdateCreatedApplication", testUpdateCreatedApplication)
 					t.Run("05_SyncCreatedApplication", testSyncCreatedApplication)
 					t.Run("05b_ManagedResources", testManagedResourcesCreatedApplication)
 					t.Run("05c_GetResource", testGetResourceCreatedApplication)
+					t.Run("05d_RollbackCreatedApplication", testRollbackCreatedApplication)
 					t.Run("06_DeleteCreatedApplication", testDeleteCreatedApplication)
 				})
 
