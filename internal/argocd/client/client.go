@@ -322,18 +322,46 @@ func (c *Client) RollbackApplication(ctx context.Context, opts RollbackOptions) 
 	return resp, nil
 }
 
-// SyncApplication triggers a sync operation for an ArgoCD application
-func (c *Client) SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool, appNamespace string) (*v1alpha1.Application, error) {
-	strategy := &v1alpha1.SyncStrategy{}
+// SyncApplication triggers a sync operation for an ArgoCD application.
+func (c *Client) SyncApplication(ctx context.Context, opts SyncOptions) (*v1alpha1.Application, error) {
+	name := opts.Name
+	revision := opts.Revision
+	prune := opts.Prune
+	dryRun := opts.DryRun
 	req := &applicationpkg.ApplicationSyncRequest{
 		Name:     &name,
 		Revision: &revision,
 		Prune:    &prune,
 		DryRun:   &dryRun,
-		Strategy: strategy,
+		// An empty strategy is the historical request shape: neither apply nor
+		// hook is selected, which Argo CD treats as the default hook sync.
+		Strategy: &v1alpha1.SyncStrategy{},
 	}
-	if appNamespace != "" {
-		req.AppNamespace = &appNamespace
+	if opts.AppNamespace != "" {
+		ns := opts.AppNamespace
+		req.AppNamespace = &ns
+	}
+	if len(opts.Revisions) > 0 {
+		req.Revisions = opts.Revisions
+		positions := make([]int64, len(opts.Revisions))
+		for i := range opts.Revisions {
+			positions[i] = int64(i + 1)
+		}
+		req.SourcePositions = positions
+	}
+	if len(opts.Resources) > 0 {
+		req.Resources = make([]*v1alpha1.SyncOperationResource, len(opts.Resources))
+		for i, r := range opts.Resources {
+			req.Resources[i] = &v1alpha1.SyncOperationResource{
+				Group:     r.Group,
+				Kind:      r.Kind,
+				Name:      r.Name,
+				Namespace: r.Namespace,
+			}
+		}
+	}
+	if len(opts.Options) > 0 {
+		req.SyncOptions = &applicationpkg.SyncOptions{Items: opts.Options}
 	}
 	resp, err := c.appClient.Sync(ctx, req)
 	if err != nil {

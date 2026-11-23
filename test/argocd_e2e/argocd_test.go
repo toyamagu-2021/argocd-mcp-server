@@ -811,9 +811,11 @@ func testSyncCreatedApplication(t *testing.T) {
 		"params": map[string]interface{}{
 			"name": "sync_application",
 			"arguments": map[string]interface{}{
-				"name":    testAppName,
-				"dry_run": false,
-				"prune":   false,
+				"name":         testAppName,
+				"dry_run":      false,
+				"prune":        false,
+				"revision":     "HEAD",
+				"sync_options": []string{"CreateNamespace=true"},
 			},
 		},
 	}

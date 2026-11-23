@@ -21,7 +21,7 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 | `get_application_resource` | | `ApplicationService.GetResource`. Live manifest; Argo CD replaces Secret data |
 | `create_application` | ✔ | |
 | `update_application` | ✔ | `ApplicationService.UpdateSpec`. Replaces the whole spec. `validate` defaults to true |
-| `sync_application` | ✔ | `prune`, `dry_run` |
+| `sync_application` | ✔ | `prune`, `dry_run`, `revision` (single-source), `revisions` (multi-source, one per `spec.sources` entry), `resources` (partial sync), `sync_options` (replace, not merge) |
 | `refresh_application` | | treated as read (D11, revised); `hard` |
 | `delete_application` | ✔ | `cascade` defaults to **false** (differs from the Argo CD CLI) |
 | `terminate_operation` | ✔ | |

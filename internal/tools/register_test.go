@@ -104,7 +104,7 @@ func TestRegister_ArgumentWiring(t *testing.T) {
 			tool: "sync_application",
 			args: map[string]interface{}{"name": "app1", "prune": true, "dry_run": true},
 			expect: func(m *mock.MockInterface) {
-				m.EXPECT().SyncApplication(gomock.Any(), "app1", gomock.Any(), true, true, "").
+				m.EXPECT().SyncApplication(gomock.Any(), client.SyncOptions{Name: "app1", Prune: true, DryRun: true}).
 					Return(&v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "app1"}}, nil)
 			},
 		},
@@ -195,7 +195,19 @@ func TestRegister_AppNamespace(t *testing.T) {
 			m.EXPECT().GetApplication(gomock.Any(), "app1", "team-a").Return(app, nil)
 		}},
 		{"sync_application", map[string]interface{}{"name": "app1", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
-			m.EXPECT().SyncApplication(gomock.Any(), "app1", "", false, false, "team-a").Return(app, nil)
+			m.EXPECT().SyncApplication(gomock.Any(), client.SyncOptions{Name: "app1", AppNamespace: "team-a"}).Return(app, nil)
+		}},
+		{"sync_application", map[string]interface{}{
+			"name": "app1", "revision": "abc123",
+			"revisions":    []any{"v1", "v2"},
+			"resources":    []any{map[string]any{"group": "apps", "kind": "Deployment", "name": "web", "namespace": "prod"}},
+			"sync_options": []any{"CreateNamespace=true"},
+		}, func(m *mock.MockInterface) {
+			m.EXPECT().SyncApplication(gomock.Any(), client.SyncOptions{
+				Name: "app1", Revision: "abc123", Revisions: []string{"v1", "v2"},
+				Resources: []client.SyncResource{{Group: "apps", Kind: "Deployment", Name: "web", Namespace: "prod"}},
+				Options:   []string{"CreateNamespace=true"},
+			}).Return(app, nil)
 		}},
 		{"refresh_application", map[string]interface{}{"name": "app1", "app_namespace": "team-a"}, func(m *mock.MockInterface) {
 			m.EXPECT().RefreshApplication(gomock.Any(), "app1", "normal", "team-a").Return(app, nil)

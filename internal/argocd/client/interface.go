@@ -89,6 +89,36 @@ type RollbackOptions struct {
 	Project      string
 }
 
+// SyncResource selects one resource for a partial sync.
+// Group is the API group and is empty for core resources such as ConfigMap.
+type SyncResource struct {
+	Group     string
+	Kind      string
+	Name      string
+	Namespace string
+}
+
+// SyncOptions are the parameters of SyncApplication.
+// Prune, DryRun, and Revision are always sent. An empty Revision tells Argo CD
+// to use the revision in the Application spec. Revisions, Resources, and Options
+// are sent only when non-empty. AppNamespace is sent only when non-empty.
+//
+// Revisions is one entry per source, in spec.sources order. The client pairs
+// each entry with source position 1..N, because Argo CD applies
+// ApplicationSyncRequest.Revisions only through SourcePositions.
+// Options, when set, replace the Application's syncPolicy.syncOptions for this
+// operation; they are not merged.
+type SyncOptions struct {
+	Name         string
+	Revision     string
+	Revisions    []string
+	Prune        bool
+	DryRun       bool
+	AppNamespace string
+	Resources    []SyncResource
+	Options      []string
+}
+
 // LogsOptions are the parameters of GetApplicationLogs.
 type LogsOptions struct {
 	Name         string
@@ -116,7 +146,7 @@ type Interface interface {
 	UpdateApplicationSpec(ctx context.Context, opts UpdateSpecOptions) (*v1alpha1.ApplicationSpec, error)
 	DeleteApplication(ctx context.Context, name string, cascade bool, appNamespace string) error
 	RollbackApplication(ctx context.Context, opts RollbackOptions) (*v1alpha1.Application, error)
-	SyncApplication(ctx context.Context, name string, revision string, prune bool, dryRun bool, appNamespace string) (*v1alpha1.Application, error)
+	SyncApplication(ctx context.Context, opts SyncOptions) (*v1alpha1.Application, error)
 	RefreshApplication(ctx context.Context, name string, refreshType string, appNamespace string) (*v1alpha1.Application, error)
 	GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (*repoapiclient.ManifestResponse, error)
 	GetApplicationEvents(ctx context.Context, opts EventsOptions) (*eventspkg.EventList, error)
