@@ -36,6 +36,11 @@ Not tagged yet.
    Cluster summaries and `{name, server}` rows sit in `items`. The `{clusters, count}`
    wrapper is gone. Repository responses are summaries unless `detailed=true`.
    `limit` defaults to 50. Empty lists are empty pages, not prose. (#117)
+7. **`list_project` and `list_applicationset` return summary pages.**
+   Project summaries omit roles, tokens, and allow-lists. ApplicationSet summaries
+   omit generators and Helm values. `name_only` project JSON is a page of names.
+   `detailed=true` returns the full objects without `managedFields`. `limit`
+   defaults to 50. Empty lists are empty pages, not prose. (#117)
 
 ## v0.3.0 (2026-11-23)
 

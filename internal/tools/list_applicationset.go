@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -14,7 +13,7 @@ import (
 
 // ListApplicationSetTool defines the list_applicationset tool schema
 var ListApplicationSetTool = mcp.NewTool("list_applicationset",
-	mcp.WithDescription("Lists all ArgoCD ApplicationSets with optional filters"),
+	mcp.WithDescription("Lists ArgoCD ApplicationSets. detailed=false (the default) returns a page of summaries with name, namespace, project, and generatorCount. Generators and the template, including Helm values, are omitted. detailed=true returns full ApplicationSets without managedFields or the last-applied annotation. limit defaults to 50 and offset to 0. Narrow with project or selector."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("project",
@@ -23,17 +22,25 @@ var ListApplicationSetTool = mcp.NewTool("list_applicationset",
 	mcp.WithString("selector",
 		mcp.Description("Filter ApplicationSets by a label selector (e.g., 'key=value')."),
 	),
+	mcp.WithBoolean("detailed",
+		mcp.Description("If true, returns full ApplicationSets, including generators and Helm values (can be very large). If false (default), returns summaries."),
+	),
+	mcp.WithNumber("limit",
+		mcp.Description("Maximum number of ApplicationSets to return (default: 50). Use with offset to page."),
+	),
+	mcp.WithNumber("offset",
+		mcp.Description("Number of matching ApplicationSets to skip (default: 0)."),
+	),
 )
 
 // makeListApplicationSets returns the handler for this tool bound to the shared client in d.
 func makeListApplicationSets(d Deps) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		project := request.GetString("project", "")
-		selector := request.GetString("selector", "")
-
-		argoClient := d.Client
-
-		return listApplicationSetsHandler(ctx, argoClient, project, selector)
+		limit, offset, err := pageArgs(request, defaultPageLimit)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return listApplicationSetsHandler(ctx, d.Client, request.GetString("project", ""), request.GetString("selector", ""), request.GetBool("detailed", false), limit, offset)
 	}
 }
 
@@ -43,6 +50,8 @@ func listApplicationSetsHandler(
 	ctx context.Context,
 	argoClient client.Interface,
 	project, selector string,
+	detailed bool,
+	limit, offset int,
 ) (*mcp.CallToolResult, error) {
 	appSetList, err := argoClient.ListApplicationSets(ctx, project)
 	if err != nil {
@@ -67,16 +76,47 @@ func listApplicationSetsHandler(
 		filteredAppSets = appSets
 	}
 
-	if len(filteredAppSets) == 0 {
-		return mcp.NewToolResultText("No ApplicationSets found matching the criteria."), nil
+	if filteredAppSets == nil {
+		filteredAppSets = []v1alpha1.ApplicationSet{}
 	}
-
-	jsonData, err := json.MarshalIndent(filteredAppSets, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	sliced, total, hasMore := pageSlice(filteredAppSets, limit, offset)
+	notice := pageNotice(offset, len(sliced), total, hasMore, "project or selector")
+	if detailed {
+		full := make([]v1alpha1.ApplicationSet, len(sliced))
+		for i, appSet := range sliced {
+			full[i] = stripApplicationSet(appSet)
+		}
+		return writeCompact(page{Items: full, TotalItems: total, HasMore: hasMore, Notice: notice})
 	}
+	summaries := make([]applicationSetSummary, len(sliced))
+	for i, appSet := range sliced {
+		summaries[i] = applicationSetSummary{
+			Name:           appSet.Name,
+			Namespace:      appSet.Namespace,
+			Project:        appSet.Spec.Template.Spec.Project,
+			GeneratorCount: len(appSet.Spec.Generators),
+		}
+	}
+	return writeCompact(page{Items: summaries, TotalItems: total, HasMore: hasMore, Notice: notice})
+}
 
-	return mcp.NewToolResultText(string(jsonData)), nil
+type applicationSetSummary struct {
+	Name           string `json:"name"`
+	Namespace      string `json:"namespace,omitempty"`
+	Project        string `json:"project,omitempty"`
+	GeneratorCount int    `json:"generatorCount"`
+}
+
+func stripApplicationSet(appSet v1alpha1.ApplicationSet) v1alpha1.ApplicationSet {
+	if appSet.Annotations != nil {
+		ann := make(map[string]string, len(appSet.Annotations))
+		for k, v := range appSet.Annotations {
+			ann[k] = v
+		}
+		appSet.Annotations = ann
+	}
+	stripObjectMeta(&appSet.ObjectMeta)
+	return appSet
 }
 
 // parseSelector parses a simple selector string (e.g., "key=value")

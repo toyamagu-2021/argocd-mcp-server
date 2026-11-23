@@ -24,13 +24,13 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `rollback_application` - Roll an application back to a `status.history` id. `prune` and `dry_run` default to false
 
 ### ApplicationSet Management
-- `list_applicationset` - List ArgoCD ApplicationSets with optional filtering
+- `list_applicationset` - Page of ApplicationSet summaries (`detailed=false` by default, `limit` 50). Generators and Helm values are detailed-only
 - `get_applicationset` - Retrieve detailed information about a specific ApplicationSet
 - `create_applicationset` - Create a new ApplicationSet with generators and templates
 - `delete_applicationset` - Delete an ApplicationSet (Argo CD also deletes the Applications it generated)
 
 ### Project Management
-- `list_project` - List all ArgoCD projects
+- `list_project` - Page of project summaries (`detailed=false` by default, `limit` 50). `name_only` returns name strings. Roles and tokens are detailed-only
 - `get_project` - Retrieve detailed project information by name
 - `create_project` - Create new ArgoCD project with access controls and deployment restrictions
 

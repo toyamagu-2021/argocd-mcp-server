@@ -2,6 +2,8 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -21,9 +23,9 @@ func TestListApplicationSetTool_Schema(t *testing.T) {
 	}
 
 	// Verify tool has description
-	if ListApplicationSetTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, ListApplicationSetTool.Description, "detailed=false")
+	assert.Contains(t, ListApplicationSetTool.Description, "50")
+	assert.Contains(t, ListApplicationSetTool.Description, "project or selector")
 
 	// Check input schema exists
 	if ListApplicationSetTool.InputSchema.Type != "object" {
@@ -178,7 +180,7 @@ func TestListApplicationSetsHandler(t *testing.T) {
 				m.EXPECT().ListApplicationSets(gomock.Any(), "").Return(appSetList, nil)
 			},
 			wantError:   false,
-			wantMessage: "No ApplicationSets found",
+			wantMessage: `"totalItems":0`,
 		},
 		{
 			name:     "operation fails",
@@ -212,7 +214,7 @@ func TestListApplicationSetsHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := listApplicationSetsHandler(context.Background(), mockClient, tt.project, tt.selector)
+			result, err := listApplicationSetsHandler(context.Background(), mockClient, tt.project, tt.selector, false, 50, 0)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -339,4 +341,56 @@ func TestMatchesSelector(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestListApplicationSetsSummarySize(t *testing.T) {
+	values := "helm-values-marker:" + strings.Repeat("v", 2048)
+	items := make([]v1alpha1.ApplicationSet, 20)
+	for i := range items {
+		items[i] = v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:          "set-" + itoaSmall(i),
+				Namespace:     "argocd",
+				ManagedFields: []metav1.ManagedFieldsEntry{{Manager: "kubectl"}},
+				Annotations:   map[string]string{lastAppliedAnnotation: "applied"},
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Generators: []v1alpha1.ApplicationSetGenerator{{}},
+				Template: v1alpha1.ApplicationSetTemplate{
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL: "https://example.com/repo",
+							Helm:    &v1alpha1.ApplicationSourceHelm{Values: values},
+						},
+					},
+				},
+			},
+		}
+	}
+	before, err := json.MarshalIndent(items, "", "  ")
+	require.NoError(t, err)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().ListApplicationSets(gomock.Any(), "").Return(&v1alpha1.ApplicationSetList{Items: items}, nil).Times(2)
+
+	summaryRes, err := listApplicationSetsHandler(context.Background(), m, "", "", false, 50, 0)
+	require.NoError(t, err)
+	summary := toolText(t, summaryRes)
+	assert.NotContains(t, summary, "helm-values-marker")
+	assert.NotContains(t, summary, `"generators"`)
+	assert.Contains(t, summary, `"generatorCount":1`)
+	assert.Contains(t, summary, `"project":"default"`)
+	valueBytes := strings.Count(string(before), values) * len(values)
+	t.Logf("before_bytes=%d after_bytes=%d values_bytes=%d", len(before), len(summary), valueBytes)
+	assert.Less(t, len(summary), len(before)/5)
+
+	detailedRes, err := listApplicationSetsHandler(context.Background(), m, "", "", true, 50, 0)
+	require.NoError(t, err)
+	detailed := toolText(t, detailedRes)
+	assert.Contains(t, detailed, "helm-values-marker")
+	assert.Contains(t, detailed, `"generators"`)
+	assert.NotContains(t, detailed, "managedFields")
+	assert.NotContains(t, detailed, lastAppliedAnnotation)
+	assert.Less(t, len(detailed), len(before))
 }
