@@ -17,7 +17,7 @@ The server exposes **25 public tools** (design D1, revised 2026-11-23, see
 | `get_application_events` | | |
 | `get_application_logs` | | `follow=true` is rejected (stdio cannot stream) |
 | `get_application_resource_tree` | | |
-| `get_application_managed_resources` | | `ApplicationService.ManagedResources`. Default is a summary (group, kind, namespace, name, resourceVersion, hook, modified) with no manifest strings. `detailed=true` or any resource filter includes `targetState`, `liveState`, `predictedLiveState`, `normalizedLiveState`. Secret data is hidden by the Argo CD controller before it is cached |
+| `get_application_managed_resources` | | Compact JSON. Default summary omits manifest strings. `detailed=true` or a resource filter includes the four state strings with `managedFields` and `last-applied-configuration` removed. `limit` defaults to 50, `offset` defaults to 0, response has `totalItems` and `hasMore` |
 | `get_application_resource` | | `ApplicationService.GetResource`. Live manifest; Argo CD replaces Secret data |
 | `create_application` | ✔ | |
 | `sync_application` | ✔ | `prune`, `dry_run`, `revision` (single-source), `revisions` (multi-source, one per `spec.sources` entry), `resources` (partial sync), `sync_options` (replace, not merge) |

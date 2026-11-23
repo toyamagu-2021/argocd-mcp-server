@@ -26,7 +26,7 @@ func TestGetApplicationManagedResources_Schema(t *testing.T) {
 	assert.False(t, *GetApplicationManagedResourcesTool.Annotations.DestructiveHint)
 
 	props := GetApplicationManagedResourcesTool.InputSchema.Properties
-	for _, key := range []string{"name", "resource_namespace", "resource_name", "version", "group", "kind", "app_namespace", "project", "detailed"} {
+	for _, key := range []string{"name", "resource_namespace", "resource_name", "version", "group", "kind", "app_namespace", "project", "detailed", "limit", "offset"} {
 		prop, ok := props[key].(map[string]any)
 		require.True(t, ok, key)
 		assert.NotEmpty(t, prop["description"], key)
@@ -51,14 +51,14 @@ func TestGetApplicationManagedResourcesHandler(t *testing.T) {
 		Items: []*v1alpha1.ResourceDiff{{Kind: "Deployment", Name: "web"}},
 	}, nil)
 
-	res, err := getApplicationManagedResourcesHandler(context.Background(), m, opts, false)
+	res, err := getApplicationManagedResourcesHandler(context.Background(), m, opts, false, 50, 0)
 	require.NoError(t, err)
 	assert.False(t, res.IsError)
 	text, ok := mcp.AsTextContent(res.Content[0])
 	require.True(t, ok)
 	assert.Contains(t, text.Text, "web")
 
-	res, err = getApplicationManagedResourcesHandler(context.Background(), m, client.ManagedResourcesOptions{}, false)
+	res, err = getApplicationManagedResourcesHandler(context.Background(), m, client.ManagedResourcesOptions{}, false, 50, 0)
 	require.NoError(t, err)
 	assert.True(t, res.IsError)
 }
@@ -70,7 +70,7 @@ func TestGetApplicationManagedResources_SummaryOmitsState(t *testing.T) {
 	m.EXPECT().GetApplicationManagedResources(gomock.Any(), client.ManagedResourcesOptions{Name: "app"}).
 		Return(full, nil).Times(2)
 
-	summaryRes, err := getApplicationManagedResourcesHandler(context.Background(), m, client.ManagedResourcesOptions{Name: "app"}, false)
+	summaryRes, err := getApplicationManagedResourcesHandler(context.Background(), m, client.ManagedResourcesOptions{Name: "app"}, false, 50, 0)
 	require.NoError(t, err)
 	require.False(t, summaryRes.IsError)
 	summaryText, ok := mcp.AsTextContent(summaryRes.Content[0])
@@ -81,7 +81,7 @@ func TestGetApplicationManagedResources_SummaryOmitsState(t *testing.T) {
 	assert.Contains(t, summaryText.Text, `"modified"`)
 	assert.Contains(t, summaryText.Text, "guestbook-ui")
 
-	detailedRes, err := getApplicationManagedResourcesHandler(context.Background(), m, client.ManagedResourcesOptions{Name: "app"}, true)
+	detailedRes, err := getApplicationManagedResourcesHandler(context.Background(), m, client.ManagedResourcesOptions{Name: "app"}, true, 50, 0)
 	require.NoError(t, err)
 	detailedText, ok := mcp.AsTextContent(detailedRes.Content[0])
 	require.True(t, ok)
@@ -93,7 +93,7 @@ func TestGetApplicationManagedResources_SummaryOmitsState(t *testing.T) {
 
 	filtered := client.ManagedResourcesOptions{Name: "app", Kind: "Deployment"}
 	m.EXPECT().GetApplicationManagedResources(gomock.Any(), filtered).Return(full, nil)
-	filteredRes, err := getApplicationManagedResourcesHandler(context.Background(), m, filtered, false)
+	filteredRes, err := getApplicationManagedResourcesHandler(context.Background(), m, filtered, false, 50, 0)
 	require.NoError(t, err)
 	filteredText, ok := mcp.AsTextContent(filteredRes.Content[0])
 	require.True(t, ok)
@@ -102,19 +102,46 @@ func TestGetApplicationManagedResources_SummaryOmitsState(t *testing.T) {
 
 func TestManagedResourcesSummarySize(t *testing.T) {
 	full := sampleManagedResources(29)
-	fullJSON, err := json.MarshalIndent(full, "", "  ")
+	before, err := json.MarshalIndent(full, "", "  ")
 	require.NoError(t, err)
-	summaryJSON, err := json.MarshalIndent(summarizeManagedResources(full), "", "  ")
+	summary := formatManagedResources(full, client.ManagedResourcesOptions{Name: "app"}, false, 50, 0)
+	summaryJSON, err := json.Marshal(summary)
 	require.NoError(t, err)
-	t.Logf("full_bytes=%d summary_bytes=%d", len(fullJSON), len(summaryJSON))
-	assert.Greater(t, len(fullJSON), 80_000)
-	assert.Less(t, len(summaryJSON), len(fullJSON)/10)
+	detailed := formatManagedResources(full, client.ManagedResourcesOptions{Name: "app"}, true, 50, 0)
+	detailedJSON, err := json.Marshal(detailed)
+	require.NoError(t, err)
+	t.Logf("indented_full_bytes=%d compact_summary_bytes=%d compact_detailed_bytes=%d", len(before), len(summaryJSON), len(detailedJSON))
+	assert.Greater(t, len(before), 80_000)
+	assert.Less(t, len(summaryJSON), len(before)/10)
+	assert.Less(t, len(detailedJSON), len(before))
 	assert.NotContains(t, string(summaryJSON), "targetState")
+	assert.NotContains(t, string(detailedJSON), "managedFields")
+	assert.NotContains(t, string(detailedJSON), lastAppliedAnnotation)
+	assert.Contains(t, string(summaryJSON), `"totalItems":29`)
+	assert.Contains(t, string(summaryJSON), `"hasMore":false`)
+}
+
+func TestManagedResourcesPagingAndStrip(t *testing.T) {
+	full := sampleManagedResources(3)
+	page := formatManagedResources(full, client.ManagedResourcesOptions{Name: "app"}, false, 2, 1)
+	body, err := json.Marshal(page)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"totalItems":3`)
+	assert.Contains(t, string(body), `"hasMore":false`)
+	assert.Contains(t, string(body), "Showing items 1-2 of 3")
+	assert.NotContains(t, string(body), "\n")
+
+	stripped := stripManifestNoise(full.Items[0].LiveState)
+	assert.NotContains(t, stripped, "managedFields")
+	assert.NotContains(t, stripped, lastAppliedAnnotation)
+	assert.Contains(t, stripped, "keep-me")
 }
 
 func sampleManagedResources(n int) *applicationpkg.ManagedResourcesResponse {
-	// Four ~770-byte manifests, close to a measured 29-resource Argo CD response (~89.5KB).
-	blob := strings.Repeat("x", 770)
+	// Four manifests with managedFields and last-applied-configuration, near a
+	// measured 29-resource Argo CD response (~89.5KB).
+	pad := strings.Repeat("x", 600)
+	manifest := `{"kind":"Deployment","metadata":{"name":"guestbook-ui","annotations":{"keep-me":"yes","kubectl.kubernetes.io/last-applied-configuration":"` + pad + `"},"managedFields":[{"manager":"kubectl","fieldsV1":{"` + pad + `":{}}}]}}`
 	items := make([]*v1alpha1.ResourceDiff, n)
 	for i := range items {
 		items[i] = &v1alpha1.ResourceDiff{
@@ -124,10 +151,10 @@ func sampleManagedResources(n int) *applicationpkg.ManagedResourcesResponse {
 			Name:                "guestbook-ui",
 			ResourceVersion:     "123",
 			Modified:            i%2 == 0,
-			TargetState:         blob,
-			LiveState:           blob,
-			PredictedLiveState:  blob,
-			NormalizedLiveState: blob,
+			TargetState:         manifest,
+			LiveState:           manifest,
+			PredictedLiveState:  manifest,
+			NormalizedLiveState: manifest,
 		}
 	}
 	return &applicationpkg.ManagedResourcesResponse{Items: items}

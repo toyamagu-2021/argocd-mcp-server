@@ -260,6 +260,9 @@ func TestParallel_GetApplicationManagedResources(t *testing.T) {
 	if strings.Contains(summary, "targetState") || strings.Contains(summary, "liveState") {
 		t.Errorf("summary included manifest state: %s", summary)
 	}
+	if !strings.Contains(summary, `"totalItems"`) || strings.Contains(summary, "\n") {
+		t.Errorf("summary is not a compact page: %s", summary)
+	}
 
 	detailed := toolResultText(t, sendSharedRequest(t, map[string]interface{}{
 		"jsonrpc": "2.0",
