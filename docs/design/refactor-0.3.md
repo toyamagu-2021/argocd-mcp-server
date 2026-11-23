@@ -8,7 +8,7 @@
 
 | ID | 決定 |
 |----|------|
-| D1 | 公開ツール 23 個維持。未公開書き込みはツール化しない |
+| D1 | （改訂 2026-11-23）公開ツールは 25 個。読み取りを `get_application_managed_resources` と `get_application_resource` に拡張した。未公開の書き込みツールは引き続き作らない。理由: owner approved expanding read coverage after a gap analysis |
 | D2 | 変更系は常時登録。`ARGOCD_MCP_READ_ONLY=true` のときだけ外す |
 | D3 | 対応 Argo CD = **3.6.x のみ**（CI は 3.6.2） |
 | D4 | トランスポート = **stdio のみ** |

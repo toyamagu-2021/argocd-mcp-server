@@ -233,12 +233,12 @@ This is a Model Context Protocol (MCP) server that exposes ArgoCD operations as 
 
 ## MCP Tools Available
 
-The server exposes a fixed set of 23 public tools (design D1). The full inventory, with
+The server exposes 25 public tools (design D1, revised 2026-11-23). The full inventory, with
 which tools are mutating (removed by `ARGOCD_MCP_READ_ONLY=true`), is in
 `docs/todo-tools.md`, and the locked list is `publicTools` in
 `internal/tools/register_test.go`.
 
-- Applications: `list_application`, `get_application`, `get_application_manifests`, `get_application_events`, `get_application_logs`, `get_application_resource_tree`, `create_application`, `sync_application`, `refresh_application`, `delete_application` (`cascade` defaults to false), `terminate_operation`
+- Applications: `list_application`, `get_application`, `get_application_manifests`, `get_application_events`, `get_application_logs`, `get_application_resource_tree`, `get_application_managed_resources`, `get_application_resource`, `create_application`, `sync_application`, `refresh_application`, `delete_application` (`cascade` defaults to false), `terminate_operation`
 - ApplicationSets: `list_applicationset`, `get_applicationset`, `create_applicationset`, `delete_applicationset`
 - Projects: `list_project`, `get_project`, `create_project`
 - Clusters: `list_cluster`, `get_cluster`

@@ -39,6 +39,34 @@ type EventsOptions struct {
 	Project           string
 }
 
+// ManagedResourcesOptions filters ApplicationService.ManagedResources.
+// Empty resource filters are not sent. AppNamespace and Project are looked up
+// from the Application when empty.
+type ManagedResourcesOptions struct {
+	Name              string
+	ResourceNamespace string
+	ResourceName      string
+	Version           string
+	Group             string
+	Kind              string
+	AppNamespace      string
+	Project           string
+}
+
+// ResourceQuery identifies one live resource belonging to an application.
+// Version is the Kubernetes API version (for example "v1"), not a git revision.
+// AppNamespace and Project are looked up from the Application when empty.
+type ResourceQuery struct {
+	Name              string
+	ResourceNamespace string
+	ResourceName      string
+	Version           string
+	Group             string
+	Kind              string
+	AppNamespace      string
+	Project           string
+}
+
 // LogsOptions are the parameters of GetApplicationLogs.
 type LogsOptions struct {
 	Name         string
@@ -70,6 +98,8 @@ type Interface interface {
 	GetApplicationEvents(ctx context.Context, opts EventsOptions) (*eventspkg.EventList, error)
 	GetApplicationLogs(ctx context.Context, opts LogsOptions) (LogStream, error)
 	GetApplicationResourceTree(ctx context.Context, name string, appNamespace string, project string) (*v1alpha1.ApplicationTree, error)
+	GetApplicationManagedResources(ctx context.Context, opts ManagedResourcesOptions) (*applicationpkg.ManagedResourcesResponse, error)
+	GetApplicationResource(ctx context.Context, q ResourceQuery) (*applicationpkg.ApplicationResourceResponse, error)
 	TerminateOperation(ctx context.Context, name string, appNamespace string, project string) error
 
 	// Cluster operations

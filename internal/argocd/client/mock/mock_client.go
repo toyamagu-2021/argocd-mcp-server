@@ -217,6 +217,21 @@ func (mr *MockInterfaceMockRecorder) GetApplicationLogs(ctx, opts any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationLogs", reflect.TypeOf((*MockInterface)(nil).GetApplicationLogs), ctx, opts)
 }
 
+// GetApplicationManagedResources mocks base method.
+func (m *MockInterface) GetApplicationManagedResources(ctx context.Context, opts client.ManagedResourcesOptions) (*application.ManagedResourcesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetApplicationManagedResources", ctx, opts)
+	ret0, _ := ret[0].(*application.ManagedResourcesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetApplicationManagedResources indicates an expected call of GetApplicationManagedResources.
+func (mr *MockInterfaceMockRecorder) GetApplicationManagedResources(ctx, opts any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationManagedResources", reflect.TypeOf((*MockInterface)(nil).GetApplicationManagedResources), ctx, opts)
+}
+
 // GetApplicationManifests mocks base method.
 func (m *MockInterface) GetApplicationManifests(ctx context.Context, name, revision, appNamespace string) (*apiclient.ManifestResponse, error) {
 	m.ctrl.T.Helper()
@@ -230,6 +245,21 @@ func (m *MockInterface) GetApplicationManifests(ctx context.Context, name, revis
 func (mr *MockInterfaceMockRecorder) GetApplicationManifests(ctx, name, revision, appNamespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationManifests", reflect.TypeOf((*MockInterface)(nil).GetApplicationManifests), ctx, name, revision, appNamespace)
+}
+
+// GetApplicationResource mocks base method.
+func (m *MockInterface) GetApplicationResource(ctx context.Context, q client.ResourceQuery) (*application.ApplicationResourceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetApplicationResource", ctx, q)
+	ret0, _ := ret[0].(*application.ApplicationResourceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetApplicationResource indicates an expected call of GetApplicationResource.
+func (mr *MockInterfaceMockRecorder) GetApplicationResource(ctx, q any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationResource", reflect.TypeOf((*MockInterface)(nil).GetApplicationResource), ctx, q)
 }
 
 // GetApplicationResourceTree mocks base method.

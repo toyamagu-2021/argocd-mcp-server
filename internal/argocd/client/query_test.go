@@ -25,6 +25,8 @@ type fakeAppService struct {
 	manifests *applicationpkg.ApplicationManifestQuery
 	logs      *applicationpkg.ApplicationPodLogsQuery
 	events    *applicationpkg.ApplicationResourceEventsQuery
+	managed   *applicationpkg.ResourcesQuery
+	resource  *applicationpkg.ApplicationResourceRequest
 }
 
 func (f *fakeAppService) ListResourceEvents(_ context.Context, q *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*eventspkg.EventList, error) {
@@ -62,6 +64,17 @@ func (f *fakeAppService) Sync(_ context.Context, r *applicationpkg.ApplicationSy
 func (f *fakeAppService) GetManifests(_ context.Context, q *applicationpkg.ApplicationManifestQuery, _ ...grpc.CallOption) (*repoapiclient.ManifestResponse, error) {
 	f.manifests = q
 	return nil, nil
+}
+
+func (f *fakeAppService) ManagedResources(_ context.Context, q *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
+	f.managed = q
+	return &applicationpkg.ManagedResourcesResponse{}, nil
+}
+
+func (f *fakeAppService) GetResource(_ context.Context, q *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	f.resource = q
+	manifest := `{"kind":"Deployment"}`
+	return &applicationpkg.ApplicationResourceResponse{Manifest: &manifest}, nil
 }
 
 func (f *fakeAppService) PodLogs(_ context.Context, q *applicationpkg.ApplicationPodLogsQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
@@ -186,6 +199,53 @@ func TestAppNamespace_Propagation(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, f.gets)
 		assert.Equal(t, "p", f.events.GetProject())
+	})
+
+	t.Run("managed resources looks up namespace and project", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationManagedResources(ctx, ManagedResourcesOptions{
+			Name: "app", Kind: "Deployment", AppNamespace: "team-a",
+		})
+		require.NoError(t, err)
+		require.Len(t, f.gets, 1)
+		assert.Equal(t, "team-a", f.gets[0].GetAppNamespace())
+		assert.Equal(t, "app", f.managed.GetApplicationName())
+		assert.Equal(t, "Deployment", f.managed.GetKind())
+		assert.Nil(t, f.managed.Namespace)
+		assert.Nil(t, f.managed.Name)
+		assert.Nil(t, f.managed.Group)
+		assert.Nil(t, f.managed.Version)
+		assert.Equal(t, "team-a", f.managed.GetAppNamespace())
+		assert.Equal(t, "proj", f.managed.GetProject())
+	})
+
+	t.Run("managed resources skips lookup when namespace and project are set", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationManagedResources(ctx, ManagedResourcesOptions{
+			Name: "app", AppNamespace: "ns", Project: "p", ResourceName: "web",
+		})
+		require.NoError(t, err)
+		assert.Empty(t, f.gets)
+		assert.Equal(t, "web", f.managed.GetName())
+		assert.Equal(t, "p", f.managed.GetProject())
+	})
+
+	t.Run("get resource", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.GetApplicationResource(ctx, ResourceQuery{
+			Name: "app", ResourceName: "web", Version: "v1", Group: "apps", Kind: "Deployment",
+			ResourceNamespace: "prod", AppNamespace: "team-a", Project: "proj",
+		})
+		require.NoError(t, err)
+		assert.Empty(t, f.gets)
+		assert.Equal(t, "app", f.resource.GetName())
+		assert.Equal(t, "web", f.resource.GetResourceName())
+		assert.Equal(t, "v1", f.resource.GetVersion())
+		assert.Equal(t, "apps", f.resource.GetGroup())
+		assert.Equal(t, "Deployment", f.resource.GetKind())
+		assert.Equal(t, "prod", f.resource.GetNamespace())
+		assert.Equal(t, "team-a", f.resource.GetAppNamespace())
+		assert.Equal(t, "proj", f.resource.GetProject())
 	})
 
 	t.Run("applicationset delete", func(t *testing.T) {

@@ -22,6 +22,8 @@ func entries() []toolEntry {
 		{GetAppEventsTool, makeGetApplicationEvents, false},
 		{GetApplicationLogsToolDefinition, makeGetApplicationLogs, false},
 		{GetApplicationResourceTreeTool, makeGetApplicationResourceTree, false},
+		{GetApplicationManagedResourcesTool, makeGetApplicationManagedResources, false},
+		{GetApplicationResourceTool, makeGetApplicationResource, false},
 		{CreateAppTool, makeCreateApplication, true},
 		{SyncAppTool, makeSyncApplication, true},
 		{RefreshAppTool, makeRefreshApplication, false},

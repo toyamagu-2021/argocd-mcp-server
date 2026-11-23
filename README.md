@@ -13,6 +13,8 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `get_application_events` - Get Kubernetes events for resources belonging to an application
 - `get_application_logs` - Retrieve logs from pods in an ArgoCD application
 - `get_application_resource_tree` - Get the resource tree structure of an application showing all managed resources
+- `get_application_managed_resources` - List managed resources with target and live state (ApplicationService.ManagedResources)
+- `get_application_resource` - Get the live manifest of one managed resource (ApplicationService.GetResource). Argo CD replaces Secret data
 - `create_application` - Create a new ArgoCD application with source and destination configuration
 - `sync_application` - Trigger a sync operation for an application with optional prune and dry-run modes
 - `refresh_application` - Refresh application state from the git repository
@@ -74,8 +76,8 @@ export LOG_FORMAT=text    # Options: text, json
 ### Application Namespace
 
 `get_application`, `list_application`, `get_application_manifests`, `sync_application`,
-`refresh_application` and `delete_application` (as well as the events, logs, resource tree
-and terminate tools) accept an optional `app_namespace`: the namespace of the Application
+`refresh_application` and `delete_application` (as well as the events, logs, resource tree,
+managed resources, get resource and terminate tools) accept an optional `app_namespace`: the namespace of the Application
 resource itself (`metadata.namespace`). You only need it when Argo CD is configured for
 [Applications in any namespace](https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/).
 
@@ -209,6 +211,42 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
     "name": "get_application_resource_tree",
     "arguments": {
       "name": "my-app"
+    }
+  }
+}
+```
+
+#### Get Managed Resources
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "get_application_managed_resources",
+    "arguments": {
+      "name": "my-app",
+      "kind": "Deployment"
+    }
+  }
+}
+```
+
+#### Get One Resource
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "get_application_resource",
+    "arguments": {
+      "name": "my-app",
+      "resource_name": "guestbook-ui",
+      "resource_namespace": "default",
+      "group": "apps",
+      "kind": "Deployment",
+      "version": "v1"
     }
   }
 }

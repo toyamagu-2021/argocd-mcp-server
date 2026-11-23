@@ -867,6 +867,107 @@ func testSyncCreatedApplication(t *testing.T) {
 	t.Logf("Response snippet: %.500s...", text)
 }
 
+func testManagedResourcesCreatedApplication(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e"
+	}
+
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	defer func() {
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+	}()
+	initializeMCPConnection(t, stdin, stdout)
+
+	response := sendRequest(t, stdin, stdout, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name":      "get_application_managed_resources",
+			"arguments": map[string]interface{}{"name": testAppName},
+		},
+	})
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		t.Fatalf("Error calling get_application_managed_resources: %v", errObj["message"])
+	}
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T", response["result"])
+	}
+	if isErr, _ := result["isError"].(bool); isErr {
+		t.Fatalf("get_application_managed_resources failed: %v", result)
+	}
+	t.Logf("Managed resources call succeeded for %s", testAppName)
+}
+
+func testGetResourceCreatedApplication(t *testing.T) {
+	testMutex.Lock()
+	defer testMutex.Unlock()
+
+	if !testAppCreated {
+		t.Skip("Skipping test: Application was not created in previous test")
+	}
+	testAppName := os.Getenv("TEST_CREATE_APP_NAME")
+	if testAppName == "" {
+		testAppName = "test-app-create-e2e"
+	}
+	testDestNamespace := os.Getenv("TEST_CREATE_DEST_NAMESPACE")
+	if testDestNamespace == "" {
+		testDestNamespace = "default"
+	}
+
+	// guestbook in argocd-example-apps is apps/v1 Deployment guestbook-ui.
+	// Sync returns when the operation is accepted, so the live object may appear a few seconds later.
+	request := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource",
+			"arguments": map[string]interface{}{
+				"name":               testAppName,
+				"resource_name":      "guestbook-ui",
+				"resource_namespace": testDestNamespace,
+				"group":              "apps",
+				"kind":               "Deployment",
+				"version":            "v1",
+			},
+		},
+	}
+	var last string
+	for attempt := 1; attempt <= 5; attempt++ {
+		mcpCmd, stdin, stdout := startMCPServer(t)
+		initializeMCPConnection(t, stdin, stdout)
+		response := sendRequest(t, stdin, stdout, request)
+		_ = mcpCmd.Process.Kill()
+		_ = mcpCmd.Wait()
+
+		if errObj, ok := response["error"].(map[string]interface{}); ok {
+			t.Fatalf("Error calling get_application_resource: %v", errObj["message"])
+		}
+		result, ok := response["result"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected result to be a map, got %T", response["result"])
+		}
+		if isErr, _ := result["isError"].(bool); !isErr {
+			t.Logf("Get resource call succeeded for %s/guestbook-ui", testAppName)
+			return
+		}
+		last = fmt.Sprintf("%v", result["content"])
+		t.Logf("get_application_resource attempt %d: %s", attempt, last)
+		time.Sleep(3 * time.Second)
+	}
+	t.Fatalf("get_application_resource failed after retries: %s", last)
+}
+
 func testDeleteCreatedApplication(t *testing.T) {
 	testMutex.Lock()
 	defer testMutex.Unlock()

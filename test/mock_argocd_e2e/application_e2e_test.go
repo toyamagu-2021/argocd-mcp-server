@@ -243,6 +243,76 @@ func TestParallel_SyncApplication(t *testing.T) {
 	}
 }
 
+func TestParallel_GetApplicationManagedResources(t *testing.T) {
+	t.Parallel()
+
+	response := sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_managed_resources",
+			"arguments": map[string]interface{}{
+				"name": "test-app-1",
+				"kind": "Deployment",
+			},
+		},
+	})
+	text := toolResultText(t, response)
+	if !strings.Contains(text, "guestbook-ui") {
+		t.Errorf("expected managed resources to contain guestbook-ui, got %s", text)
+	}
+}
+
+func TestParallel_GetApplicationResource(t *testing.T) {
+	t.Parallel()
+
+	response := sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource",
+			"arguments": map[string]interface{}{
+				"name":               "test-app-1",
+				"resource_name":      "guestbook-ui",
+				"resource_namespace": "default",
+				"kind":               "Deployment",
+				"group":              "apps",
+				"version":            "v1",
+			},
+		},
+	})
+	text := toolResultText(t, response)
+	for _, want := range []string{"guestbook-ui", "Deployment", "apps/v1"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("response missing %q: %s", want, text)
+		}
+	}
+}
+
+func toolResultText(t *testing.T, response map[string]interface{}) string {
+	t.Helper()
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T: %v", response["result"], response)
+	}
+	if isErr, _ := result["isError"].(bool); isErr {
+		t.Fatalf("tool returned an error: %v", result)
+	}
+	content, ok := result["content"].([]interface{})
+	if !ok || len(content) == 0 {
+		t.Fatalf("expected content, got %#v", result["content"])
+	}
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+	return text
+}
+
 func TestParallel_DeleteApplication(t *testing.T) {
 	t.Parallel()
 
