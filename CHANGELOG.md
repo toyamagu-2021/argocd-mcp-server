@@ -32,6 +32,10 @@ Not tagged yet.
    A short TSV page ends with a `#` notice line. JSON responses are a page
    object. `name_only` JSON no longer uses `{names, count}`. `detailed` is a
    page of Applications, not a raw array. The empty prose string is gone. (#117)
+6. **`list_cluster` and `list_repository` return pages.**
+   Cluster summaries and `{name, server}` rows sit in `items`. The `{clusters, count}`
+   wrapper is gone. Repository responses are summaries unless `detailed=true`.
+   `limit` defaults to 50. Empty lists are empty pages, not prose. (#117)
 
 ## v0.3.0 (2026-11-23)
 

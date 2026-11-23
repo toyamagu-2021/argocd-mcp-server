@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -18,9 +19,8 @@ func TestListClusterTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'list_cluster', got %s", ListClusterTool.Name)
 	}
 
-	if ListClusterTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, ListClusterTool.Description, "detailed=false")
+	assert.Contains(t, ListClusterTool.Description, "50")
 
 	if ListClusterTool.InputSchema.Type != "object" {
 		t.Errorf("Expected schema type 'object', got %s", ListClusterTool.InputSchema.Type)
@@ -94,7 +94,7 @@ func TestListClusterHandler(t *testing.T) {
 				m.EXPECT().ListClusters(gomock.Any()).Return(expectedClusters, nil)
 			},
 			wantError:   false,
-			wantMessage: "No clusters found",
+			wantMessage: `"totalItems":0`,
 		},
 		{
 			name:     "list fails",
@@ -114,7 +114,7 @@ func TestListClusterHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := listClusterHandler(context.Background(), mockClient, tt.detailed, false)
+			result, err := listClusterHandler(context.Background(), mockClient, tt.detailed, false, 50, 0)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -161,7 +161,7 @@ func TestListClusterHandler_NameOnly(t *testing.T) {
 
 	mockClient.EXPECT().ListClusters(gomock.Any()).Return(clusterList, nil)
 
-	result, err := listClusterHandler(context.Background(), mockClient, false, true)
+	result, err := listClusterHandler(context.Background(), mockClient, false, true, 50, 0)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -174,8 +174,8 @@ func TestListClusterHandler_NameOnly(t *testing.T) {
 	err = json.Unmarshal([]byte(textContent.Text), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, float64(3), response["count"])
-	clusters, ok := response["clusters"].([]interface{})
+	assert.Equal(t, float64(3), response["totalItems"])
+	clusters, ok := response["items"].([]interface{})
 	require.True(t, ok)
 	assert.Len(t, clusters, 3)
 
@@ -184,4 +184,53 @@ func TestListClusterHandler_NameOnly(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "in-cluster", firstCluster["name"])
 	assert.Equal(t, "https://kubernetes.default.svc", firstCluster["server"])
+}
+
+func TestListClusterSummarySize(t *testing.T) {
+	token := "bearer-marker:" + strings.Repeat("t", 2048)
+	items := make([]v1alpha1.Cluster, 40)
+	for i := range items {
+		items[i] = v1alpha1.Cluster{
+			Name:   "cluster-" + itoaSmall(i),
+			Server: "https://example.com/" + itoaSmall(i),
+			Config: v1alpha1.ClusterConfig{BearerToken: token},
+			Annotations: map[string]string{
+				"keep-me":             "yes",
+				lastAppliedAnnotation: "applied",
+			},
+			Info: v1alpha1.ClusterInfo{ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful}},
+		}
+	}
+	list := &v1alpha1.ClusterList{Items: items}
+	before, err := json.MarshalIndent(list, "", "  ")
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().ListClusters(gomock.Any()).Return(list, nil).Times(2)
+
+	summaryRes, err := listClusterHandler(context.Background(), m, false, false, 50, 0)
+	require.NoError(t, err)
+	summary := toolText(t, summaryRes)
+	assert.Contains(t, summary, `"name"`)
+	assert.Contains(t, summary, `"server"`)
+	assert.Contains(t, summary, `"connectionStatus"`)
+	assert.NotContains(t, summary, "bearer-marker")
+	assert.Contains(t, summary, `"totalItems":40`)
+	tokenBytes := strings.Count(string(before), token) * len(token)
+	t.Logf("before_bytes=%d after_bytes=%d bearer_bytes=%d", len(before), len(summary), tokenBytes)
+	assert.Less(t, len(summary), len(before)/5)
+	assert.Greater(t, tokenBytes, len(summary))
+
+	detailedRes, err := listClusterHandler(context.Background(), m, true, false, 50, 0)
+	require.NoError(t, err)
+	detailed := toolText(t, detailedRes)
+	assert.NotContains(t, detailed, lastAppliedAnnotation)
+	assert.Contains(t, detailed, "keep-me")
+	assert.NotContains(t, detailed, "bearer-marker")
+}
+
+func itoaSmall(n int) string {
+	b, _ := json.Marshal(n)
+	return string(b)
 }

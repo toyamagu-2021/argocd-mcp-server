@@ -48,14 +48,14 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 
 | Tool | Mutating | Notes |
 |---|---|---|
-| `list_cluster` | | credentials removed with upstream `Sanitized()` |
+| `list_cluster` | | `detailed=false` (default) is a page of summaries. `name_only` wins and items are `{name, server}`. `detailed=true` pages sanitized clusters without the last-applied annotation. `limit` defaults to 50. Empty list is an empty page |
 | `get_cluster` | | credentials removed with upstream `Sanitized()` |
 
 ## Repositories
 
 | Tool | Mutating | Notes |
 |---|---|---|
-| `list_repository` | | credentials removed with upstream `Sanitized()` |
+| `list_repository` | | `detailed=false` (default) is a page of summaries (`repo`, `type`, `name`, `project`, `connectionStatus`) without credentials. `detailed=true` pages sanitized repositories. `limit` defaults to 50. Empty list is an empty page |
 | `get_repository` | | credentials removed with upstream `Sanitized()` |
 
 ## Session

@@ -60,13 +60,12 @@ func testListRepository(t *testing.T) {
 		t.Fatalf("expected text to be a string, got %T", contentItem["text"])
 	}
 
-	// Check if it's either "No repositories found." or valid JSON
-	if text != "No repositories found." {
-		// Try to parse as JSON
-		var repos v1alpha1.Repositories
-		err := json.Unmarshal([]byte(text), &repos)
-		assert.NoError(t, err, "expected valid JSON response for repositories")
+	var page struct {
+		Items      v1alpha1.Repositories `json:"items"`
+		TotalItems int                   `json:"totalItems"`
 	}
+	err := json.Unmarshal([]byte(text), &page)
+	assert.NoError(t, err, "expected a repository page, got: %s", text)
 }
 
 func testGetRepository(t *testing.T) {
