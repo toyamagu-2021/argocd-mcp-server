@@ -53,17 +53,21 @@ func TestParallel_ListRepository(t *testing.T) {
 	}
 
 	// Parse the JSON response
-	var repos v1alpha1.Repositories
-	err := json.Unmarshal([]byte(text), &repos)
+	var page struct {
+		Items      v1alpha1.Repositories `json:"items"`
+		TotalItems int                   `json:"totalItems"`
+		HasMore    bool                  `json:"hasMore"`
+	}
+	err := json.Unmarshal([]byte(text), &page)
 	require.NoError(t, err, "expected valid JSON response for repositories")
 
 	// Check that we got the mock repositories
-	assert.Len(t, repos, 2, "expected 2 mock repositories")
-	if len(repos) == 2 {
-		assert.Equal(t, "https://github.com/example/repo1.git", repos[0].Repo)
-		assert.Equal(t, "git", repos[0].Type)
-		assert.Equal(t, "https://github.com/example/repo2.git", repos[1].Repo)
-		assert.Equal(t, "git", repos[1].Type)
+	assert.Len(t, page.Items, 2, "expected 2 mock repositories")
+	if len(page.Items) == 2 {
+		assert.Equal(t, "https://github.com/example/repo1.git", page.Items[0].Repo)
+		assert.Equal(t, "git", page.Items[0].Type)
+		assert.Equal(t, "https://github.com/example/repo2.git", page.Items[1].Repo)
+		assert.Equal(t, "git", page.Items[1].Type)
 	}
 }
 

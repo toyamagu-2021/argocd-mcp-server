@@ -55,14 +55,20 @@ func TestParallel_ListProjects(t *testing.T) {
 	}
 
 	// Parse the JSON response to verify it contains projects
-	var projects []interface{}
-	if err := json.Unmarshal([]byte(text), &projects); err != nil {
+	var page struct {
+		Items []struct {
+			Name string `json:"name"`
+		} `json:"items"`
+		TotalItems int  `json:"totalItems"`
+		HasMore    bool `json:"hasMore"`
+	}
+	if err := json.Unmarshal([]byte(text), &page); err != nil {
 		t.Fatalf("failed to parse projects JSON: %v, text: %s", err, text)
 	}
 
 	// Verify we have expected number of projects
-	if len(projects) != 3 {
-		t.Errorf("expected 3 projects, got %d", len(projects))
+	if len(page.Items) != 3 {
+		t.Errorf("expected 3 projects, got %d", len(page.Items))
 	}
 
 	// Check for expected project names
@@ -72,15 +78,9 @@ func TestParallel_ListProjects(t *testing.T) {
 		"development": false,
 	}
 
-	for _, proj := range projects {
-		if projMap, ok := proj.(map[string]interface{}); ok {
-			if metadata, ok := projMap["metadata"].(map[string]interface{}); ok {
-				if name, ok := metadata["name"].(string); ok {
-					if _, exists := expectedProjects[name]; exists {
-						expectedProjects[name] = true
-					}
-				}
-			}
+	for _, proj := range page.Items {
+		if _, exists := expectedProjects[proj.Name]; exists {
+			expectedProjects[proj.Name] = true
 		}
 	}
 
@@ -90,7 +90,7 @@ func TestParallel_ListProjects(t *testing.T) {
 		}
 	}
 
-	t.Logf("Successfully listed %d projects from mock server", len(projects))
+	t.Logf("Successfully listed %d projects from mock server", len(page.Items))
 }
 
 func TestParallel_GetProject(t *testing.T) {
