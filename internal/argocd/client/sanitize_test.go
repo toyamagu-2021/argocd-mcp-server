@@ -67,7 +67,7 @@ func assertNoSecret(t *testing.T, v interface{}) {
 
 func TestSanitizeCluster(t *testing.T) {
 	in := rawCluster()
-	out := sanitizeCluster(in)
+	out := SanitizeCluster(in)
 	assertNoSecret(t, out)
 	assert.Equal(t, in.Server, out.Server)
 	assert.Equal(t, in.Name, out.Name)
@@ -80,7 +80,7 @@ func TestSanitizeCluster(t *testing.T) {
 	assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, out.ConnectionState.Status)
 	// input is not mutated
 	assert.Equal(t, secret, in.Config.BearerToken)
-	assert.Nil(t, sanitizeCluster(nil))
+	assert.Nil(t, SanitizeCluster(nil))
 }
 
 func TestSanitizeClusterList(t *testing.T) {
@@ -93,14 +93,14 @@ func TestSanitizeClusterList(t *testing.T) {
 
 func TestSanitizeRepository(t *testing.T) {
 	in := rawRepo()
-	out := sanitizeRepository(in)
+	out := SanitizeRepository(in)
 	assertNoSecret(t, out)
 	assert.Equal(t, in.Repo, out.Repo)
 	assert.Equal(t, "git", out.Username)
 	assert.Equal(t, int64(42), out.GithubAppId)
 	assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, out.ConnectionState.Status)
 	assert.Equal(t, secret, in.Password)
-	assert.Nil(t, sanitizeRepository(nil))
+	assert.Nil(t, SanitizeRepository(nil))
 }
 
 func TestSanitizeRepositoryList(t *testing.T) {

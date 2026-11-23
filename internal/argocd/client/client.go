@@ -640,7 +640,7 @@ func (c *Client) GetCluster(ctx context.Context, server string) (*v1alpha1.Clust
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster: %w", err)
 	}
-	return sanitizeCluster(resp), nil
+	return SanitizeCluster(resp), nil
 }
 
 // Project operations
@@ -701,7 +701,7 @@ func (c *Client) GetRepository(ctx context.Context, repo string) (*v1alpha1.Repo
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository: %w", err)
 	}
-	return sanitizeRepository(resp), nil
+	return SanitizeRepository(resp), nil
 }
 
 // ListApplicationSets lists all ArgoCD ApplicationSets, optionally filtered by project

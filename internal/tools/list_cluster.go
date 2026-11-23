@@ -101,7 +101,7 @@ func listClusterHandler(
 }
 
 func strippedCluster(cluster v1alpha1.Cluster) v1alpha1.Cluster {
-	sanitized := cluster.Sanitized()
+	sanitized := client.SanitizeCluster(&cluster)
 	if sanitized.Annotations != nil {
 		ann := make(map[string]string, len(sanitized.Annotations))
 		for k, v := range sanitized.Annotations {
