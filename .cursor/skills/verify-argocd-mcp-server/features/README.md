@@ -14,6 +14,7 @@ This directory is the maintained source for verifying the MCP client behavior of
 ## Driving conventions
 
 - Start every recipe from the baseline above unless that feature file adds a precondition.
+- Prove [list applications](list-applications.md) while the cluster still has no Applications. [Sync application](sync-application.md) creates `verify-guestbook` after that. The managed-resource, live-resource, update, and rollback recipes reuse that Application.
 - One `drive.sh` invocation is one MCP process. A feature that needs the read-only flag and the full registration uses two invocations and two labels.
 - Treat the JSON in each feature file as literal, including tool names and argument keys.
 - `--read-only` is the switch that sets `ARGOCD_MCP_READ_ONLY=true`.
@@ -43,4 +44,9 @@ Each feature file starts with an H1 and one paragraph of user-visible behavior, 
 - [List clusters](list-clusters.md) covers `list_cluster` and `get_cluster` for the in-cluster server.
 - [List projects](list-projects.md) covers `list_project` against AppProjects, including `default`.
 - [Session user info](session-user-info.md) covers `get_user_info` for the admin token.
-- [Read-only mode](read-only-mode.md) covers `ARGOCD_MCP_READ_ONLY=true`: write tools disappear, read tools still run, and a create call does not add an Application.
+- [Read-only mode](read-only-mode.md) covers `ARGOCD_MCP_READ_ONLY=true`: the nine write tools disappear from the 27-tool list, 18 read tools still run, and create, update, and rollback calls do not add an Application.
+- [Sync application](sync-application.md) covers `sync_application` `revision`, `revisions`, `resources`, and `sync_options` on Application `verify-guestbook`.
+- [Managed resources](get-application-managed-resources.md) covers `get_application_managed_resources`: summary JSON, `detailed`, `limit` / `offset` / `totalItems` / `hasMore`, the truncation notice, and `managedFields` stripped from manifest strings.
+- [Application resource](get-application-resource.md) covers `get_application_resource` for the live guestbook Deployment.
+- [Update application](update-application.md) covers `update_application` replacing the spec, including `revisionHistoryLimit`.
+- [Rollback application](rollback-application.md) covers `rollback_application` dry-run of a `status.history` id. The tool is not registered in read-only mode.
