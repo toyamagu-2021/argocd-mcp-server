@@ -10,7 +10,7 @@
 
 ## How to get to it (user POV)
 
-- An MCP client calls `get_application` and reads `status.history[].id`. History is written when a sync finishes, not when the sync RPC returns.
+- An MCP client calls `get_application` with `detailed` true and reads `status.history[].id`. The default summary has `historyCount` and no history ids. History is written when a sync finishes, not when the sync RPC returns.
 - The client calls `rollback_application` with `name`, that `id`, and `dry_run` true to preview the rollback.
 
 ## Driving it with verify-argocd-mcp-server
@@ -18,9 +18,9 @@
 Preconditions:
 
 - `scripts/doctor.sh` prints `DOCTOR_OK`.
-- Application `verify-guestbook` has no automated sync policy and `status.operationState.phase` has reached `Succeeded` at least once, as in [sync application](sync-application.md). If `status.history` is empty, the sync has not finished. Repeat `get_application` until the text includes `"history"`.
+- Application `verify-guestbook` has no automated sync policy and `status.operationState.phase` has reached `Succeeded` at least once, as in [sync application](sync-application.md). If `status.history` is empty, the sync has not finished. Repeat `get_application` with `detailed` true until the text includes `"history"`.
 
-- **Read history.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/drive.sh call --feature rollback-application --label history get_application '{"name":"verify-guestbook"}'`. The call has `is_error` false. The text includes `"history"` and an `"id"` inside it. Record that id. Zero is a valid id.
+- **Read history.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/drive.sh call --feature rollback-application --label history get_application '{"name":"verify-guestbook","detailed":true}'`. The call has `is_error` false. The text includes `"history"` and an `"id"` inside it. Record that id. Zero is a valid id.
 - **Dry-run rollback.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/drive.sh call --feature rollback-application --label dry-run rollback_application '{"name":"verify-guestbook","id":HISTORY_ID,"dry_run":true}'`, with `HISTORY_ID` replaced by the recorded number. The call has `is_error` false and `rpc_error` null. The text includes `verify-guestbook`.
 - **Cluster view.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/evidence.sh --feature rollback-application`. The `historyIds` column for `verify-guestbook` in `application-specs.txt` contains the same id. `applications.txt` still lists `verify-guestbook`.
 

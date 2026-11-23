@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 
 ### Application Management
 - `list_application` - List ArgoCD applications with optional filtering by project, cluster, namespace, and label selectors
-- `get_application` - Retrieve detailed information about a specific ArgoCD application
+- `get_application` - Compact summary of an application (`detailed=false` by default). `detailed=true` returns the full Application without managedFields or last-applied-configuration
 - `get_application_manifests` - Get rendered Kubernetes manifests for an application
 - `get_application_events` - Get Kubernetes events for resources belonging to an application
 - `get_application_logs` - Retrieve logs from pods in an ArgoCD application
@@ -638,7 +638,7 @@ make lint-advanced
 
 ## Safety Considerations
 
-- **update_application**: Sends `ApplicationService.UpdateSpec`. Argo CD keeps the current metadata and status and replaces `spec` with the object you send, so omitted spec fields are cleared. Call `get_application` and send the full spec. `validate` defaults to `true`
+- **update_application**: Sends `ApplicationService.UpdateSpec`. Argo CD keeps the current metadata and status and replaces `spec` with the object you send, so omitted spec fields are cleared. Call `get_application` with `detailed=true` and send the full spec. `validate` defaults to `true`
 - **rollback_application**: `id` is `status.history[].id` (zero is valid), not a git SHA. `prune` defaults to `false`. Argo CD rejects the call when auto-sync is enabled. `dry_run: true` previews it
 - **sync_application**: Use `dry_run: true` to preview changes before actual sync. `revision` syncs a single-source app to that git revision, tag, or chart version (omit it to use the spec target). `revisions` is the multi-source list, one entry per source in `spec.sources` order; an empty entry keeps that source's target. `resources` limits the sync to those objects. `sync_options` replaces the Application's sync options for this operation (it does not merge). Syncing to a revision other than the spec target fails when auto-sync is enabled, unless `dry_run` is true
 - **refresh_application**: Use `hard: false` (default) for a normal refresh, `hard: true` to also invalidate the manifest cache

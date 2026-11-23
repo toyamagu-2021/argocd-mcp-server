@@ -75,16 +75,32 @@ func makeListApplications(d Deps) server.ToolHandlerFunc {
 	}
 }
 
-// ApplicationSummary represents a simplified view of an application
+// ApplicationSummary represents a simplified view of an application.
+// Fields below OperationStatus are set by get_application only.
+// The list builder leaves them empty, and omitempty keeps them off a list row.
 type ApplicationSummary struct {
-	Name            string                 `json:"name"`
-	Namespace       string                 `json:"namespace"`
-	Project         string                 `json:"project"`
-	Source          ApplicationSourceBrief `json:"source"`
-	Destination     ApplicationDestination `json:"destination"`
-	SyncStatus      string                 `json:"syncStatus"`
-	HealthStatus    string                 `json:"healthStatus"`
-	OperationStatus *ApplicationOperation  `json:"operationStatus,omitempty"`
+	Name            string                      `json:"name"`
+	Namespace       string                      `json:"namespace"`
+	Project         string                      `json:"project"`
+	Source          ApplicationSourceBrief      `json:"source"`
+	Sources         []ApplicationSourceBrief    `json:"sources,omitempty"`
+	Destination     ApplicationDestination      `json:"destination"`
+	SyncStatus      string                      `json:"syncStatus"`
+	HealthStatus    string                      `json:"healthStatus"`
+	OperationStatus *ApplicationOperation       `json:"operationStatus,omitempty"`
+	SyncRevision    string                      `json:"syncRevision,omitempty"`
+	SyncRevisions   []string                    `json:"syncRevisions,omitempty"`
+	HealthMessage   string                      `json:"healthMessage,omitempty"`
+	HistoryCount    int                         `json:"historyCount,omitempty"`
+	HealthCounts    map[string]int              `json:"healthCounts,omitempty"`
+	SyncCounts      map[string]int              `json:"syncCounts,omitempty"`
+	Conditions      []applicationConditionBrief `json:"conditions,omitempty"`
+}
+
+// applicationConditionBrief is one status.conditions entry on the get summary.
+type applicationConditionBrief struct {
+	Type    string `json:"type,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // ApplicationSourceBrief contains essential source information
@@ -191,51 +207,9 @@ func listApplicationsHandler(
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
 		}
 	} else {
-		// Return summarized application information
 		summaries := make([]ApplicationSummary, 0, len(filteredApps))
 		for _, app := range filteredApps {
-			summary := ApplicationSummary{
-				Name:      app.Name,
-				Namespace: app.Namespace,
-				Project:   app.Spec.Project,
-				Destination: ApplicationDestination{
-					Server:    app.Spec.Destination.Server,
-					Namespace: app.Spec.Destination.Namespace,
-				},
-			}
-
-			// Add source information if available
-			if app.Spec.Source != nil {
-				summary.Source = ApplicationSourceBrief{
-					RepoURL:        app.Spec.Source.RepoURL,
-					Path:           app.Spec.Source.Path,
-					TargetRevision: app.Spec.Source.TargetRevision,
-					Chart:          app.Spec.Source.Chart,
-				}
-			}
-
-			// Add sync status if available
-			if app.Status.Sync.Status != "" {
-				summary.SyncStatus = string(app.Status.Sync.Status)
-			}
-
-			// Add health status if available
-			if app.Status.Health.Status != "" {
-				summary.HealthStatus = string(app.Status.Health.Status)
-			}
-
-			// Add operation status if an operation is in progress
-			if app.Status.OperationState != nil {
-				summary.OperationStatus = &ApplicationOperation{
-					Phase:   string(app.Status.OperationState.Phase),
-					Message: app.Status.OperationState.Message,
-				}
-				if !app.Status.OperationState.StartedAt.IsZero() {
-					summary.OperationStatus.StartedAt = app.Status.OperationState.StartedAt.String()
-				}
-			}
-
-			summaries = append(summaries, summary)
+			summaries = append(summaries, applicationSummary(app))
 		}
 
 		jsonData, err = json.MarshalIndent(summaries, "", "  ")
@@ -245,4 +219,44 @@ func listApplicationsHandler(
 	}
 
 	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+func applicationSummary(app v1alpha1.Application) ApplicationSummary {
+	summary := ApplicationSummary{
+		Name:      app.Name,
+		Namespace: app.Namespace,
+		Project:   app.Spec.Project,
+		Destination: ApplicationDestination{
+			Server:    app.Spec.Destination.Server,
+			Namespace: app.Spec.Destination.Namespace,
+		},
+	}
+	if app.Spec.Source != nil {
+		summary.Source = applicationSourceBrief(*app.Spec.Source)
+	}
+	if app.Status.Sync.Status != "" {
+		summary.SyncStatus = string(app.Status.Sync.Status)
+	}
+	if app.Status.Health.Status != "" {
+		summary.HealthStatus = string(app.Status.Health.Status)
+	}
+	if app.Status.OperationState != nil {
+		summary.OperationStatus = &ApplicationOperation{
+			Phase:   string(app.Status.OperationState.Phase),
+			Message: app.Status.OperationState.Message,
+		}
+		if !app.Status.OperationState.StartedAt.IsZero() {
+			summary.OperationStatus.StartedAt = app.Status.OperationState.StartedAt.String()
+		}
+	}
+	return summary
+}
+
+func applicationSourceBrief(src v1alpha1.ApplicationSource) ApplicationSourceBrief {
+	return ApplicationSourceBrief{
+		RepoURL:        src.RepoURL,
+		Path:           src.Path,
+		TargetRevision: src.TargetRevision,
+		Chart:          src.Chart,
+	}
 }
