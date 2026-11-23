@@ -265,7 +265,7 @@ func TestListApplicationSummaryOmitsGetFields(t *testing.T) {
 	m := mock.NewMockInterface(ctrl)
 	m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 
-	res, err := listApplicationsHandler(context.Background(), m, "", "", "", "", false, false, "json", nil, "")
+	res, err := listApplicationsHandler(context.Background(), m, "", "", "", "", false, false, "json", nil, "", 50, 0)
 	require.NoError(t, err)
 	text, ok := mcp.AsTextContent(res.Content[0])
 	require.True(t, ok)

@@ -11,7 +11,7 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 
 | Tool | Mutating | Notes |
 |---|---|---|
-| `list_application` | | `project`, `selector`, `app_namespace` filtered server-side; destination `cluster` / `namespace` filtered client-side |
+| `list_application` | | `project`, `selector`, `app_namespace` filtered server-side; destination `cluster` / `namespace` filtered client-side. `detailed=false` and `output_format=tsv` are the defaults. `limit` defaults to 50. `name_only` wins over `detailed`. Empty JSON is a page, not prose |
 | `get_application` | | `detailed=false` (default) is a compact summary without spec, status.resources, or history. `detailed=true` is the full Application, compact, without managedFields or last-applied-configuration. Per-resource data is `get_application_resource_tree` and `get_application_managed_resources`. `app_namespace` |
 | `get_application_manifests` | | Secret data hidden by the Argo CD server |
 | `get_application_events` | | `detailed=false` (default) is a page of event summaries without `metadata`. The message is not clipped. `detailed=true` pages full events without `managedFields`. `limit` defaults to 50. Filters `resource_name`, `resource_namespace`, and `resource_uid` still apply before paging |

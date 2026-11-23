@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -14,7 +13,7 @@ import (
 
 // ListAppsTool defines the list_application tool schema
 var ListAppsTool = mcp.NewTool("list_application",
-	mcp.WithDescription("Lists ArgoCD applications with optional filters. Use name_only=true for just names, detailed=true for full info (can be large), or default for summary view."),
+	mcp.WithDescription("Lists ArgoCD applications with optional filters. detailed=false (the default) and output_format=tsv (the default) return a summary table. name_only=true returns names and wins over detailed. detailed=true returns a compact page of full Applications and can be large. limit defaults to 50 and offset to 0. A short page ends with a notice. Narrow with project, cluster, namespace, app_namespace, or selector."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("project",
@@ -44,6 +43,12 @@ var ListAppsTool = mcp.NewTool("list_application",
 	mcp.WithString("optional_fields",
 		mcp.Description("Comma-separated additional fields to include in TSV output. Available options: 'namespace', 'source' (includes repoURL, path, targetRevision, chart), 'destination' (includes server, namespace), 'operation' (includes phase, message, startedAt), or individual fields like 'source-repo', 'dest-namespace'. Defaults to minimal output (name, project, syncStatus, healthStatus)."),
 	),
+	mcp.WithNumber("limit",
+		mcp.Description("Maximum number of applications to return (default: 50). Use with offset to page."),
+	),
+	mcp.WithNumber("offset",
+		mcp.Description("Number of matching applications to skip (default: 0)."),
+	),
 )
 
 // makeListApplications returns the handler for this tool bound to the shared client in d.
@@ -68,10 +73,11 @@ func makeListApplications(d Deps) server.ToolHandlerFunc {
 			}
 		}
 
-		argoClient := d.Client
-
-		// Use the handler function with the real client
-		return listApplicationsHandler(ctx, argoClient, project, cluster, namespace, selector, detailed, nameOnly, outputFormat, optionalFields, appNamespace)
+		limit, offset, err := pageArgs(request, defaultPageLimit)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return listApplicationsHandler(ctx, d.Client, project, cluster, namespace, selector, detailed, nameOnly, outputFormat, optionalFields, appNamespace, limit, offset)
 	}
 }
 
@@ -124,11 +130,7 @@ type ApplicationOperation struct {
 	StartedAt string `json:"startedAt,omitempty"`
 }
 
-// ApplicationNameList represents a list of application names
-type ApplicationNameList struct {
-	Names []string `json:"names"`
-	Count int      `json:"count"`
-}
+const listApplicationFilters = "project, cluster, namespace, app_namespace, or selector"
 
 // listApplicationsHandler handles the core logic for listing applications.
 // This is separated out to enable testing with mocked clients.
@@ -141,6 +143,7 @@ func listApplicationsHandler(
 	outputFormat string,
 	optionalFields []string,
 	appNamespace string,
+	limit, offset int,
 ) (*mcp.CallToolResult, error) {
 	opts := client.ListApplicationsOptions{Selector: selector, AppNamespace: appNamespace}
 	if project != "" {
@@ -168,57 +171,49 @@ func listApplicationsHandler(
 		filteredApps = append(filteredApps, app)
 	}
 
-	if len(filteredApps) == 0 {
-		return mcp.NewToolResultText("No applications found matching the criteria."), nil
+	if filteredApps == nil {
+		filteredApps = []v1alpha1.Application{}
 	}
+	pageApps, total, hasMore := pageSlice(filteredApps, limit, offset)
+	notice := pageNotice(offset, len(pageApps), total, hasMore, listApplicationFilters)
 
-	// Handle TSV format
-	if outputFormat == "tsv" {
-		if nameOnly {
-			return generateNameOnlyTSV(filteredApps), nil
-		} else if detailed {
-			return generateDetailedTSV(filteredApps), nil
-		} else {
-			return generateSummaryTSV(filteredApps, optionalFields), nil
-		}
+	if nameOnly && (outputFormat == "tsv" || outputFormat == "") {
+		return generateNameOnlyTSV(pageApps, notice), nil
 	}
-
-	// Handle JSON format (default)
-	var jsonData []byte
-
 	if nameOnly {
-		// Return only application names
-		names := make([]string, 0, len(filteredApps))
-		for _, app := range filteredApps {
-			names = append(names, app.Name)
+		names := make([]string, len(pageApps))
+		for i, app := range pageApps {
+			names[i] = app.Name
 		}
-		nameList := ApplicationNameList{
-			Names: names,
-			Count: len(names),
-		}
-		jsonData, err = json.MarshalIndent(nameList, "", "  ")
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-		}
-	} else if detailed {
-		// Return full application details
-		jsonData, err = json.MarshalIndent(filteredApps, "", "  ")
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-		}
-	} else {
-		summaries := make([]ApplicationSummary, 0, len(filteredApps))
-		for _, app := range filteredApps {
-			summaries = append(summaries, applicationSummary(app))
-		}
-
-		jsonData, err = json.MarshalIndent(summaries, "", "  ")
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-		}
+		return writeCompact(page{Items: names, TotalItems: total, HasMore: hasMore, Notice: notice})
 	}
+	if detailed {
+		items := make([]v1alpha1.Application, len(pageApps))
+		for i, app := range pageApps {
+			items[i] = stripListedApplication(app)
+		}
+		return writeCompact(page{Items: items, TotalItems: total, HasMore: hasMore, Notice: notice})
+	}
+	if outputFormat == "tsv" || outputFormat == "" {
+		return generateSummaryTSV(pageApps, optionalFields, notice), nil
+	}
+	summaries := make([]ApplicationSummary, len(pageApps))
+	for i, app := range pageApps {
+		summaries[i] = applicationSummary(app)
+	}
+	return writeCompact(page{Items: summaries, TotalItems: total, HasMore: hasMore, Notice: notice})
+}
 
-	return mcp.NewToolResultText(string(jsonData)), nil
+func stripListedApplication(app v1alpha1.Application) v1alpha1.Application {
+	if app.Annotations != nil {
+		ann := make(map[string]string, len(app.Annotations))
+		for k, v := range app.Annotations {
+			ann[k] = v
+		}
+		app.Annotations = ann
+	}
+	stripObjectMeta(&app.ObjectMeta)
+	return app
 }
 
 func applicationSummary(app v1alpha1.Application) ApplicationSummary {

@@ -3,8 +3,6 @@ package tools
 // TSV rendering for list_application.
 
 import (
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -198,21 +196,25 @@ func escapeField(field string) string {
 }
 
 // generateNameOnlyTSV generates TSV output for name-only mode
-func generateNameOnlyTSV(apps []v1alpha1.Application) *mcp.CallToolResult {
+func generateNameOnlyTSV(apps []v1alpha1.Application, notice string) *mcp.CallToolResult {
 	var result strings.Builder
-
 	for i, app := range apps {
 		if i > 0 {
-			result.WriteString("\n")
+			result.WriteByte('\n')
 		}
 		result.WriteString(escapeField(app.Name))
 	}
-
+	if notice != "" {
+		if result.Len() > 0 {
+			result.WriteByte('\n')
+		}
+		result.WriteString("# " + notice)
+	}
 	return mcp.NewToolResultText(result.String())
 }
 
 // generateSummaryTSV generates TSV output for summary mode with optional fields
-func generateSummaryTSV(apps []v1alpha1.Application, optionalFields []string) *mcp.CallToolResult {
+func generateSummaryTSV(apps []v1alpha1.Application, optionalFields []string, notice string) *mcp.CallToolResult {
 	var result strings.Builder
 
 	// Determine which fields to include
@@ -226,18 +228,9 @@ func generateSummaryTSV(apps []v1alpha1.Application, optionalFields []string) *m
 		line := strings.Join(fields, "\t")
 		result.WriteString(line + "\n")
 	}
-
-	return mcp.NewToolResultText(result.String())
-}
-
-// generateDetailedTSV generates TSV output for detailed mode
-func generateDetailedTSV(apps []v1alpha1.Application) *mcp.CallToolResult {
-	// For detailed mode, we'll serialize the full JSON structure as TSV is not suitable
-	// for deeply nested objects. Instead, we'll use a more compact JSON representation.
-	jsonData, err := json.Marshal(apps)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err))
+	if notice != "" {
+		result.WriteString("# " + notice + "\n")
 	}
 
-	return mcp.NewToolResultText(string(jsonData))
+	return mcp.NewToolResultText(result.String())
 }
