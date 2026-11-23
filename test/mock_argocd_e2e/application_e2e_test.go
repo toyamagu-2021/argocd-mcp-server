@@ -243,6 +243,54 @@ func TestParallel_SyncApplication(t *testing.T) {
 	}
 }
 
+func TestParallel_SyncApplicationSelective(t *testing.T) {
+	t.Parallel()
+
+	callToolRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "sync_application",
+			"arguments": map[string]interface{}{
+				"name":      "test-app-1",
+				"dry_run":   true,
+				"revision":  "abc123",
+				"revisions": []string{"v1.2.3", "chart-1.0.0"},
+				"resources": []map[string]string{{
+					"group": "apps", "kind": "Deployment", "name": "web", "namespace": "prod",
+				}},
+				"sync_options": []string{"CreateNamespace=true"},
+			},
+		},
+	}
+
+	response := sendSharedRequest(t, callToolRequest)
+	result, ok := response["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected result to be a map, got %T: %v", response["result"], response)
+	}
+	if isErr, _ := result["isError"].(bool); isErr {
+		t.Fatalf("sync returned a tool error: %v", result)
+	}
+	content, ok := result["content"].([]interface{})
+	if !ok || len(content) == 0 {
+		t.Fatalf("expected content, got %#v", result["content"])
+	}
+	textContent, ok := content[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected content[0] to be a map, got %T", content[0])
+	}
+	text, ok := textContent["text"].(string)
+	if !ok {
+		t.Fatalf("expected text to be a string, got %T", textContent["text"])
+	}
+	for _, want := range []string{"abc123", "v1.2.3", "chart-1.0.0", "Deployment", "web", "CreateNamespace=true", "Succeeded"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("response missing %q: %s", want, text)
+		}
+	}
+}
+
 func TestParallel_DeleteApplication(t *testing.T) {
 	t.Parallel()
 

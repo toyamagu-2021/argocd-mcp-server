@@ -18,7 +18,7 @@ The server exposes a fixed set of **23 public tools** (design D1, see
 | `get_application_logs` | | `follow=true` is rejected (stdio cannot stream) |
 | `get_application_resource_tree` | | |
 | `create_application` | ✔ | |
-| `sync_application` | ✔ | `prune`, `dry_run` |
+| `sync_application` | ✔ | `prune`, `dry_run`, `revision` (single-source), `revisions` (multi-source, one per `spec.sources` entry), `resources` (partial sync), `sync_options` (replace, not merge) |
 | `refresh_application` | | treated as read (D11, revised); `hard` |
 | `delete_application` | ✔ | `cascade` defaults to **false** (differs from the Argo CD CLI) |
 | `terminate_operation` | ✔ | |
