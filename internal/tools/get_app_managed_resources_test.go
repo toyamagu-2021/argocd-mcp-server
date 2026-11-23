@@ -135,6 +135,32 @@ func TestManagedResourcesPagingAndStrip(t *testing.T) {
 	assert.NotContains(t, stripped, "managedFields")
 	assert.NotContains(t, stripped, lastAppliedAnnotation)
 	assert.Contains(t, stripped, "keep-me")
+
+	past := formatManagedResources(full, client.ManagedResourcesOptions{Name: "app"}, false, 50, 100)
+	pastBody, err := json.Marshal(past)
+	require.NoError(t, err)
+	assert.Equal(t, `{"items":[],"totalItems":3,"hasMore":false,"notice":"offset 100 is past 3 items. Narrow with kind, resource_name, resource_namespace, group, or version."}`, string(pastBody))
+}
+
+func TestManagedResourcesDropsNilDiffs(t *testing.T) {
+	full := sampleManagedResources(2)
+	full.Items = []*v1alpha1.ResourceDiff{nil, full.Items[0], nil, full.Items[1]}
+
+	summary := formatManagedResources(full, client.ManagedResourcesOptions{Name: "app"}, false, 50, 0)
+	body, err := json.Marshal(summary)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"totalItems":2`)
+	assert.NotContains(t, string(body), "null")
+
+	detailed := formatManagedResources(full, client.ManagedResourcesOptions{Name: "app"}, true, 50, 0)
+	body, err = json.Marshal(detailed)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"totalItems":2`)
+	var parsed struct {
+		Items []json.RawMessage `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(body, &parsed))
+	assert.Len(t, parsed.Items, 2)
 }
 
 func sampleManagedResources(n int) *applicationpkg.ManagedResourcesResponse {
