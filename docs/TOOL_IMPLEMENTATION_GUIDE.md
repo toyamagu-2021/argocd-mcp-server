@@ -301,7 +301,7 @@ if err != nil {
 ```go
 name := request.GetString("name", "")        // required: validate in xHandler
 dryRun := request.GetBool("dry_run", false)  // optional with default
-tail := int64(request.GetInt("tail_lines", 100))
+tail := int64(request.GetInt("tail_lines", 20))
 ```
 
 ### Response formatting

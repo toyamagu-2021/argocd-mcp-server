@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -22,10 +23,8 @@ func TestGetApplicationLogsToolDefinition_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_application_logs', got %s", GetApplicationLogsToolDefinition.Name)
 	}
 
-	// Verify tool has description
-	if GetApplicationLogsToolDefinition.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetApplicationLogsToolDefinition.Description, "detailed=false")
+	assert.Contains(t, GetApplicationLogsToolDefinition.Description, "20")
 
 	// Check input schema exists
 	if GetApplicationLogsToolDefinition.InputSchema.Type != "object" {
@@ -180,7 +179,7 @@ func TestGetApplicationLogsHandler(t *testing.T) {
 				Filter:       tt.filter,
 				AppNamespace: tt.appNamespace,
 				Project:      tt.project,
-			})
+			}, false)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -191,23 +190,13 @@ func TestGetApplicationLogsHandler(t *testing.T) {
 				require.NotNil(t, result)
 				assert.False(t, result.IsError)
 
-				// Parse the response
 				require.Len(t, result.Content, 1)
 				textContent, ok := mcp.AsTextContent(result.Content[0])
 				require.True(t, ok)
-
-				var response map[string]interface{}
-				err := json.Unmarshal([]byte(textContent.Text), &response)
-				require.NoError(t, err)
-
-				// Check log count
+				assert.NotContains(t, textContent.Text, "{")
 				if tt.wantLogCount > 0 {
-					logs, ok := response["logs"].([]interface{})
-					require.True(t, ok)
-					assert.Len(t, logs, tt.wantLogCount)
+					assert.Contains(t, textContent.Text, fmt.Sprintf("lines=%d\n", tt.wantLogCount))
 				}
-
-				// Check content
 				if tt.wantContains != "" {
 					assert.Contains(t, textContent.Text, tt.wantContains)
 				}
@@ -259,7 +248,7 @@ func TestGetApplicationLogs_ParameterExtraction(t *testing.T) {
 			validate: func(t *testing.T, request mcp.CallToolRequest) {
 				// Test that default values are returned when parameters are not provided
 				assert.Equal(t, "test-app", request.GetString("name", ""))
-				assert.Equal(t, 100, request.GetInt("tail_lines", 100))
+				assert.Equal(t, defaultTailLines, request.GetInt("tail_lines", defaultTailLines))
 				assert.Equal(t, 0, request.GetInt("since_seconds", 0))
 				assert.False(t, request.GetBool("follow", false))
 				assert.False(t, request.GetBool("previous", false))
@@ -276,8 +265,58 @@ func TestGetApplicationLogs_ParameterExtraction(t *testing.T) {
 				},
 			}
 
-			// Validate parameter extraction
 			tt.validate(t, request)
 		})
 	}
+}
+
+func TestGetApplicationLogs_DefaultTailAndText(t *testing.T) {
+	line := strings.Repeat("x", 80)
+	beforeLogs := make([]logEntry, 100)
+	for i := range beforeLogs {
+		beforeLogs[i] = logEntry{Content: line}
+	}
+	before, err := json.MarshalIndent(logResponse{Application: "guestbook", TotalLines: 100, Logs: beforeLogs}, "", "  ")
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetApplicationLogs(gomock.Any(), client.LogsOptions{Name: "guestbook", TailLines: int64(defaultTailLines)}).
+		Return(logStreamOf(line, defaultTailLines), nil)
+	res := callTool(t, newTestServer(t, Deps{Client: m}), "get_application_logs", map[string]interface{}{"name": "guestbook"})
+	text, ok := mcp.AsTextContent(res.Content[0])
+	require.True(t, ok)
+	assert.False(t, res.IsError)
+	assert.NotContains(t, text.Text, "{")
+	assert.Contains(t, text.Text, "lines=20\n")
+	assert.Contains(t, text.Text, tailNotice(defaultTailLines, defaultTailLines))
+	t.Logf("before_bytes=%d after_bytes=%d", len(before), len(text.Text))
+	assert.Less(t, len(text.Text), len(before)/5)
+
+	m.EXPECT().GetApplicationLogs(gomock.Any(), client.LogsOptions{Name: "guestbook", TailLines: int64(defaultTailLines)}).
+		Return(logStreamOf(line, 3), nil)
+	short := callTool(t, newTestServer(t, Deps{Client: m}), "get_application_logs", map[string]interface{}{"name": "guestbook"})
+	shortText, ok := mcp.AsTextContent(short.Content[0])
+	require.True(t, ok)
+	assert.NotContains(t, shortText.Text, "Showing the last")
+	assert.Contains(t, shortText.Text, "lines=3\n")
+
+	m.EXPECT().GetApplicationLogs(gomock.Any(), client.LogsOptions{Name: "guestbook", TailLines: int64(defaultTailLines)}).
+		Return(logStreamOf(line, defaultTailLines), nil)
+	detailed := callTool(t, newTestServer(t, Deps{Client: m}), "get_application_logs", map[string]interface{}{"name": "guestbook", "detailed": true})
+	detailedText, ok := mcp.AsTextContent(detailed.Content[0])
+	require.True(t, ok)
+	assert.NotContains(t, detailedText.Text, "\n")
+	assert.Contains(t, detailedText.Text, `"logs"`)
+	assert.Contains(t, detailedText.Text, `"notice"`)
+}
+
+func logStreamOf(content string, n int) *mockLogStream {
+	entries := make([]*applicationpkg.LogEntry, n)
+	last := false
+	for i := range entries {
+		line := content
+		entries[i] = &applicationpkg.LogEntry{Content: &line, Last: &last}
+	}
+	return &mockLogStream{entries: entries}
 }
