@@ -287,7 +287,7 @@ Delete and terminate responses are short text. They stay as they are.
 
 ## 4. Implementation units
 
-Ship user-visible units in **0.4.0**. 0.3.0 is already tagged, and several defaults below change what an existing client parses. U1 has no behavior change and can merge first. Do the units in order. Each one is a separate PR. Do not stack them into one branch.
+Ship this sequence in **0.5.0**. #112, #113, and #114 ship as v0.4.0 first, and 0.3.0 is already tagged. The defaults below change what an existing client parses, so they do not ride along in 0.4.0. U1 has no behavior change and can merge first inside the 0.5.0 sequence. Do the units in order. Each one is a separate PR. Do not stack them into one branch.
 
 Every behavior unit updates that tool's description and the notes cell in `docs/todo-tools.md` in the same PR. Schema tests assert the new default is in the description.
 
@@ -313,7 +313,7 @@ Handler tests call the `xHandler` function with a mock client, the same way curr
 
 ## 5. Compatibility
 
-These are breaking changes for any client that parses tool text. The server has no output schema version. 0.4.0 is the release, and the changelog lists every row below. Tool descriptions are the only in-band warning an agent will see.
+These are breaking changes for any client that parses tool text. The server has no output schema version. 0.5.0 is the release (0.4.0 is #112–#114), and the changelog lists every row below. Tool descriptions are the only in-band warning an agent will see.
 
 | Tool | What changes for a client that omits the new arguments |
 |---|---|
