@@ -28,6 +28,10 @@ Not tagged yet.
    The JSON log object becomes tab-separated text. Pass `detailed=true` for
    compact JSON. `tail_lines` defaults to 20, not 100. `follow=true` is still
    an error. (#117)
+5. **`list_application` returns at most 50 rows unless `limit` is set.**
+   A short TSV page ends with a `#` notice line. JSON responses are a page
+   object. `name_only` JSON no longer uses `{names, count}`. `detailed` is a
+   page of Applications, not a raw array. The empty prose string is gone. (#117)
 
 ## v0.3.0 (2026-11-23)
 

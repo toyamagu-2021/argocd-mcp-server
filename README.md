@@ -7,7 +7,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 ## Features
 
 ### Application Management
-- `list_application` - List ArgoCD applications with optional filtering by project, cluster, namespace, and label selectors
+- `list_application` - List applications. Default is a TSV summary, at most 50 rows (`limit` defaults to 50). `detailed=true` is a compact page of full Applications. Empty JSON is a page, not a sentence
 - `get_application` - Compact summary of an application (`detailed=false` by default). `detailed=true` returns the full Application without managedFields or last-applied-configuration
 - `get_application_manifests` - Get rendered Kubernetes manifests for an application
 - `get_application_events` - Page of event summaries (`detailed=false` by default, `limit` 50). `metadata` is omitted. `detailed=true` returns full events without `managedFields`

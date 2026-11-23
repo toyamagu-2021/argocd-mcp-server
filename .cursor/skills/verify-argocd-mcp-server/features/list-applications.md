@@ -12,7 +12,7 @@
 
 - An MCP client calls the tool `list_application` after `initialize`.
 - The client sets `output_format` to `json` for a structured body. The server default without that argument is TSV.
-- The client sets `name_only` to true when it wants names and a count.
+- The client sets `name_only` to true when it wants names. The JSON body is a page. `totalItems` is the count.
 
 ## Driving it with verify-argocd-mcp-server
 
@@ -24,7 +24,7 @@ Preconditions:
 - **JSON list.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/drive.sh call --feature list-applications --label json list_application '{"output_format":"json"}'`. `DRIVE_OK` points at `summary.json`. The `list_application` call has `is_error` false and `rpc_error` null.
 - **Name list.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/drive.sh call --feature list-applications --label name-only list_application '{"name_only":true,"output_format":"json"}'`. The call has `is_error` false and `rpc_error` null.
 - **Cluster view.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/evidence.sh --feature list-applications`. `EVIDENCE_OK` points at `cluster-state/applications.txt`.
-- **Empty cluster.** When `applications.txt` contains `No resources found`, both call texts are exactly `No applications found matching the criteria.`
+- **Empty cluster.** When `applications.txt` contains `No resources found`, both call texts are exactly `{"items":[],"totalItems":0,"hasMore":false}`.
 - **Non-empty cluster.** When kubectl prints an Application table, every name in that table appears in both call texts, and neither text names an application absent from the table.
 
 ## Gotchas
@@ -32,4 +32,4 @@ Preconditions:
 - `namespace` filters `spec.destination.namespace`. `app_namespace` filters the Application's own namespace. This recipe passes neither.
 - A fresh install has no Applications. That agreement is the proof of `list-json`. It does not prove project or selector filtering. Those filters need an Application in a known project, which this baseline does not seed. Do not create one to make a filter look proven.
 - `output_format` defaults to `tsv`. Pass `json` when the assertion reads a JSON body.
-- The empty response is the sentence above, not a JSON array.
+- The empty JSON response is a page with `totalItems` 0, not a sentence and not a JSON array. The default TSV response for an empty list is the header row only.
