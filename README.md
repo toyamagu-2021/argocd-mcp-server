@@ -16,7 +16,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `get_application_managed_resources` - List managed resources with target and live state (ApplicationService.ManagedResources)
 - `get_application_resource` - Get the live manifest of one managed resource (ApplicationService.GetResource). Argo CD replaces Secret data
 - `create_application` - Create a new ArgoCD application with source and destination configuration
-- `sync_application` - Trigger a sync operation for an application with optional prune and dry-run modes
+- `sync_application` - Trigger a sync operation for an application, with optional prune, dry-run, a target revision, a per-source revision list, a partial resource list, and per-sync sync options
 - `refresh_application` - Refresh application state from the git repository
 - `delete_application` - Delete an ArgoCD application. **`cascade` defaults to `false`** (resources are kept) — unlike the Argo CD CLI
 - `terminate_operation` - Terminate the currently running operation (sync, refresh, etc.) on an application
@@ -286,7 +286,12 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
     "arguments": {
       "name": "my-app",
       "prune": true,
-      "dry_run": false
+      "dry_run": false,
+      "revision": "abc123",
+      "resources": [
+        {"group": "apps", "kind": "Deployment", "name": "web", "namespace": "default"}
+      ],
+      "sync_options": ["CreateNamespace=true"]
     }
   }
 }
@@ -631,7 +636,7 @@ make lint-advanced
 
 ## Safety Considerations
 
-- **sync_application**: Use `dry_run: true` to preview changes before actual sync
+- **sync_application**: Use `dry_run: true` to preview changes before actual sync. `revision` syncs a single-source app to that git revision, tag, or chart version (omit it to use the spec target). `revisions` is the multi-source list, one entry per source in `spec.sources` order; an empty entry keeps that source's target. `resources` limits the sync to those objects. `sync_options` replaces the Application's sync options for this operation (it does not merge). Syncing to a revision other than the spec target fails when auto-sync is enabled, unless `dry_run` is true
 - **refresh_application**: Use `hard: false` (default) for a normal refresh, `hard: true` to also invalidate the manifest cache
 - **delete_application**: `cascade` defaults to `false`, so only the Application is deleted and its resources stay in the cluster. Pass `cascade: true` to delete the resources as well. This intentionally differs from the Argo CD CLI default (`true`)
 - **delete_applicationset**: Deleting an ApplicationSet also deletes the Applications it generated; there is no cascade option. The namespace argument is `app_namespace` (the old `appsetNamespace` is still accepted during 0.3)

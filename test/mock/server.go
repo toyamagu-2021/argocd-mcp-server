@@ -275,6 +275,21 @@ func (s *mockApplicationService) Sync(ctx context.Context, req *application.Appl
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", *req.Name))
 	}
 
+	syncOp := &v1alpha1.SyncOperation{
+		Revision:  req.GetRevision(),
+		Revisions: req.GetRevisions(),
+		Prune:     req.GetPrune(),
+		DryRun:    req.GetDryRun(),
+	}
+	if req.SyncOptions != nil {
+		syncOp.SyncOptions = append([]string(nil), req.SyncOptions.Items...)
+	}
+	for _, r := range req.GetResources() {
+		if r != nil {
+			syncOp.Resources = append(syncOp.Resources, *r)
+		}
+	}
+
 	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      *req.Name,
@@ -286,16 +301,13 @@ func (s *mockApplicationService) Sync(ctx context.Context, req *application.Appl
 				Message:   "Sync operation initiated",
 				StartedAt: metav1.NewTime(time.Now()),
 				Operation: v1alpha1.Operation{
-					Sync: &v1alpha1.SyncOperation{
-						Prune:  *req.Prune,
-						DryRun: *req.DryRun,
-					},
+					Sync: syncOp,
 				},
 			},
 		},
 	}
 
-	if *req.DryRun {
+	if req.GetDryRun() {
 		app.Status.OperationState.Phase = "Succeeded"
 		app.Status.OperationState.Message = "Dry run completed successfully"
 	}

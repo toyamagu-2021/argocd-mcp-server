@@ -147,9 +147,18 @@ func TestAppNamespace_Propagation(t *testing.T) {
 
 	t.Run("sync", func(t *testing.T) {
 		c, f, _ := newFakeClient()
-		_, err := c.SyncApplication(ctx, "app", "", true, true, "team-a")
+		_, err := c.SyncApplication(ctx, SyncOptions{Name: "app", Prune: true, DryRun: true, AppNamespace: "team-a"})
 		require.NoError(t, err)
 		assert.Equal(t, "team-a", f.sync.GetAppNamespace())
+		assert.Equal(t, "", f.sync.GetRevision())
+		require.NotNil(t, f.sync.Revision)
+		assert.Nil(t, f.sync.Resources)
+		assert.Nil(t, f.sync.Revisions)
+		assert.Nil(t, f.sync.SourcePositions)
+		assert.Nil(t, f.sync.SyncOptions)
+		require.NotNil(t, f.sync.Strategy)
+		assert.Nil(t, f.sync.Strategy.Apply)
+		assert.Nil(t, f.sync.Strategy.Hook)
 	})
 
 	t.Run("manifests looks up the app in its namespace", func(t *testing.T) {
@@ -246,6 +255,31 @@ func TestAppNamespace_Propagation(t *testing.T) {
 		assert.Equal(t, "prod", f.resource.GetNamespace())
 		assert.Equal(t, "team-a", f.resource.GetAppNamespace())
 		assert.Equal(t, "proj", f.resource.GetProject())
+	})
+
+	t.Run("sync forwards revision, partial resources, multi-source revisions, and sync options", func(t *testing.T) {
+		c, f, _ := newFakeClient()
+		_, err := c.SyncApplication(ctx, SyncOptions{
+			Name:      "app",
+			Revision:  "abc123",
+			Revisions: []string{"v1.2.3", ""},
+			Resources: []SyncResource{{
+				Group: "apps", Kind: "Deployment", Name: "web", Namespace: "prod",
+			}},
+			Options: []string{"CreateNamespace=true"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "abc123", f.sync.GetRevision())
+		assert.Equal(t, []string{"v1.2.3", ""}, f.sync.GetRevisions())
+		assert.Equal(t, []int64{1, 2}, f.sync.GetSourcePositions())
+		require.Len(t, f.sync.GetResources(), 1)
+		assert.Equal(t, "apps", f.sync.Resources[0].Group)
+		assert.Equal(t, "Deployment", f.sync.Resources[0].Kind)
+		assert.Equal(t, "web", f.sync.Resources[0].Name)
+		assert.Equal(t, "prod", f.sync.Resources[0].Namespace)
+		require.NotNil(t, f.sync.SyncOptions)
+		assert.Equal(t, []string{"CreateNamespace=true"}, f.sync.SyncOptions.Items)
+		assert.Nil(t, f.sync.AppNamespace)
 	})
 
 	t.Run("applicationset delete", func(t *testing.T) {

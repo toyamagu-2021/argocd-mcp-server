@@ -85,7 +85,15 @@ jobs:
       - name: Run tests with coverage
         run: |
           source .env
-          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} make test-cover
+          # Same packages and flags as `make test-cover` (`go test -cover ./...`).
+          # argocd_e2e is split out only to add -v, so subtest names show up in the log.
+          # The set of tests is unchanged.
+          mapfile -t pkgs < <(go list ./... | grep -v '/test/argocd_e2e$')
+          test "${#pkgs[@]}" -gt 0
+          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} \
+            go test -cover "${pkgs[@]}"
+          ARGOCD_INSECURE=true ARGOCD_SERVER=${ARGOCD_SERVER} ARGOCD_AUTH_TOKEN=${ARGOCD_AUTH_TOKEN} \
+            go test -cover -v ./test/argocd_e2e
 
       # Design D5: exercise the gRPC-Web transport end to end at least once.
       - name: Run gRPC-Web E2E tests

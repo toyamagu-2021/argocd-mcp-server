@@ -289,6 +289,34 @@ func TestParallel_GetApplicationResource(t *testing.T) {
 	}
 }
 
+func TestParallel_SyncApplicationSelective(t *testing.T) {
+	t.Parallel()
+
+	response := sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "sync_application",
+			"arguments": map[string]interface{}{
+				"name":      "test-app-1",
+				"dry_run":   true,
+				"revision":  "abc123",
+				"revisions": []string{"v1.2.3", "chart-1.0.0"},
+				"resources": []map[string]string{{
+					"group": "apps", "kind": "Deployment", "name": "web", "namespace": "prod",
+				}},
+				"sync_options": []string{"CreateNamespace=true"},
+			},
+		},
+	})
+	text := toolResultText(t, response)
+	for _, want := range []string{"abc123", "v1.2.3", "chart-1.0.0", "Deployment", "web", "CreateNamespace=true", "Succeeded"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("response missing %q: %s", want, text)
+		}
+	}
+}
+
 func toolResultText(t *testing.T, response map[string]interface{}) string {
 	t.Helper()
 	result, ok := response["result"].(map[string]interface{})
