@@ -2,17 +2,21 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"time"
 
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetAppEventsTool defines the get_application_events tool schema
+const eventFilters = "resource_name, resource_namespace, or resource_uid"
+
+// GetAppEventsTool defines the get_application_events tool schema.
 var GetAppEventsTool = mcp.NewTool("get_application_events",
-	mcp.WithDescription("Gets Kubernetes events for resources belonging to an ArgoCD application. Returns events that help diagnose issues with application resources."),
+	mcp.WithDescription("Gets Kubernetes events for resources belonging to an ArgoCD application. detailed=false (the default) returns a page of summaries with type, reason, message, count, firstTimestamp, lastTimestamp, involvedKind, involvedNamespace, involvedName, and sourceComponent. metadata is omitted and the message is not clipped. limit defaults to 50 and offset to 0. The response has totalItems, hasMore, and a notice when the page is not the whole list. Narrow with resource_name, resource_namespace, or resource_uid. detailed=true pages the full events with metadata.managedFields and kubectl.kubernetes.io/last-applied-configuration removed."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
@@ -34,54 +38,119 @@ var GetAppEventsTool = mcp.NewTool("get_application_events",
 	mcp.WithString("project",
 		mcp.Description("Optional. The ArgoCD project the application belongs to."),
 	),
+	mcp.WithBoolean("detailed",
+		mcp.Description("If true, returns full events with managedFields removed. If false (default), returns summaries without metadata."),
+	),
+	mcp.WithNumber("limit",
+		mcp.Description("Maximum number of events to return (default: 50). Use with offset to page."),
+	),
+	mcp.WithNumber("offset",
+		mcp.Description("Number of events to skip (default: 0)."),
+	),
 )
 
 // makeGetApplicationEvents returns the handler for this tool bound to the shared client in d.
 func makeGetApplicationEvents(d Deps) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		// Extract parameters from mcp.CallToolRequest
-		appName := request.GetString("name", "")
-		resourceNamespace := request.GetString("resource_namespace", "")
-		resourceName := request.GetString("resource_name", "")
-		resourceUID := request.GetString("resource_uid", "")
-		appNamespace := request.GetString("app_namespace", "")
-		project := request.GetString("project", "")
-
-		argoClient := d.Client
-
-		// Use the handler function with the real client
-		return getApplicationEventsHandler(ctx, argoClient, client.EventsOptions{
-			Name:              appName,
-			ResourceNamespace: resourceNamespace,
-			ResourceName:      resourceName,
-			ResourceUID:       resourceUID,
-			AppNamespace:      appNamespace,
-			Project:           project,
-		})
+		limit, offset, err := pageArgs(request, defaultPageLimit)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return getApplicationEventsHandler(ctx, d.Client, client.EventsOptions{
+			Name:              request.GetString("name", ""),
+			ResourceNamespace: request.GetString("resource_namespace", ""),
+			ResourceName:      request.GetString("resource_name", ""),
+			ResourceUID:       request.GetString("resource_uid", ""),
+			AppNamespace:      request.GetString("app_namespace", ""),
+			Project:           request.GetString("project", ""),
+		}, request.GetBool("detailed", false), limit, offset)
 	}
 }
 
 // getApplicationEventsHandler handles the core logic for getting application events.
-// This is separated out to enable testing with mocked clients.
 func getApplicationEventsHandler(
 	ctx context.Context,
 	argoClient client.Interface,
 	opts client.EventsOptions,
+	detailed bool,
+	limit, offset int,
 ) (*mcp.CallToolResult, error) {
 	if opts.Name == "" {
 		return mcp.NewToolResultError("Application name is required"), nil
 	}
-
 	events, err := argoClient.GetApplicationEvents(ctx, opts)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get application events: %v", err)), nil
 	}
+	return writeCompact(eventsPage(events, detailed, limit, offset))
+}
 
-	// Convert to JSON for better readability in MCP responses
-	jsonData, err := json.MarshalIndent(events, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+type eventSummary struct {
+	Type              string `json:"type,omitempty"`
+	Reason            string `json:"reason,omitempty"`
+	Message           string `json:"message,omitempty"`
+	Count             int32  `json:"count,omitempty"`
+	FirstTimestamp    string `json:"firstTimestamp,omitempty"`
+	LastTimestamp     string `json:"lastTimestamp,omitempty"`
+	InvolvedKind      string `json:"involvedKind,omitempty"`
+	InvolvedNamespace string `json:"involvedNamespace,omitempty"`
+	InvolvedName      string `json:"involvedName,omitempty"`
+	SourceComponent   string `json:"sourceComponent,omitempty"`
+}
+
+func eventsPage(list *eventspkg.EventList, detailed bool, limit, offset int) page {
+	var items []eventspkg.Event
+	if list != nil {
+		items = list.Items
 	}
+	sliced, total, hasMore := pageSlice(items, limit, offset)
+	p := page{
+		TotalItems: total,
+		HasMore:    hasMore,
+		Notice:     pageNotice(offset, len(sliced), total, hasMore, eventFilters),
+	}
+	if detailed {
+		out := make([]eventspkg.Event, len(sliced))
+		for i, ev := range sliced {
+			out[i] = stripEvent(ev)
+		}
+		p.Items = out
+		return p
+	}
+	summaries := make([]eventSummary, len(sliced))
+	for i, ev := range sliced {
+		summaries[i] = eventSummary{
+			Type:              ev.Type,
+			Reason:            ev.Reason,
+			Message:           ev.Message,
+			Count:             ev.Count,
+			FirstTimestamp:    rfc3339(ev.FirstTimestamp),
+			LastTimestamp:     rfc3339(ev.LastTimestamp),
+			InvolvedKind:      ev.InvolvedObject.Kind,
+			InvolvedNamespace: ev.InvolvedObject.Namespace,
+			InvolvedName:      ev.InvolvedObject.Name,
+			SourceComponent:   ev.Source.Component,
+		}
+	}
+	p.Items = summaries
+	return p
+}
 
-	return mcp.NewToolResultText(string(jsonData)), nil
+func stripEvent(ev eventspkg.Event) eventspkg.Event {
+	if ev.Metadata.Annotations != nil {
+		ann := make(map[string]string, len(ev.Metadata.Annotations))
+		for k, v := range ev.Metadata.Annotations {
+			ann[k] = v
+		}
+		ev.Metadata.Annotations = ann
+	}
+	stripObjectMeta(&ev.Metadata)
+	return ev
+}
+
+func rfc3339(t metav1.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Time.Format(time.RFC3339)
 }
