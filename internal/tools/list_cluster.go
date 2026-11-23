@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -11,20 +10,26 @@ import (
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
-// ListClusterTool provides MCP tool for listing all ArgoCD clusters
+// ListClusterTool provides MCP tool for listing all ArgoCD clusters.
 var ListClusterTool = mcp.NewTool("list_cluster",
-	mcp.WithDescription("Lists all ArgoCD clusters configured in the system. Use name_only=true to get just cluster names and servers for a compact view."),
+	mcp.WithDescription("Lists ArgoCD clusters. detailed=false (the default) returns a page of summaries. name_only=true returns name and server objects and wins over detailed. detailed=true returns a page of full clusters after Sanitized, without kubectl.kubernetes.io/last-applied-configuration. limit defaults to 50 and offset to 0."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithBoolean("detailed",
-		mcp.Description("If true, returns complete cluster details including all configuration data (can be very large). If false (default), returns only essential fields. Recommended: keep this as false to avoid fetching excessive data."),
+		mcp.Description("If true, returns complete cluster details (can be very large). If false (default), returns only essential fields."),
 	),
 	mcp.WithBoolean("name_only",
-		mcp.Description("If true, returns only cluster names/servers. Takes precedence over 'detailed' option. Useful for getting a quick list of cluster identifiers."),
+		mcp.Description("If true, returns only cluster names and servers inside items. Takes precedence over detailed."),
+	),
+	mcp.WithNumber("limit",
+		mcp.Description("Maximum number of clusters to return (default: 50). Use with offset to page."),
+	),
+	mcp.WithNumber("offset",
+		mcp.Description("Number of clusters to skip (default: 0)."),
 	),
 )
 
-// ClusterSummary represents a simplified view of a cluster
+// ClusterSummary represents a simplified view of a cluster.
 type ClusterSummary struct {
 	Name             string                    `json:"name"`
 	Server           string                    `json:"server"`
@@ -32,30 +37,21 @@ type ClusterSummary struct {
 	ConnectionStatus v1alpha1.ConnectionStatus `json:"connectionStatus"`
 }
 
-// HandleListCluster handles MCP tool requests for listing ArgoCD clusters
-// makeListCluster returns the handler for this tool bound to the shared client in d.
-func makeListCluster(d Deps) server.ToolHandlerFunc {
-	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		// Extract the detailed and name_only parameters
-		detailed := request.GetBool("detailed", false)
-		nameOnly := request.GetBool("name_only", false)
-
-		argoClient := d.Client
-
-		return listClusterHandler(ctx, argoClient, detailed, nameOnly)
-	}
-}
-
-// ClusterNameList represents a list of cluster identifiers
-type ClusterNameList struct {
-	Clusters []ClusterIdentifier `json:"clusters"`
-	Count    int                 `json:"count"`
-}
-
-// ClusterIdentifier contains minimal cluster identification
+// ClusterIdentifier contains minimal cluster identification.
 type ClusterIdentifier struct {
 	Name   string `json:"name"`
 	Server string `json:"server"`
+}
+
+// makeListCluster returns the handler for this tool bound to the shared client in d.
+func makeListCluster(d Deps) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		limit, offset, err := pageArgs(request, defaultPageLimit)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return listClusterHandler(ctx, d.Client, request.GetBool("detailed", false), request.GetBool("name_only", false), limit, offset)
+	}
 }
 
 func listClusterHandler(
@@ -63,64 +59,56 @@ func listClusterHandler(
 	argoClient client.Interface,
 	detailed bool,
 	nameOnly bool,
+	limit, offset int,
 ) (*mcp.CallToolResult, error) {
 	clusters, err := argoClient.ListClusters(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to list clusters: %v", err)), nil
 	}
-
-	if len(clusters.Items) == 0 {
-		return mcp.NewToolResultText("No clusters found."), nil
+	var items []v1alpha1.Cluster
+	if clusters != nil {
+		items = clusters.Items
 	}
-
-	var jsonData []byte
-
+	if items == nil {
+		items = []v1alpha1.Cluster{}
+	}
+	sliced, total, hasMore := pageSlice(items, limit, offset)
+	notice := pageNotice(offset, len(sliced), total, hasMore, "")
 	if nameOnly {
-		// Return only cluster names and servers
-		identifiers := make([]ClusterIdentifier, 0, len(clusters.Items))
-		for _, cluster := range clusters.Items {
-			identifiers = append(identifiers, ClusterIdentifier{
-				Name:   cluster.Name,
-				Server: cluster.Server,
-			})
+		ids := make([]ClusterIdentifier, len(sliced))
+		for i, cluster := range sliced {
+			ids[i] = ClusterIdentifier{Name: cluster.Name, Server: cluster.Server}
 		}
-		nameList := ClusterNameList{
-			Clusters: identifiers,
-			Count:    len(identifiers),
+		return writeCompact(page{Items: ids, TotalItems: total, HasMore: hasMore, Notice: notice})
+	}
+	if detailed {
+		full := make([]v1alpha1.Cluster, len(sliced))
+		for i, cluster := range sliced {
+			full[i] = strippedCluster(cluster)
 		}
-		jsonData, err = json.MarshalIndent(nameList, "", "  ")
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-		}
-	} else if detailed {
-		// Return full cluster details
-		jsonData, err = json.MarshalIndent(clusters, "", "  ")
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-		}
-	} else {
-		// Return summarized cluster information
-		summaries := make([]ClusterSummary, 0, len(clusters.Items))
-		for _, cluster := range clusters.Items {
-			summary := ClusterSummary{
-				Name:             cluster.Name,
-				Server:           cluster.Server,
-				ConnectionStatus: cluster.Info.ConnectionState.Status,
-			}
-
-			// Add server version if available
-			if cluster.Info.ServerVersion != "" {
-				summary.ServerVersion = cluster.Info.ServerVersion
-			}
-
-			summaries = append(summaries, summary)
-		}
-
-		jsonData, err = json.MarshalIndent(summaries, "", "  ")
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+		return writeCompact(page{Items: full, TotalItems: total, HasMore: hasMore, Notice: notice})
+	}
+	summaries := make([]ClusterSummary, len(sliced))
+	for i, cluster := range sliced {
+		summaries[i] = ClusterSummary{
+			Name:             cluster.Name,
+			Server:           cluster.Server,
+			ServerVersion:    cluster.Info.ServerVersion,
+			ConnectionStatus: cluster.Info.ConnectionState.Status,
 		}
 	}
+	return writeCompact(page{Items: summaries, TotalItems: total, HasMore: hasMore, Notice: notice})
+}
 
-	return mcp.NewToolResultText(string(jsonData)), nil
+func strippedCluster(cluster v1alpha1.Cluster) v1alpha1.Cluster {
+	sanitized := cluster.Sanitized()
+	if sanitized.Annotations != nil {
+		ann := make(map[string]string, len(sanitized.Annotations))
+		for k, v := range sanitized.Annotations {
+			ann[k] = v
+		}
+		sanitized.Annotations = ann
+	}
+	sanitized.Annotations = stripAnnotations(sanitized.Annotations)
+	return *sanitized
 }

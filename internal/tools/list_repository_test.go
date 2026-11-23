@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -20,9 +21,8 @@ func TestListRepositoryTool_Schema(t *testing.T) {
 	}
 
 	// Verify tool has description
-	if ListRepositoryTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, ListRepositoryTool.Description, "detailed=false")
+	assert.Contains(t, ListRepositoryTool.Description, "50")
 
 	// Check input schema exists
 	if ListRepositoryTool.InputSchema.Type != "object" {
@@ -64,7 +64,7 @@ func TestListRepositoryHandler(t *testing.T) {
 				}, nil)
 			},
 			wantError:   false,
-			wantMessage: "No repositories found.",
+			wantMessage: `"totalItems":0`,
 		},
 		{
 			name: "list repositories fails",
@@ -83,7 +83,7 @@ func TestListRepositoryHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := listRepositoryHandler(context.Background(), mockClient)
+			result, err := listRepositoryHandler(context.Background(), mockClient, false, 50, 0)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -100,14 +100,54 @@ func TestListRepositoryHandler(t *testing.T) {
 					require.True(t, ok)
 					assert.Contains(t, textContent.Text, tt.wantMessage)
 
-					// If it's not the "No repositories found" message, verify it's valid JSON
-					if tt.wantMessage != "No repositories found." {
-						var repos v1alpha1.Repositories
-						err := json.Unmarshal([]byte(textContent.Text), &repos)
-						assert.NoError(t, err, "Response should be valid JSON")
+					var page struct {
+						Items v1alpha1.Repositories `json:"items"`
 					}
+					err := json.Unmarshal([]byte(textContent.Text), &page)
+					assert.NoError(t, err, "Response should be valid JSON")
 				}
 			}
 		})
 	}
+}
+
+func TestListRepositorySummarySize(t *testing.T) {
+	secret := "password-marker:" + strings.Repeat("p", 2048)
+	items := make(v1alpha1.Repositories, 40)
+	for i := range items {
+		items[i] = &v1alpha1.Repository{
+			Repo:            "https://example.com/repo-" + itoaSmall(i) + ".git",
+			Type:            "git",
+			Name:            "repo",
+			Project:         "default",
+			Username:        "user-secret",
+			Password:        secret,
+			ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+		}
+	}
+	before, err := json.MarshalIndent(items, "", "  ")
+	require.NoError(t, err)
+	list := &v1alpha1.RepositoryList{Items: items}
+
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().ListRepositories(gomock.Any()).Return(list, nil).Times(2)
+
+	summaryRes, err := listRepositoryHandler(context.Background(), m, false, 50, 0)
+	require.NoError(t, err)
+	summary := toolText(t, summaryRes)
+	assert.NotContains(t, summary, "user-secret")
+	assert.NotContains(t, summary, "password-marker")
+	assert.Contains(t, summary, `"connectionStatus"`)
+	assert.Contains(t, summary, `"totalItems":40`)
+	secretBytes := strings.Count(string(before), secret) * len(secret)
+	t.Logf("before_bytes=%d after_bytes=%d password_bytes=%d", len(before), len(summary), secretBytes)
+	assert.Less(t, len(summary), len(before)/5)
+	assert.Greater(t, secretBytes, len(summary))
+
+	detailedRes, err := listRepositoryHandler(context.Background(), m, true, 50, 0)
+	require.NoError(t, err)
+	detailed := toolText(t, detailedRes)
+	assert.NotContains(t, detailed, "password-marker")
+	assert.Contains(t, detailed, "https://example.com/repo-0.git")
 }

@@ -35,11 +35,11 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `create_project` - Create new ArgoCD project with access controls and deployment restrictions
 
 ### Cluster Management
-- `list_cluster` - List all registered clusters in ArgoCD
+- `list_cluster` - Page of cluster summaries (`detailed=false` by default, `limit` 50). `name_only` returns `{name, server}` items
 - `get_cluster` - Retrieve detailed cluster information including configuration and status
 
 ### Repository Management
-- `list_repository` - List all configured Git repositories
+- `list_repository` - Page of repository summaries (`detailed=false` by default, `limit` 50). Credentials stay off the summary. `detailed=true` returns sanitized repositories
 - `get_repository` - Get details of a specific repository including connection status
 
 ## Prerequisites
