@@ -3,6 +3,7 @@ package tools
 import (
 	"testing"
 
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -41,6 +42,36 @@ func TestToolArgumentWiring(t *testing.T) {
 					Name: "app", ResourceNamespace: "rns", ResourceName: "rname",
 					ResourceUID: "uid", AppNamespace: "ans", Project: "proj",
 				}).Return(&eventspkg.EventList{}, nil)
+			},
+		},
+		{
+			name: "get_application_managed_resources passes filters",
+			tool: "get_application_managed_resources",
+			args: map[string]interface{}{
+				"name": "app", "resource_namespace": "prod", "resource_name": "web",
+				"version": "v1", "group": "apps", "kind": "Deployment",
+				"app_namespace": "ans", "project": "proj",
+			},
+			expect: func(m *mock.MockInterface) {
+				m.EXPECT().GetApplicationManagedResources(gomock.Any(), client.ManagedResourcesOptions{
+					Name: "app", ResourceNamespace: "prod", ResourceName: "web",
+					Version: "v1", Group: "apps", Kind: "Deployment",
+					AppNamespace: "ans", Project: "proj",
+				}).Return(&applicationpkg.ManagedResourcesResponse{}, nil)
+			},
+		},
+		{
+			name: "get_application_resource passes identity",
+			tool: "get_application_resource",
+			args: map[string]interface{}{
+				"name": "app", "resource_name": "web", "kind": "Deployment", "version": "v1",
+				"group": "apps", "resource_namespace": "prod", "app_namespace": "ans", "project": "proj",
+			},
+			expect: func(m *mock.MockInterface) {
+				m.EXPECT().GetApplicationResource(gomock.Any(), client.ResourceQuery{
+					Name: "app", ResourceName: "web", Kind: "Deployment", Version: "v1",
+					Group: "apps", ResourceNamespace: "prod", AppNamespace: "ans", Project: "proj",
+				}).Return(&applicationpkg.ApplicationResourceResponse{}, nil)
 			},
 		},
 		{
@@ -172,15 +203,17 @@ func TestToolArgumentWiring(t *testing.T) {
 // Required arguments must be rejected before any client call is made.
 func TestToolRequiredArguments(t *testing.T) {
 	cases := map[string]map[string]interface{}{
-		"get_application_resource_tree": {},
-		"terminate_operation":           {},
-		"get_applicationset":            {},
-		"get_cluster":                   {},
-		"get_project":                   {},
-		"get_repository":                {},
-		"create_project":                {},
-		"create_applicationset":         {"name": "set", "template": testTemplate},
-		"create_application":            {"name": "app", "dest_namespace": "ns"},
+		"get_application_resource_tree":     {},
+		"get_application_managed_resources": {},
+		"get_application_resource":          {"name": "app"},
+		"terminate_operation":               {},
+		"get_applicationset":                {},
+		"get_cluster":                       {},
+		"get_project":                       {},
+		"get_repository":                    {},
+		"create_project":                    {},
+		"create_applicationset":             {"name": "set", "template": testTemplate},
+		"create_application":                {"name": "app", "dest_namespace": "ns"},
 	}
 	for tool, args := range cases {
 		t.Run(tool, func(t *testing.T) {

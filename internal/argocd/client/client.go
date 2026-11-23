@@ -406,6 +406,86 @@ func (c *Client) GetApplicationResourceTree(ctx context.Context, name string, ap
 	return resp, nil
 }
 
+// GetApplicationManagedResources returns the resources Argo CD is managing for an application.
+func (c *Client) GetApplicationManagedResources(ctx context.Context, opts ManagedResourcesOptions) (*applicationpkg.ManagedResourcesResponse, error) {
+	name := opts.Name
+	appNamespace, project, err := c.namespaceAndProject(ctx, name, opts.AppNamespace, opts.Project)
+	if err != nil {
+		return nil, err
+	}
+	req := &applicationpkg.ResourcesQuery{ApplicationName: &name}
+	setString := func(dst **string, v string) {
+		if v != "" {
+			*dst = &v
+		}
+	}
+	setString(&req.Namespace, opts.ResourceNamespace)
+	setString(&req.Name, opts.ResourceName)
+	setString(&req.Version, opts.Version)
+	setString(&req.Group, opts.Group)
+	setString(&req.Kind, opts.Kind)
+	setString(&req.AppNamespace, appNamespace)
+	setString(&req.Project, project)
+
+	resp, err := c.appClient.ManagedResources(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get managed resources: %w", err)
+	}
+	return resp, nil
+}
+
+// GetApplicationResource returns the live manifest of one resource.
+// Argo CD replaces Secret data before returning it.
+func (c *Client) GetApplicationResource(ctx context.Context, q ResourceQuery) (*applicationpkg.ApplicationResourceResponse, error) {
+	name := q.Name
+	version := q.Version
+	kind := q.Kind
+	resourceName := q.ResourceName
+	appNamespace, project, err := c.namespaceAndProject(ctx, name, q.AppNamespace, q.Project)
+	if err != nil {
+		return nil, err
+	}
+	req := &applicationpkg.ApplicationResourceRequest{
+		Name:         &name,
+		ResourceName: &resourceName,
+		Version:      &version,
+		Kind:         &kind,
+	}
+	setString := func(dst **string, v string) {
+		if v != "" {
+			*dst = &v
+		}
+	}
+	setString(&req.Namespace, q.ResourceNamespace)
+	setString(&req.Group, q.Group)
+	setString(&req.AppNamespace, appNamespace)
+	setString(&req.Project, project)
+
+	resp, err := c.appClient.GetResource(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application resource: %w", err)
+	}
+	return resp, nil
+}
+
+// namespaceAndProject fills an empty Application namespace or project from Get.
+func (c *Client) namespaceAndProject(ctx context.Context, name, appNamespace, project string) (string, string, error) {
+	if appNamespace != "" && project != "" {
+		return appNamespace, project, nil
+	}
+	app, err := c.lookupApplication(ctx, name, appNamespace)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get application details: %w", err)
+	}
+	if appNamespace == "" {
+		appNamespace = app.ObjectMeta.Namespace
+	}
+	if project == "" {
+		project = app.Spec.Project
+	}
+	return appNamespace, project, nil
+}
+
 // GetApplicationLogs retrieves logs from pods in an ArgoCD application
 func (c *Client) GetApplicationLogs(ctx context.Context, opts LogsOptions) (LogStream, error) {
 	name := opts.Name

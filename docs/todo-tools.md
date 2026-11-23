@@ -1,6 +1,6 @@
 # Argo CD MCP Server — Public Tools
 
-The server exposes a fixed set of **23 public tools** (design D1, see
+The server exposes **25 public tools** (design D1, revised 2026-11-23, see
 [`design/refactor-0.3.md`](design/refactor-0.3.md)). The list is enforced by
 `publicTools` in `internal/tools/register_test.go`.
 
@@ -17,6 +17,8 @@ The server exposes a fixed set of **23 public tools** (design D1, see
 | `get_application_events` | | |
 | `get_application_logs` | | `follow=true` is rejected (stdio cannot stream) |
 | `get_application_resource_tree` | | |
+| `get_application_managed_resources` | | Compact JSON. Default summary omits manifest strings. `detailed=true` or a resource filter includes the four state strings with `managedFields` and `last-applied-configuration` removed. `limit` defaults to 50, `offset` defaults to 0, response has `totalItems` and `hasMore` |
+| `get_application_resource` | | `ApplicationService.GetResource`. Live manifest; Argo CD replaces Secret data |
 | `create_application` | ✔ | |
 | `sync_application` | ✔ | `prune`, `dry_run`, `revision` (single-source), `revisions` (multi-source, one per `spec.sources` entry), `resources` (partial sync), `sync_options` (replace, not merge) |
 | `refresh_application` | | treated as read (D11, revised); `hard` |
@@ -64,6 +66,8 @@ The server exposes a fixed set of **23 public tools** (design D1, see
 
 The pre-0.3 roadmap in this file (update/patch/rollback of applications, project /
 repository / cluster / certificate / GPG / settings / account management, and so on) is
-**archived**. Per design D1 and §7, 0.3 adds no new write tools and keeps the public set
-fixed. Access is controlled with Argo CD RBAC plus read-only mode, not a tool allowlist
+**archived** for write tools. On 2026-11-23, D1 was revised to add two read tools
+(`get_application_managed_resources`, `get_application_resource`) because the owner
+approved expanding read coverage after a gap analysis. New write tools are still out of
+scope. Access is controlled with Argo CD RBAC plus read-only mode, not a tool allowlist
 (D10). Changing this scope needs a design update first.

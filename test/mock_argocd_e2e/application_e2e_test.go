@@ -243,10 +243,73 @@ func TestParallel_SyncApplication(t *testing.T) {
 	}
 }
 
+func TestParallel_GetApplicationManagedResources(t *testing.T) {
+	t.Parallel()
+
+	summary := toolResultText(t, sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name":      "get_application_managed_resources",
+			"arguments": map[string]interface{}{"name": "test-app-1"},
+		},
+	}))
+	if !strings.Contains(summary, "guestbook-ui") {
+		t.Errorf("summary missing guestbook-ui: %s", summary)
+	}
+	if strings.Contains(summary, "targetState") || strings.Contains(summary, "liveState") {
+		t.Errorf("summary included manifest state: %s", summary)
+	}
+	if !strings.Contains(summary, `"totalItems"`) || strings.Contains(summary, "\n") {
+		t.Errorf("summary is not a compact page: %s", summary)
+	}
+
+	detailed := toolResultText(t, sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_managed_resources",
+			"arguments": map[string]interface{}{
+				"name":     "test-app-1",
+				"detailed": true,
+			},
+		},
+	}))
+	if !strings.Contains(detailed, "targetState") || !strings.Contains(detailed, "guestbook-ui") {
+		t.Errorf("detailed response missing state: %s", detailed)
+	}
+}
+
+func TestParallel_GetApplicationResource(t *testing.T) {
+	t.Parallel()
+
+	response := sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_application_resource",
+			"arguments": map[string]interface{}{
+				"name":               "test-app-1",
+				"resource_name":      "guestbook-ui",
+				"resource_namespace": "default",
+				"kind":               "Deployment",
+				"group":              "apps",
+				"version":            "v1",
+			},
+		},
+	})
+	text := toolResultText(t, response)
+	for _, want := range []string{"guestbook-ui", "Deployment", "apps/v1"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("response missing %q: %s", want, text)
+		}
+	}
+}
+
 func TestParallel_SyncApplicationSelective(t *testing.T) {
 	t.Parallel()
 
-	callToolRequest := map[string]interface{}{
+	response := sendSharedRequest(t, map[string]interface{}{
 		"jsonrpc": "2.0",
 		"method":  "tools/call",
 		"params": map[string]interface{}{
@@ -262,15 +325,23 @@ func TestParallel_SyncApplicationSelective(t *testing.T) {
 				"sync_options": []string{"CreateNamespace=true"},
 			},
 		},
+	})
+	text := toolResultText(t, response)
+	for _, want := range []string{"abc123", "v1.2.3", "chart-1.0.0", "Deployment", "web", "CreateNamespace=true", "Succeeded"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("response missing %q: %s", want, text)
+		}
 	}
+}
 
-	response := sendSharedRequest(t, callToolRequest)
+func toolResultText(t *testing.T, response map[string]interface{}) string {
+	t.Helper()
 	result, ok := response["result"].(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected result to be a map, got %T: %v", response["result"], response)
 	}
 	if isErr, _ := result["isError"].(bool); isErr {
-		t.Fatalf("sync returned a tool error: %v", result)
+		t.Fatalf("tool returned an error: %v", result)
 	}
 	content, ok := result["content"].([]interface{})
 	if !ok || len(content) == 0 {
@@ -284,11 +355,7 @@ func TestParallel_SyncApplicationSelective(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected text to be a string, got %T", textContent["text"])
 	}
-	for _, want := range []string{"abc123", "v1.2.3", "chart-1.0.0", "Deployment", "web", "CreateNamespace=true", "Succeeded"} {
-		if !strings.Contains(text, want) {
-			t.Errorf("response missing %q: %s", want, text)
-		}
-	}
+	return text
 }
 
 func TestParallel_DeleteApplication(t *testing.T) {

@@ -315,6 +315,59 @@ func (s *mockApplicationService) Sync(ctx context.Context, req *application.Appl
 	return app, nil
 }
 
+func (s *mockApplicationService) ManagedResources(ctx context.Context, req *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
+	if err := requireTestToken(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetApplicationName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+	if req.GetApplicationName() != "test-app-1" && req.GetApplicationName() != "test-app-2" {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", req.GetApplicationName()))
+	}
+	return &application.ManagedResourcesResponse{
+		Items: []*v1alpha1.ResourceDiff{{
+			Group:       "apps",
+			Kind:        "Deployment",
+			Namespace:   "default",
+			Name:        "guestbook-ui",
+			TargetState: `{"kind":"Deployment","metadata":{"name":"guestbook-ui"}}`,
+			LiveState:   `{"kind":"Deployment","metadata":{"name":"guestbook-ui"}}`,
+		}},
+	}, nil
+}
+
+func (s *mockApplicationService) GetResource(ctx context.Context, req *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
+	if err := requireTestToken(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetName() == "" || req.GetResourceName() == "" || req.GetKind() == "" || req.GetVersion() == "" {
+		return nil, status.Error(codes.InvalidArgument, "name, resource name, kind, and version are required")
+	}
+	if req.GetName() != "test-app-1" && req.GetName() != "test-app-2" {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", req.GetName()))
+	}
+	apiVersion := req.GetVersion()
+	if req.GetGroup() != "" {
+		apiVersion = req.GetGroup() + "/" + req.GetVersion()
+	}
+	manifest := fmt.Sprintf(`{"apiVersion":"%s","kind":"%s","metadata":{"name":"%s","namespace":"%s"}}`,
+		apiVersion, req.GetKind(), req.GetResourceName(), req.GetNamespace())
+	return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
+}
+
+func requireTestToken(ctx context.Context) error {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return status.Error(codes.Unauthenticated, "missing metadata")
+	}
+	auth := md.Get("authorization")
+	if len(auth) == 0 || auth[0] != "Bearer test-token" {
+		return status.Error(codes.Unauthenticated, "invalid authorization")
+	}
+	return nil
+}
+
 func (s *mockApplicationService) Create(ctx context.Context, req *application.ApplicationCreateRequest) (*v1alpha1.Application, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
