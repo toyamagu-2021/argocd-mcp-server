@@ -958,12 +958,13 @@ func testRollbackCreatedApplication(t *testing.T) {
 		testAppName = "test-app-create-e2e"
 	}
 
-	// Sync is accepted before status.history is written. Poll get_application,
+	// Sync is accepted before status.history is written. Poll get_application
+	// with detailed=true (the default summary has historyCount, not history ids),
 	// then dry-run a rollback to a real history id.
 	var historyID int64
 	var found bool
 	for attempt := 1; attempt <= 8; attempt++ {
-		text, toolErr := callCreatedAppTool(t, "get_application", map[string]interface{}{"name": testAppName})
+		text, toolErr := callCreatedAppTool(t, "get_application", map[string]interface{}{"name": testAppName, "detailed": true})
 		if toolErr == "" {
 			if id, ok := lastHistoryID(text); ok {
 				historyID = id

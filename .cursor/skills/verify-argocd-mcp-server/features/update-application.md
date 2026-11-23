@@ -10,7 +10,7 @@
 ## How to get to it (user POV)
 
 - An MCP client reads the Application, then calls `update_application` with `name` and the full `spec` it wants to keep.
-- The tool returns the spec JSON, not the Application metadata. The saved spec is what a later `get_application` and `kubectl` show.
+- The tool returns the spec JSON, not the Application metadata. The saved spec is what `kubectl` shows, and what `get_application` shows when `detailed` is true.
 
 ## Driving it with verify-argocd-mcp-server
 
@@ -24,7 +24,7 @@ Preconditions:
 
 ## Gotchas
 
-- Sending a partial spec clears every field that was left out, including the source. Build the spec from `get_application` or from the known guestbook source above.
+- Sending a partial spec clears every field that was left out, including the source. Build the spec from `get_application` with `detailed` true, or from the known guestbook source above. The default `get_application` summary has no spec.
 - `validate` false skips Argo CD's spec validation. This recipe leaves the default, true.
 - `project` on the tool, as a sibling of `spec`, is the RBAC project. Omit it. `spec.project` is the spec field and is required.
 - The response is the spec. `applications.txt` is only the Application table and does not show `revisionHistoryLimit`. Use `application-specs.txt`.

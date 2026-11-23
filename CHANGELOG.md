@@ -3,6 +3,20 @@
 All notable changes to this project are documented here. The GitHub Release for each tag
 links to the matching section.
 
+## v0.5.0
+
+Token-efficient tool results ([design](docs/design/token-efficiency.md), #117).
+Not tagged yet.
+
+### ⚠️ Breaking changes
+
+1. **`get_application` returns a compact summary by default.**
+   A call that omits `detailed` no longer returns the indented Application.
+   `spec` and `status.resources` are absent. Pass `detailed=true` for the full
+   Application. That body is compact JSON and does not include
+   `metadata.managedFields` or `kubectl.kubernetes.io/last-applied-configuration`.
+   Helm values are still included when `detailed=true`. (#117)
+
 ## v0.3.0 (2026-11-23)
 
 The 0.3 zero-based refactor ([design](docs/design/refactor-0.3.md)). Supported Argo CD

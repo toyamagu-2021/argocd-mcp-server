@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
@@ -21,10 +23,12 @@ func TestGetAppTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_application', got %s", GetAppTool.Name)
 	}
 
-	// Verify tool has description
-	if GetAppTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetAppTool.Description, "detailed=false")
+	assert.Contains(t, GetAppTool.Description, "get_application_resource_tree")
+	assert.Contains(t, GetAppTool.Description, "get_application_managed_resources")
+	detailed, ok := GetAppTool.InputSchema.Properties["detailed"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, detailed["description"], "default")
 
 	// Check input schema exists
 	if GetAppTool.InputSchema.Type != "object" {
@@ -47,6 +51,7 @@ func TestGetApplicationHandler(t *testing.T) {
 		name        string
 		appName     string
 		setupMock   func(*mock.MockInterface)
+		detailed    bool
 		wantError   bool
 		wantMessage string
 		checkApp    func(*testing.T, *v1alpha1.Application)
@@ -83,6 +88,7 @@ func TestGetApplicationHandler(t *testing.T) {
 				}
 				m.EXPECT().GetApplication(gomock.Any(), "test-app", "").Return(app, nil)
 			},
+			detailed:  true,
 			wantError: false,
 			checkApp: func(t *testing.T, app *v1alpha1.Application) {
 				assert.Equal(t, "test-app", app.Name)
@@ -139,6 +145,7 @@ func TestGetApplicationHandler(t *testing.T) {
 				}
 				m.EXPECT().GetApplication(gomock.Any(), "multi-source-app", "").Return(app, nil)
 			},
+			detailed:  true,
 			wantError: false,
 			checkApp: func(t *testing.T, app *v1alpha1.Application) {
 				assert.Equal(t, "multi-source-app", app.Name)
@@ -159,7 +166,7 @@ func TestGetApplicationHandler(t *testing.T) {
 			tt.setupMock(mockClient)
 
 			ctx := context.Background()
-			result, err := getApplicationHandler(ctx, mockClient, tt.appName, "")
+			result, err := getApplicationHandler(ctx, mockClient, tt.appName, "", tt.detailed)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -185,5 +192,166 @@ func TestGetApplicationHandler(t *testing.T) {
 				tt.checkApp(t, &app)
 			}
 		})
+	}
+}
+
+func TestGetApplicationSummaryAndDetailed(t *testing.T) {
+	app := sampleFatApplication()
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetApplication(gomock.Any(), "guestbook", "").Return(app, nil).Times(2)
+
+	summaryRes, err := getApplicationHandler(context.Background(), m, "guestbook", "", false)
+	require.NoError(t, err)
+	require.False(t, summaryRes.IsError)
+	summaryText, ok := mcp.AsTextContent(summaryRes.Content[0])
+	require.True(t, ok)
+	assert.NotContains(t, summaryText.Text, "\n")
+	for _, forbidden := range []string{"\"spec\"", "\"resources\"", "managedFields", "helm-values-marker", "param-should-not-leak", "sources-helm-marker", "history-rev", "status-resource-0", lastAppliedAnnotation} {
+		assert.NotContains(t, summaryText.Text, forbidden)
+	}
+	assert.Contains(t, summaryText.Text, `"historyCount":10`)
+	assert.Contains(t, summaryText.Text, `"syncRevision":"abc123"`)
+	assert.Contains(t, summaryText.Text, "https://github.com/example/multi")
+	assert.Contains(t, summaryText.Text, "condition-message")
+	assert.Contains(t, summaryText.Text, `"Healthy":20`)
+	assert.Contains(t, summaryText.Text, `"Degraded":10`)
+	assert.Contains(t, summaryText.Text, `"Synced":20`)
+	assert.Contains(t, summaryText.Text, `"OutOfSync":10`)
+
+	var summary ApplicationSummary
+	require.NoError(t, json.Unmarshal([]byte(summaryText.Text), &summary))
+	assert.Equal(t, 10, summary.HistoryCount)
+	assert.Equal(t, []string{"rev-a", "rev-b"}, summary.SyncRevisions)
+	assert.Equal(t, "needs a look", summary.HealthMessage)
+	require.Len(t, summary.Sources, 1)
+	assert.Equal(t, "https://github.com/example/multi", summary.Sources[0].RepoURL)
+	assert.Empty(t, summary.Sources[0].Chart)
+
+	detailedRes, err := getApplicationHandler(context.Background(), m, "guestbook", "", true)
+	require.NoError(t, err)
+	require.False(t, detailedRes.IsError)
+	detailedText, ok := mcp.AsTextContent(detailedRes.Content[0])
+	require.True(t, ok)
+	assert.NotContains(t, detailedText.Text, "\n")
+	assert.Contains(t, detailedText.Text, `"spec"`)
+	assert.Contains(t, detailedText.Text, "helm-values-marker")
+	assert.Contains(t, detailedText.Text, "param-should-not-leak")
+	assert.NotContains(t, detailedText.Text, "managedFields")
+	assert.NotContains(t, detailedText.Text, lastAppliedAnnotation)
+	assert.Contains(t, detailedText.Text, "keep-me")
+}
+
+func TestGetApplicationSummarySize(t *testing.T) {
+	app := sampleFatApplication()
+	before, err := json.MarshalIndent(app, "", "  ")
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetApplication(gomock.Any(), "guestbook", "").Return(app, nil)
+	res, err := getApplicationHandler(context.Background(), m, "guestbook", "", false)
+	require.NoError(t, err)
+	text, ok := mcp.AsTextContent(res.Content[0])
+	require.True(t, ok)
+	after := len(text.Text)
+	t.Logf("before_bytes=%d after_bytes=%d", len(before), after)
+	assert.Less(t, after, len(before)/5)
+}
+
+func TestListApplicationSummaryOmitsGetFields(t *testing.T) {
+	app := sampleFatApplication()
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().ListApplications(gomock.Any(), gomock.Any()).Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
+
+	res, err := listApplicationsHandler(context.Background(), m, "", "", "", "", false, false, "json", nil, "")
+	require.NoError(t, err)
+	text, ok := mcp.AsTextContent(res.Content[0])
+	require.True(t, ok)
+	assert.Contains(t, text.Text, "guestbook")
+	for _, key := range []string{"sources", "syncRevision", "syncRevisions", "healthMessage", "historyCount", "healthCounts", "syncCounts", "conditions"} {
+		assert.NotContains(t, text.Text, `"`+key+`"`)
+	}
+	assert.NotContains(t, text.Text, "helm-values-marker")
+	assert.NotContains(t, text.Text, "history-rev")
+}
+
+func sampleFatApplication() *v1alpha1.Application {
+	values := "helm-values-marker:" + strings.Repeat("v", 2048-len("helm-values-marker:"))
+	resources := make([]v1alpha1.ResourceStatus, 30)
+	for i := range resources {
+		status := v1alpha1.SyncStatusCodeSynced
+		hs := health.HealthStatusHealthy
+		if i >= 20 {
+			status = v1alpha1.SyncStatusCodeOutOfSync
+			hs = health.HealthStatusDegraded
+		}
+		resources[i] = v1alpha1.ResourceStatus{
+			Kind:      "Deployment",
+			Name:      "status-resource-" + strconv.Itoa(i),
+			Namespace: "default",
+			Status:    status,
+			Health:    &v1alpha1.HealthStatus{Status: hs},
+		}
+	}
+	history := make([]v1alpha1.RevisionHistory, 10)
+	for i := range history {
+		history[i] = v1alpha1.RevisionHistory{ID: int64(i), Revision: "history-rev-" + strconv.Itoa(i)}
+	}
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: "argocd",
+			ManagedFields: []metav1.ManagedFieldsEntry{{
+				Manager: "kubectl",
+			}},
+			Annotations: map[string]string{
+				"keep-me":             "yes",
+				lastAppliedAnnotation: strings.Repeat("a", 128),
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/example/repo",
+				Path:           "guestbook",
+				TargetRevision: "HEAD",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					Values: values,
+					Parameters: []v1alpha1.HelmParameter{{
+						Name:  "image.tag",
+						Value: "param-should-not-leak",
+					}},
+				},
+			},
+			Sources: v1alpha1.ApplicationSources{{
+				RepoURL:        "https://github.com/example/multi",
+				Path:           "extra",
+				TargetRevision: "v1",
+				Helm:           &v1alpha1.ApplicationSourceHelm{Values: "sources-helm-marker"},
+			}},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "default",
+			},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync: v1alpha1.SyncStatus{
+				Status:    v1alpha1.SyncStatusCodeSynced,
+				Revision:  "abc123",
+				Revisions: []string{"rev-a", "rev-b"},
+			},
+			Health: v1alpha1.AppHealthStatus{
+				Status:  health.HealthStatusHealthy,
+				Message: "needs a look",
+			},
+			Resources: resources,
+			History:   history,
+			Conditions: []v1alpha1.ApplicationCondition{{
+				Type:    "InvalidSpecError",
+				Message: "condition-message",
+			}},
+		},
 	}
 }

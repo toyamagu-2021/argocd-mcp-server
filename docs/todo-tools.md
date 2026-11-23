@@ -12,7 +12,7 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 | Tool | Mutating | Notes |
 |---|---|---|
 | `list_application` | | `project`, `selector`, `app_namespace` filtered server-side; destination `cluster` / `namespace` filtered client-side |
-| `get_application` | | `app_namespace` |
+| `get_application` | | `detailed=false` (default) is a compact summary without spec, status.resources, or history. `detailed=true` is the full Application, compact, without managedFields or last-applied-configuration. Per-resource data is `get_application_resource_tree` and `get_application_managed_resources`. `app_namespace` |
 | `get_application_manifests` | | Secret data hidden by the Argo CD server |
 | `get_application_events` | | |
 | `get_application_logs` | | `follow=true` is rejected (stdio cannot stream) |
