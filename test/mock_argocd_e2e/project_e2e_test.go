@@ -171,41 +171,27 @@ func TestParallel_GetProject(t *testing.T) {
 					t.Errorf("expected error message for non-existent project, got: %s", text)
 				}
 			} else {
-				// Parse the JSON response to verify it's a valid project
 				var project map[string]interface{}
 				if err := json.Unmarshal([]byte(text), &project); err != nil {
 					t.Fatalf("failed to parse project JSON: %v", err)
 				}
-
-				// Verify the project has expected fields
-				if metadata, ok := project["metadata"].(map[string]interface{}); ok {
-					if name, ok := metadata["name"].(string); ok {
-						if name != tc.projectName {
-							t.Errorf("expected project name %s, got %s", tc.projectName, name)
-						}
-					} else {
-						t.Error("project metadata.name not found")
-					}
-				} else {
-					t.Error("project metadata not found")
+				if _, ok := project["totalItems"]; ok {
+					t.Error("get_project summary must not be a page")
 				}
-
-				if spec, ok := project["spec"].(map[string]interface{}); ok {
-					if desc, ok := spec["description"].(string); ok {
-						if desc != tc.expectedDesc {
-							t.Errorf("expected description '%s', got '%s'", tc.expectedDesc, desc)
-						}
-					}
-
-					// Check for common project spec fields
-					if _, ok := spec["sourceRepos"]; !ok {
-						t.Error("sourceRepos not found in project spec")
-					}
-					if _, ok := spec["destinations"]; !ok {
-						t.Error("destinations not found in project spec")
-					}
-				} else {
-					t.Error("project spec not found")
+				if _, ok := project["metadata"]; ok || project["spec"] != nil {
+					t.Error("default get_project must be a summary, not the full object")
+				}
+				if name, ok := project["name"].(string); !ok || name != tc.projectName {
+					t.Errorf("expected project name %s, got %v", tc.projectName, project["name"])
+				}
+				if desc, ok := project["description"].(string); !ok || desc != tc.expectedDesc {
+					t.Errorf("expected description '%s', got %v", tc.expectedDesc, project["description"])
+				}
+				if _, ok := project["sourceRepoCount"].(float64); !ok {
+					t.Error("sourceRepoCount not found")
+				}
+				if _, ok := project["destinationCount"].(float64); !ok {
+					t.Error("destinationCount not found")
 				}
 
 				t.Logf("Successfully retrieved project %s from mock server", tc.projectName)
@@ -224,7 +210,8 @@ func TestParallel_GetProjectWithDetails(t *testing.T) {
 		"params": map[string]interface{}{
 			"name": "get_project",
 			"arguments": map[string]interface{}{
-				"name": "production",
+				"name":     "production",
+				"detailed": true,
 			},
 		},
 	}

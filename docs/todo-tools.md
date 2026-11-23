@@ -32,7 +32,7 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 | Tool | Mutating | Notes |
 |---|---|---|
 | `list_applicationset` | | `detailed=false` (default) is a page of summaries (`name`, `namespace`, `project`, `generatorCount`). Generators and Helm values are detailed-only. `detailed=true` pages full ApplicationSets without `managedFields`. `limit` defaults to 50. Empty list is an empty page |
-| `get_applicationset` | | |
+| `get_applicationset` | | `detailed=false` (default) is one summary (`name`, `namespace`, `project`, `generatorCount`). Generators and Helm values are detailed-only. `detailed=true` is the full ApplicationSet without `managedFields`. Not a page |
 | `create_applicationset` | ✔ | `dry_run`, `upsert` |
 | `delete_applicationset` | ✔ | `app_namespace` (legacy `appsetNamespace` accepted in 0.3); generated Applications are deleted too |
 
@@ -41,7 +41,7 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 | Tool | Mutating | Notes |
 |---|---|---|
 | `list_project` | | `detailed=false` (default) is a page of summaries (`name`, `description`, counts). `name_only` wins and items are name strings. `detailed=true` pages full projects without `managedFields`. `limit` defaults to 50. Empty list is an empty page |
-| `get_project` | | |
+| `get_project` | | `detailed=false` (default) is one summary (`name`, `description`, counts). Roles, tokens, and allow-lists are detailed-only. `detailed=true` is the full project without `managedFields`. Not a page |
 | `create_project` | ✔ | |
 
 ## Clusters

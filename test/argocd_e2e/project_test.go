@@ -154,35 +154,25 @@ func testGetProject(t *testing.T) {
 		t.Fatalf("expected text to be a string, got %T", textContent["text"])
 	}
 
-	// Parse the JSON response to verify it's a valid project
+	// Default body is one summary object, not the full project.
 	var project map[string]interface{}
 	if err := json.Unmarshal([]byte(text), &project); err != nil {
 		t.Fatalf("failed to parse project JSON: %v", err)
 	}
-
-	// Verify the project has expected fields
-	if metadata, ok := project["metadata"].(map[string]interface{}); ok {
-		if name, ok := metadata["name"].(string); ok {
-			if name != projectName {
-				t.Errorf("expected project name %s, got %s", projectName, name)
-			}
-		} else {
-			t.Error("project metadata.name not found")
-		}
-	} else {
-		t.Error("project metadata not found")
+	if _, ok := project["totalItems"]; ok {
+		t.Error("get_project summary must not be a page")
 	}
-
-	if spec, ok := project["spec"].(map[string]interface{}); ok {
-		// Check for common project spec fields
-		if _, ok := spec["sourceRepos"]; !ok {
-			t.Log("Warning: sourceRepos not found in project spec")
-		}
-		if _, ok := spec["destinations"]; !ok {
-			t.Log("Warning: destinations not found in project spec")
-		}
-	} else {
-		t.Error("project spec not found")
+	if _, ok := project["metadata"]; ok {
+		t.Error("default get_project must not include metadata")
+	}
+	if name, ok := project["name"].(string); !ok || name != projectName {
+		t.Errorf("expected project name %s, got %v", projectName, project["name"])
+	}
+	if _, ok := project["sourceRepoCount"].(float64); !ok {
+		t.Error("sourceRepoCount not found")
+	}
+	if _, ok := project["destinationCount"].(float64); !ok {
+		t.Error("destinationCount not found")
 	}
 
 	t.Logf("Successfully retrieved project %s from real ArgoCD server", projectName)

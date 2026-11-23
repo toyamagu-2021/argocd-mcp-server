@@ -41,6 +41,13 @@ Not tagged yet.
    omit generators and Helm values. `name_only` project JSON is a page of names.
    `detailed=true` returns the full objects without `managedFields`. `limit`
    defaults to 50. Empty lists are empty pages, not prose. (#117)
+8. **`get_project` and `get_applicationset` return a compact summary by default.**
+   A call that omits `detailed` no longer returns the indented object. Project
+   summaries omit roles, tokens, and allow-lists. ApplicationSet summaries omit
+   generators and Helm values. Pass `detailed=true` for the full object. That
+   body is compact JSON and does not include `metadata.managedFields` or
+   `kubectl.kubernetes.io/last-applied-configuration`. The result is one object,
+   not a page. (#117)
 
 ## v0.3.0 (2026-11-23)
 
