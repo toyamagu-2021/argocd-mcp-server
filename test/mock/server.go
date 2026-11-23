@@ -327,10 +327,12 @@ func (s *mockApplicationService) ManagedResources(ctx context.Context, req *appl
 	}
 	return &application.ManagedResourcesResponse{
 		Items: []*v1alpha1.ResourceDiff{{
-			Group:     "apps",
-			Kind:      "Deployment",
-			Namespace: "default",
-			Name:      "guestbook-ui",
+			Group:       "apps",
+			Kind:        "Deployment",
+			Namespace:   "default",
+			Name:        "guestbook-ui",
+			TargetState: `{"kind":"Deployment","metadata":{"name":"guestbook-ui"}}`,
+			LiveState:   `{"kind":"Deployment","metadata":{"name":"guestbook-ui"}}`,
 		}},
 	}, nil
 }

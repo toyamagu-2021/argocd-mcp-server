@@ -13,7 +13,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `get_application_events` - Get Kubernetes events for resources belonging to an application
 - `get_application_logs` - Retrieve logs from pods in an ArgoCD application
 - `get_application_resource_tree` - Get the resource tree structure of an application showing all managed resources
-- `get_application_managed_resources` - List managed resources with target and live state (ApplicationService.ManagedResources)
+- `get_application_managed_resources` - List managed resources. Default is a compact summary (no manifest strings). `detailed=true`, or any resource filter, includes target/live state
 - `get_application_resource` - Get the live manifest of one managed resource (ApplicationService.GetResource). Argo CD replaces Secret data
 - `create_application` - Create a new ArgoCD application with source and destination configuration
 - `sync_application` - Trigger a sync operation for an application, with optional prune, dry-run, a target revision, a per-source revision list, a partial resource list, and per-sync sync options
@@ -226,7 +226,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
     "name": "get_application_managed_resources",
     "arguments": {
       "name": "my-app",
-      "kind": "Deployment"
+      "detailed": false
     }
   }
 }
