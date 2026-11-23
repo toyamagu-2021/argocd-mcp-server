@@ -34,6 +34,13 @@ mkdir -p "$dest"
 kubectl --context "$EXPECTED_CONTEXT" -n "$ARGOCD_NAMESPACE" get pods -o wide > "$dest/pods.txt" 2>&1
 kubectl --context "$EXPECTED_CONTEXT" get applications.argoproj.io -A > "$dest/applications.txt" 2>&1
 kubectl --context "$EXPECTED_CONTEXT" -n "$ARGOCD_NAMESPACE" get appprojects.argoproj.io > "$dest/appprojects.txt" 2>&1
+# Spec fields the Application table does not show, plus history ids and the synced revision.
+{
+  printf '%s\n' $'name\trevisionHistoryLimit\ttargetRevision\trepoURL\tpath\tdestNamespace\thistoryIds\tsyncRevision'
+  kubectl --context "$EXPECTED_CONTEXT" -n "$ARGOCD_NAMESPACE" get applications.argoproj.io \
+    -o go-template='{{range .items}}{{.metadata.name}}{{"\t"}}{{with .spec.revisionHistoryLimit}}{{.}}{{end}}{{"\t"}}{{with .spec.source}}{{.targetRevision}}{{end}}{{"\t"}}{{with .spec.source}}{{.repoURL}}{{end}}{{"\t"}}{{with .spec.source}}{{.path}}{{end}}{{"\t"}}{{.spec.destination.namespace}}{{"\t"}}{{range $i, $h := .status.history}}{{if $i}},{{end}}{{$h.id}}{{end}}{{"\t"}}{{with .status.sync}}{{.revision}}{{end}}{{"\n"}}{{end}}'
+} > "$dest/application-specs.txt" 2>&1
+kubectl --context "$EXPECTED_CONTEXT" -n default get deploy,svc > "$dest/default-workloads.txt" 2>&1
 # Cluster secrets, when Argo CD has persisted any. A fresh v3.6 install keeps the
 # in-cluster entry in the API without a secret. clusters.txt also lists name and
 # server from GET /api/v1/clusters. Config and certificates are not written.

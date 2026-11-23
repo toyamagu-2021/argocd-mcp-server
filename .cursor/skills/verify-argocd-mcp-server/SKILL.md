@@ -114,6 +114,8 @@ That writes `evidence/<run-id>/<feature>/cluster-state/`:
 
 - `pods.txt`
 - `applications.txt` (stdout and stderr; an empty cluster includes `No resources found`)
+- `application-specs.txt` (header, then one row per Application: name, `revisionHistoryLimit`, target revision, repo URL, path, destination namespace, comma-separated `status.history` ids, and `status.sync.revision`)
+- `default-workloads.txt` (`kubectl get deploy,svc -n default`). The `kubernetes` Service is always in that namespace. A synced guestbook app adds `deployment.apps/guestbook-ui`.
 - `appprojects.txt`
 - `clusters.txt` (cluster secret name and server, then `/api/v1/clusters` name and server; config omitted)
 - `argocd-version.json`

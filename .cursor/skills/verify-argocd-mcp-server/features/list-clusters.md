@@ -1,6 +1,6 @@
 # List clusters
 
-`list_cluster` and `get_cluster` show the clusters registered in Argo CD. A fresh Kind install has the in-cluster API at `https://kubernetes.default.svc`. The MCP text and the cluster secret's server field both include that URL. Cluster credentials stay out of both views.
+`list_cluster` and `get_cluster` show the clusters registered in Argo CD. A fresh Kind install has the in-cluster API at `https://kubernetes.default.svc`. The MCP text and the `# api-clusters` section of `clusters.txt` both include that URL. A fresh Argo CD 3.6 install keeps that entry in the API and does not store a cluster secret for it. Cluster credentials stay out of both views.
 
 ## Sub-features
 
