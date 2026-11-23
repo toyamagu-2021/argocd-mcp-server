@@ -1052,22 +1052,57 @@ func testManagedResourcesCreatedApplication(t *testing.T) {
 		testAppName = "test-app-create-e2e"
 	}
 
-	mcpCmd, stdin, stdout := startMCPServer(t)
-	defer func() {
-		_ = mcpCmd.Process.Kill()
-		_ = mcpCmd.Wait()
-	}()
-	initializeMCPConnection(t, stdin, stdout)
+	var summary string
+	for attempt := 1; attempt <= 6; attempt++ {
+		text, toolErr := callManagedResources(t, map[string]interface{}{"name": testAppName})
+		if toolErr != "" {
+			t.Fatalf("summary get_application_managed_resources failed: %s", toolErr)
+		}
+		if managedResourceCount(text) > 0 {
+			summary = text
+			break
+		}
+		t.Logf("managed resources empty, attempt %d", attempt)
+		time.Sleep(3 * time.Second)
+	}
+	if summary == "" {
+		t.Fatal("managed resources stayed empty; summary shape was not checked")
+	}
+	for _, forbidden := range []string{"targetState", "liveState", "predictedLiveState", "normalizedLiveState"} {
+		if strings.Contains(summary, forbidden) {
+			t.Fatalf("summary included %s: %s", forbidden, summary)
+		}
+	}
+	if !strings.Contains(summary, `"kind"`) || !strings.Contains(summary, `"name"`) {
+		t.Fatalf("summary missing identity fields: %s", summary)
+	}
+	t.Logf("summary bytes=%d", len(summary))
 
+	detailed, toolErr := callManagedResources(t, map[string]interface{}{"name": testAppName, "detailed": true})
+	if toolErr != "" {
+		t.Fatalf("detailed get_application_managed_resources failed: %s", toolErr)
+	}
+	if !strings.Contains(detailed, "targetState") && !strings.Contains(detailed, "liveState") {
+		t.Fatalf("detailed response missing manifest state: %s", detailed)
+	}
+	t.Logf("detailed bytes=%d", len(detailed))
+}
+
+func callManagedResources(t *testing.T, args map[string]interface{}) (string, string) {
+	t.Helper()
+	mcpCmd, stdin, stdout := startMCPServer(t)
+	initializeMCPConnection(t, stdin, stdout)
 	response := sendRequest(t, stdin, stdout, map[string]interface{}{
 		"jsonrpc": "2.0",
 		"id":      2,
 		"method":  "tools/call",
 		"params": map[string]interface{}{
 			"name":      "get_application_managed_resources",
-			"arguments": map[string]interface{}{"name": testAppName},
+			"arguments": args,
 		},
 	})
+	_ = mcpCmd.Process.Kill()
+	_ = mcpCmd.Wait()
 	if errObj, ok := response["error"].(map[string]interface{}); ok {
 		t.Fatalf("Error calling get_application_managed_resources: %v", errObj["message"])
 	}
@@ -1075,10 +1110,27 @@ func testManagedResourcesCreatedApplication(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected result to be a map, got %T", response["result"])
 	}
-	if isErr, _ := result["isError"].(bool); isErr {
-		t.Fatalf("get_application_managed_resources failed: %v", result)
+	content, _ := result["content"].([]interface{})
+	text := ""
+	if len(content) > 0 {
+		if textContent, ok := content[0].(map[string]interface{}); ok {
+			text, _ = textContent["text"].(string)
+		}
 	}
-	t.Logf("Managed resources call succeeded for %s", testAppName)
+	if isErr, _ := result["isError"].(bool); isErr {
+		return text, text
+	}
+	return text, ""
+}
+
+func managedResourceCount(body string) int {
+	var parsed struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(body), &parsed); err != nil {
+		return 0
+	}
+	return len(parsed.Items)
 }
 
 func testGetResourceCreatedApplication(t *testing.T) {

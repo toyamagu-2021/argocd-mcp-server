@@ -246,20 +246,34 @@ func TestParallel_SyncApplication(t *testing.T) {
 func TestParallel_GetApplicationManagedResources(t *testing.T) {
 	t.Parallel()
 
-	response := sendSharedRequest(t, map[string]interface{}{
+	summary := toolResultText(t, sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name":      "get_application_managed_resources",
+			"arguments": map[string]interface{}{"name": "test-app-1"},
+		},
+	}))
+	if !strings.Contains(summary, "guestbook-ui") {
+		t.Errorf("summary missing guestbook-ui: %s", summary)
+	}
+	if strings.Contains(summary, "targetState") || strings.Contains(summary, "liveState") {
+		t.Errorf("summary included manifest state: %s", summary)
+	}
+
+	detailed := toolResultText(t, sendSharedRequest(t, map[string]interface{}{
 		"jsonrpc": "2.0",
 		"method":  "tools/call",
 		"params": map[string]interface{}{
 			"name": "get_application_managed_resources",
 			"arguments": map[string]interface{}{
-				"name": "test-app-1",
-				"kind": "Deployment",
+				"name":     "test-app-1",
+				"detailed": true,
 			},
 		},
-	})
-	text := toolResultText(t, response)
-	if !strings.Contains(text, "guestbook-ui") {
-		t.Errorf("expected managed resources to contain guestbook-ui, got %s", text)
+	}))
+	if !strings.Contains(detailed, "targetState") || !strings.Contains(detailed, "guestbook-ui") {
+		t.Errorf("detailed response missing state: %s", detailed)
 	}
 }
 
