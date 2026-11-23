@@ -13,12 +13,12 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 |---|---|---|
 | `list_application` | | `project`, `selector`, `app_namespace` filtered server-side; destination `cluster` / `namespace` filtered client-side. `detailed=false` and `output_format=tsv` are the defaults. `limit` defaults to 50. `name_only` wins over `detailed`. Empty JSON is a page, not prose |
 | `get_application` | | `detailed=false` (default) is a compact summary without spec, status.resources, or history. `detailed=true` is the full Application, compact, without managedFields or last-applied-configuration. Per-resource data is `get_application_resource_tree` and `get_application_managed_resources`. `app_namespace` |
-| `get_application_manifests` | | Secret data hidden by the Argo CD server |
+| `get_application_manifests` | | `detailed=false` (default) is a page of manifest strings with `managedFields` and the last-applied annotation removed. `limit` defaults to 10. `commands` and integrity fields are detailed-only. `revision` is the git revision. Secret data is hidden by the Argo CD server |
 | `get_application_events` | | `detailed=false` (default) is a page of event summaries without `metadata`. The message is not clipped. `detailed=true` pages full events without `managedFields`. `limit` defaults to 50. Filters `resource_name`, `resource_namespace`, and `resource_uid` still apply before paging |
 | `get_application_logs` | | `detailed=false` (default) is plain text. `tail_lines` defaults to 20. `detailed=true` is compact JSON at the same tail. `follow=true` is rejected (stdio cannot stream) |
 | `get_application_resource_tree` | | `detailed=false` (default) is a page of node summaries. Hosts are names. `systemInfo`, `networkingInfo`, and `images` are omitted. `detailed=true` pages full nodes and repeats full hosts, including `systemInfo`, on every page. `limit` defaults to 50 |
 | `get_application_managed_resources` | | Compact JSON. Default summary omits manifest strings. `detailed=true` or a resource filter includes the four state strings with `managedFields` and `last-applied-configuration` removed. `limit` defaults to 50, `offset` defaults to 0, response has `totalItems` and `hasMore` |
-| `get_application_resource` | | `ApplicationService.GetResource`. Live manifest; Argo CD replaces Secret data |
+| `get_application_resource` | | `ApplicationService.GetResource`. Compact live manifest with `managedFields` and the last-applied annotation removed. A nil manifest is omitted. Argo CD replaces Secret data |
 | `create_application` | ✔ | |
 | `update_application` | ✔ | `ApplicationService.UpdateSpec`. Replaces the whole spec. `validate` defaults to true |
 | `sync_application` | ✔ | `prune`, `dry_run`, `revision` (single-source), `revisions` (multi-source, one per `spec.sources` entry), `resources` (partial sync), `sync_options` (replace, not merge) |

@@ -3,8 +3,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
@@ -20,10 +22,8 @@ func TestGetAppManifestsTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_application_manifests', got %s", GetAppManifestsTool.Name)
 	}
 
-	// Verify tool has description
-	if GetAppManifestsTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetAppManifestsTool.Description, "detailed=false")
+	assert.Contains(t, GetAppManifestsTool.Description, "10")
 
 	// Check input schema exists
 	if GetAppManifestsTool.InputSchema.Type != "object" {
@@ -127,7 +127,7 @@ func TestGetApplicationManifestsHandler(t *testing.T) {
 				tt.setupMock(mockClient)
 			}
 
-			result, err := getApplicationManifestsHandler(context.Background(), mockClient, tt.appName, tt.revision, "")
+			result, err := getApplicationManifestsHandler(context.Background(), mockClient, tt.appName, tt.revision, "", false, 10, 0)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -152,10 +152,99 @@ func TestGetApplicationManifestsHandler(t *testing.T) {
 				err := json.Unmarshal([]byte(textContent.Text), &responseData)
 				assert.NoError(t, err, "Response should be valid JSON")
 
-				// Verify response contains expected fields
-				assert.Contains(t, responseData, "manifests")
+				assert.Contains(t, responseData, "items")
 				assert.Contains(t, responseData, "namespace")
+				assert.Contains(t, responseData, "totalItems")
+				assert.NotContains(t, responseData, "manifests")
+				assert.Contains(t, textContent.Text, "test-service")
 			}
 		})
 	}
+}
+
+func TestGetApplicationManifestsPagingAndSize(t *testing.T) {
+	pad := "managedfields-marker:" + strings.Repeat("m", 2048)
+	manifests := make([]string, 15)
+	for i := range manifests {
+		manifests[i] = `{"kind":"ConfigMap","metadata":{"name":"cm-` + itoaSmall(i) + `","managedFields":[{"manager":"` + pad + `"}]}}`
+	}
+	resp := &repoapiclient.ManifestResponse{
+		Manifests:  manifests,
+		Namespace:  "default",
+		Server:     "https://kubernetes.default.svc",
+		Revision:   "abc123",
+		SourceType: "Helm",
+		Commands:   []string{"helm template"},
+		SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{
+			Checks: []v1alpha1.SourceIntegrityCheckResultItem{{Name: "signature"}},
+		},
+	}
+	before, err := json.MarshalIndent(resp, "", "  ")
+	require.NoError(t, err)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetApplicationManifests(gomock.Any(), "app", "main", "").Return(resp, nil).Times(2)
+
+	summaryRes, err := getApplicationManifestsHandler(context.Background(), m, "app", "main", "", false, defaultManifestLimit, 0)
+	require.NoError(t, err)
+	summary := toolText(t, summaryRes)
+	var page struct {
+		Items      []string `json:"items"`
+		TotalItems int      `json:"totalItems"`
+		HasMore    bool     `json:"hasMore"`
+		Notice     string   `json:"notice"`
+		Namespace  string   `json:"namespace"`
+		Revision   string   `json:"revision"`
+		SourceType string   `json:"sourceType"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(summary), &page))
+	assert.Len(t, page.Items, 10)
+	assert.Equal(t, 15, page.TotalItems)
+	assert.True(t, page.HasMore)
+	assert.Contains(t, page.Notice, "offset=10")
+	assert.Equal(t, "default", page.Namespace)
+	assert.Equal(t, "abc123", page.Revision)
+	assert.Equal(t, "Helm", page.SourceType)
+	assert.NotContains(t, summary, "managedFields")
+	assert.NotContains(t, summary, "managedfields-marker")
+	assert.NotContains(t, summary, "helm template")
+	assert.NotContains(t, summary, "signature")
+	assert.Contains(t, page.Items[0], `"kind":"ConfigMap"`)
+	fieldBytes := strings.Count(string(before), pad) * len(pad)
+	t.Logf("before_bytes=%d after_bytes=%d managedfields_bytes=%d", len(before), len(summary), fieldBytes)
+	assert.Less(t, len(summary), len(before)/2)
+
+	detailed := toolText(t, mustManifests(t, m, true))
+	assert.Contains(t, detailed, "helm template")
+	assert.Contains(t, detailed, "signature")
+	assert.NotContains(t, detailed, "managedFields")
+	assert.Contains(t, detailed, `"hasMore":true`)
+}
+
+func TestGetApplicationManifestsYAMLStrip(t *testing.T) {
+	raw := "kind: ConfigMap\nmetadata:\n  name: yaml-cm\n  annotations:\n    keep-me: kept\n    " + lastAppliedAnnotation + ": blob\n"
+	resp := &repoapiclient.ManifestResponse{Manifests: []string{raw}, Namespace: "default"}
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetApplicationManifests(gomock.Any(), "app", "", "").Return(resp, nil)
+
+	res, err := getApplicationManifestsHandler(context.Background(), m, "app", "", "", false, defaultManifestLimit, 0)
+	require.NoError(t, err)
+	text := toolText(t, res)
+	var page struct {
+		Items []string `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(text), &page))
+	require.Len(t, page.Items, 1)
+	assert.NotContains(t, page.Items[0], lastAppliedAnnotation)
+	assert.Contains(t, page.Items[0], "keep-me")
+	assert.False(t, strings.HasPrefix(strings.TrimSpace(page.Items[0]), "{"))
+	assert.Contains(t, page.Items[0], "yaml-cm")
+}
+
+func mustManifests(t *testing.T, m *mock.MockInterface, detailed bool) *mcp.CallToolResult {
+	t.Helper()
+	res, err := getApplicationManifestsHandler(context.Background(), m, "app", "main", "", detailed, defaultManifestLimit, 0)
+	require.NoError(t, err)
+	return res
 }

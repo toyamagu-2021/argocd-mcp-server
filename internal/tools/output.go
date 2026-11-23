@@ -3,9 +3,11 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -167,28 +169,61 @@ func stripObjectMeta(meta *metav1.ObjectMeta) {
 }
 
 // stripManifestNoise removes metadata.managedFields and the last-applied
-// annotation from a JSON object manifest. Decode failure returns raw.
-// Non-object JSON, including arrays, is returned unchanged.
+// annotation from one manifest. JSON objects are re-encoded with json.Marshal.
+// Text that does not start with '{' or '[' is decoded as YAML when it is a
+// mapping, then re-encoded with sigs.k8s.io/yaml. Decode failure, and non-object
+// JSON including arrays, returns the original text. YAML re-encoding can change
+// key order and quoting.
 func stripManifestNoise(raw string) string {
 	if raw == "" {
 		return ""
 	}
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return raw
+	}
+	if trimmed[0] == '{' || trimmed[0] == '[' {
+		return stripJSONManifest(raw)
+	}
+	return stripYAMLManifest(raw)
+}
+
+func stripJSONManifest(raw string) string {
 	var obj map[string]any
 	if err := json.Unmarshal([]byte(raw), &obj); err != nil {
 		return raw
 	}
-	if meta, ok := obj["metadata"].(map[string]any); ok {
-		delete(meta, "managedFields")
-		if ann, ok := meta["annotations"].(map[string]any); ok {
-			delete(ann, lastAppliedAnnotation)
-			if len(ann) == 0 {
-				delete(meta, "annotations")
-			}
-		}
-	}
+	dropManifestNoise(obj)
 	out, err := json.Marshal(obj)
 	if err != nil {
 		return raw
 	}
 	return string(out)
+}
+
+func stripYAMLManifest(raw string) string {
+	var obj map[string]any
+	if err := yaml.Unmarshal([]byte(raw), &obj); err != nil || obj == nil {
+		return raw
+	}
+	dropManifestNoise(obj)
+	out, err := yaml.Marshal(obj)
+	if err != nil {
+		return raw
+	}
+	return string(out)
+}
+
+func dropManifestNoise(obj map[string]any) {
+	meta, ok := obj["metadata"].(map[string]any)
+	if !ok {
+		return
+	}
+	delete(meta, "managedFields")
+	if ann, ok := meta["annotations"].(map[string]any); ok {
+		delete(ann, lastAppliedAnnotation)
+		if len(ann) == 0 {
+			delete(meta, "annotations")
+		}
+	}
 }

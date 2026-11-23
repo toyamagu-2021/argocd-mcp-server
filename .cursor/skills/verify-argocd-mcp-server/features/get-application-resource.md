@@ -1,6 +1,6 @@
 # Application resource
 
-`get_application_resource` returns the live manifest of one Kubernetes object managed by an Application. The required arguments are `name`, `resource_name`, `kind`, and `version`. `group` is empty for core resources. `version` is the Kubernetes API version, such as `v1`, not a git revision. The body is indented JSON.
+`get_application_resource` returns the live manifest of one Kubernetes object managed by an Application. The required arguments are `name`, `resource_name`, `kind`, and `version`. `group` is empty for core resources. `version` is the Kubernetes API version, such as `v1`, not a git revision. The body is compact JSON. `metadata.managedFields` and `kubectl.kubernetes.io/last-applied-configuration` are removed.
 
 ## Sub-features
 
