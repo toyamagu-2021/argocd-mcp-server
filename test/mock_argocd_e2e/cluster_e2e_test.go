@@ -49,9 +49,12 @@ func TestParallel_ListClusters(t *testing.T) {
 	}
 
 	// Parse the JSON response to verify it contains clusters
-	// By default (detailed=false), list_cluster returns an array directly, not wrapped in an object
-	var clusters []interface{}
-	if err := json.Unmarshal([]byte(text), &clusters); err != nil {
+	var page struct {
+		Items      []map[string]interface{} `json:"items"`
+		TotalItems int                      `json:"totalItems"`
+		HasMore    bool                     `json:"hasMore"`
+	}
+	if err := json.Unmarshal([]byte(text), &page); err != nil {
 		t.Fatalf("failed to parse cluster list JSON: %v", err)
 	}
 
@@ -61,12 +64,10 @@ func TestParallel_ListClusters(t *testing.T) {
 		"https://external-cluster.example.com": false,
 	}
 
-	for _, cluster := range clusters {
-		if clusterMap, ok := cluster.(map[string]interface{}); ok {
-			if server, ok := clusterMap["server"].(string); ok {
-				if _, expected := expectedClusters[server]; expected {
-					expectedClusters[server] = true
-				}
+	for _, clusterMap := range page.Items {
+		if server, ok := clusterMap["server"].(string); ok {
+			if _, expected := expectedClusters[server]; expected {
+				expectedClusters[server] = true
 			}
 		}
 	}
@@ -77,7 +78,7 @@ func TestParallel_ListClusters(t *testing.T) {
 		}
 	}
 
-	t.Logf("Successfully listed %d clusters", len(clusters))
+	t.Logf("Successfully listed %d clusters", len(page.Items))
 }
 
 func TestParallel_GetCluster(t *testing.T) {
