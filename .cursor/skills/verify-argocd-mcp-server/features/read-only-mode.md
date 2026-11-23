@@ -66,7 +66,8 @@ assert ro_names == present and len(ro_names) == 18
 calls = {c["tool"]: c for c in readonly["calls"]}
 user = calls["get_user_info"]
 assert user["is_error"] is False and user["rpc_error"] is None
-assert '"loggedIn": true' in user["text"] and '"username": "admin"' in user["text"]
+user_info = json.loads(user["text"])
+assert user_info["loggedIn"] is True and user_info["username"] == "admin"
 listed = calls["list_cluster"]
 assert listed["is_error"] is False and "https://kubernetes.default.svc" in listed["text"]
 for name in ("create_application", "update_application", "rollback_application"):

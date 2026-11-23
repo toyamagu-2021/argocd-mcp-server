@@ -26,5 +26,5 @@ Preconditions:
 
 ## Gotchas
 
-- An empty tool body `No projects found.` means the baseline is wrong. Report the failure. Do not switch the assertion to "empty is fine".
+- An empty page `{"items":[],"totalItems":0,"hasMore":false}` means the baseline is wrong. Report the failure. Do not switch the assertion to "empty is fine".
 - `name_only` true returns a page whose `items` are name strings. `totalItems` replaces `count`. The summary list is a different shape. This recipe uses `name_only`.

@@ -27,4 +27,3 @@ Preconditions:
 - Missing `name`, `resource_name`, `kind`, or `version` is a tool error (`name is required` and the same shape for the others). That proves the handler ran. It does not prove the object exists.
 - `resource_namespace` is required when the same name exists in more than one namespace. This recipe sets it.
 - Argo CD replaces Secret data before returning a Secret manifest. The guestbook Deployment is not a Secret, so that replacement is not proven.
-- This tool does not strip `managedFields`. That stripping belongs to [managed resources](get-application-managed-resources.md).
