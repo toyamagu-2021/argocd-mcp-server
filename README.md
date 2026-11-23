@@ -15,32 +15,32 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `get_application_resource_tree` - Page of node summaries (`detailed=false` by default, `limit` 50). Hosts are names. `detailed=true` includes `systemInfo` and can be very large
 - `get_application_managed_resources` - List managed resources as compact JSON. Default is a summary (no manifest strings), `limit` 50. `detailed=true` or a resource filter includes state, without `managedFields` or last-applied-configuration
 - `get_application_resource` - Compact live manifest of one managed resource (ApplicationService.GetResource). `managedFields` and the last-applied annotation are removed. Argo CD replaces Secret data
-- `create_application` - Create a new ArgoCD application with source and destination configuration
-- `update_application` - Replace an application's spec (`ApplicationService.UpdateSpec`). The object replaces the whole spec; `validate` defaults to true
-- `sync_application` - Trigger a sync operation for an application, with optional prune, dry-run, a target revision, a per-source revision list, a partial resource list, and per-sync sync options
-- `refresh_application` - Refresh application state from the git repository
+- `create_application` - Create a new ArgoCD application. The result is the full Application as compact JSON, without managedFields. Call `get_application` for the summary
+- `update_application` - Replace an application's spec (`ApplicationService.UpdateSpec`). The object replaces the whole spec; `validate` defaults to true. The result is the full spec as compact JSON, including Helm values
+- `sync_application` - Trigger a sync operation for an application, with optional prune, dry-run, a target revision, a per-source revision list, a partial resource list, and per-sync sync options. The result is the full Application as compact JSON
+- `refresh_application` - Refresh application state from the git repository. The result is the Application as compact JSON, before reconcile finishes
 - `delete_application` - Delete an ArgoCD application. **`cascade` defaults to `false`** (resources are kept) — unlike the Argo CD CLI
 - `terminate_operation` - Terminate the currently running operation (sync, refresh, etc.) on an application
-- `rollback_application` - Roll an application back to a `status.history` id. `prune` and `dry_run` default to false
+- `rollback_application` - Roll an application back to a `status.history` id. `prune` and `dry_run` default to false. The result is the full Application as compact JSON
 
 ### ApplicationSet Management
 - `list_applicationset` - Page of ApplicationSet summaries (`detailed=false` by default, `limit` 50). Generators and Helm values are detailed-only
 - `get_applicationset` - One ApplicationSet summary (`detailed=false` by default). Generators and Helm values are detailed-only
-- `create_applicationset` - Create a new ApplicationSet with generators and templates
+- `create_applicationset` - Create a new ApplicationSet with generators and templates. The result is the full object as compact JSON. Helm values stay
 - `delete_applicationset` - Delete an ApplicationSet (Argo CD also deletes the Applications it generated)
 
 ### Project Management
 - `list_project` - Page of project summaries (`detailed=false` by default, `limit` 50). `name_only` returns name strings. Roles and tokens are detailed-only
 - `get_project` - One project summary (`detailed=false` by default). Roles and tokens are detailed-only
-- `create_project` - Create new ArgoCD project with access controls and deployment restrictions
+- `create_project` - Create new ArgoCD project with access controls and deployment restrictions. The result is the full project as compact JSON
 
 ### Cluster Management
 - `list_cluster` - Page of cluster summaries (`detailed=false` by default, `limit` 50). `name_only` returns `{name, server}` items
-- `get_cluster` - Retrieve detailed cluster information including configuration and status
+- `get_cluster` - One sanitized cluster as compact JSON. The last-applied annotation is removed
 
 ### Repository Management
 - `list_repository` - Page of repository summaries (`detailed=false` by default, `limit` 50). Credentials stay off the summary. `detailed=true` returns sanitized repositories
-- `get_repository` - Get details of a specific repository including connection status
+- `get_repository` - One sanitized repository as compact JSON, including connection status
 
 ## Prerequisites
 

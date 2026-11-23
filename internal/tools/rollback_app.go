@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -12,7 +11,7 @@ import (
 
 // RollbackApplicationTool rolls an application back to a history entry.
 var RollbackApplicationTool = mcp.NewTool("rollback_application",
-	mcp.WithDescription("Rolls an ArgoCD application back to a previous deployment recorded in status.history (ApplicationService.Rollback). id is that history entry's id, including 0. Argo CD refuses the call when auto-sync is enabled. dry_run and prune default to false; prune false does not delete resources that the target revision no longer defines."),
+	mcp.WithDescription("Rolls an ArgoCD application back to a previous deployment recorded in status.history (ApplicationService.Rollback). id is that history entry's id, including 0. Argo CD refuses the call when auto-sync is enabled. dry_run and prune default to false; prune false does not delete resources that the target revision no longer defines. The result is the full Application as compact JSON, without managedFields or the last-applied annotation. Call get_application when only the summary is needed."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithIdempotentHintAnnotation(false),
 	mcp.WithString("name",
@@ -66,11 +65,11 @@ func rollbackApplicationHandler(ctx context.Context, argoClient client.Interface
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to rollback application: %v", err)), nil
 	}
-	jsonData, err := json.MarshalIndent(app, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if app == nil {
+		return writeCompact(nil)
 	}
-	return mcp.NewToolResultText(string(jsonData)), nil
+	stripObjectMeta(&app.ObjectMeta)
+	return writeCompact(app)
 }
 
 func historyIDArg(request mcp.CallToolRequest) (int64, error) {

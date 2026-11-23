@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -12,7 +11,7 @@ import (
 
 // GetRepositoryTool defines the get_repository tool schema
 var GetRepositoryTool = mcp.NewTool("get_repository",
-	mcp.WithDescription("Retrieves detailed information about a specific Git repository configured in ArgoCD."),
+	mcp.WithDescription("Retrieves one sanitized Git repository from ArgoCD as compact JSON. The password is already omitted."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("repo",
@@ -49,11 +48,5 @@ func getRepositoryHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get repository: %v", err)), nil
 	}
 
-	// Convert to JSON for better readability in MCP responses
-	jsonData, err := json.MarshalIndent(repository, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	return writeCompact(repository)
 }

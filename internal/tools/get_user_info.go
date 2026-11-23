@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -12,7 +11,7 @@ import (
 
 // GetUserInfoTool defines the get_user_info tool schema
 var GetUserInfoTool = mcp.NewTool("get_user_info",
-	mcp.WithDescription("Get current user information from ArgoCD. Returns details about the currently authenticated user including username, groups, and authentication status."),
+	mcp.WithDescription("Get current user information from ArgoCD as compact JSON. Returns the authenticated user, including username, groups, and authentication status."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 )
@@ -55,11 +54,5 @@ func getUserInfoHandler(
 		Groups:   userInfo.Groups,
 	}
 
-	// Convert to JSON for better readability in MCP responses
-	jsonData, err := json.MarshalIndent(info, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	return writeCompact(info)
 }

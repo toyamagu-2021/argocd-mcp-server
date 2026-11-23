@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -14,7 +13,7 @@ import (
 
 // CreateAppTool defines the create_application tool schema
 var CreateAppTool = mcp.NewTool("create_application",
-	mcp.WithDescription("Creates a new ArgoCD application with specified source and destination configuration."),
+	mcp.WithDescription("Creates a new ArgoCD application with specified source and destination configuration. The result is the full Application as compact JSON, without managedFields or the last-applied annotation. Call get_application when only the summary is needed."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
@@ -152,11 +151,9 @@ func createApplicationHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create application: %v", err)), nil
 	}
 
-	// Convert to JSON for response
-	jsonData, err := json.MarshalIndent(createdApp, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if createdApp == nil {
+		return writeCompact(nil)
 	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	stripObjectMeta(&createdApp.ObjectMeta)
+	return writeCompact(createdApp)
 }

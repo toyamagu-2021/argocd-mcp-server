@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -12,7 +11,7 @@ import (
 
 // SyncAppTool defines the sync_application tool schema
 var SyncAppTool = mcp.NewTool("sync_application",
-	mcp.WithDescription("Triggers a sync operation for a specific ArgoCD application. Optional revision syncs a single-source app to a git revision, tag, or Helm chart version. Optional revisions do the same for a multi-source app, one entry per source in spec.sources order. Optional resources limits the sync to those resources. Optional sync_options replace the Application's sync options for this operation."),
+	mcp.WithDescription("Triggers a sync operation for a specific ArgoCD application. Optional revision syncs a single-source app to a git revision, tag, or Helm chart version. Optional revisions do the same for a multi-source app, one entry per source in spec.sources order. Optional resources limits the sync to those resources. Optional sync_options replace the Application's sync options for this operation. The result is the full Application as compact JSON, without managedFields or the last-applied annotation. Call get_application when only the summary is needed."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
@@ -102,12 +101,11 @@ func syncApplicationHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to sync application: %v", err)), nil
 	}
 
-	jsonData, err := json.MarshalIndent(app, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if app == nil {
+		return writeCompact(nil)
 	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	stripObjectMeta(&app.ObjectMeta)
+	return writeCompact(app)
 }
 
 func stringSliceArg(request mcp.CallToolRequest, key string) ([]string, error) {

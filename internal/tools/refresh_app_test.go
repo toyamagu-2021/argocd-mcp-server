@@ -21,10 +21,8 @@ func TestRefreshAppTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'refresh_application', got %s", RefreshAppTool.Name)
 	}
 
-	// Verify tool has description
-	if RefreshAppTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, RefreshAppTool.Description, "get_application")
+	assert.Contains(t, RefreshAppTool.Description, "compact")
 
 	// Check input schema exists
 	if RefreshAppTool.InputSchema.Type != "object" {

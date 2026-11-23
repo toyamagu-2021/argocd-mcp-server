@@ -19,10 +19,8 @@ func TestGetRepositoryTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_repository', got %s", GetRepositoryTool.Name)
 	}
 
-	// Verify tool has description
-	if GetRepositoryTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetRepositoryTool.Description, "compact")
+	assert.Contains(t, GetRepositoryTool.Description, "password")
 
 	// Check input schema exists
 	if GetRepositoryTool.InputSchema.Type != "object" {

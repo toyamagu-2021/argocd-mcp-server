@@ -20,10 +20,8 @@ func TestCreateProjectTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'create_project', got %s", CreateProjectTool.Name)
 	}
 
-	// Verify tool has description
-	if CreateProjectTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, CreateProjectTool.Description, "compact")
+	assert.Contains(t, CreateProjectTool.Description, "managedFields")
 
 	// Check input schema exists
 	if CreateProjectTool.InputSchema.Type != "object" {
