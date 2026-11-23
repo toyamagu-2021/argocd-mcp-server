@@ -39,3 +39,9 @@ EOF < /dev/null
 /dist
 /argocd-mcp-server
 .mcp.json
+
+# Verification skill runtime. The token and cluster-ownership marker live here.
+# Cleanup deletes this directory. Evidence is kept separately and is not committed.
+.verify-argocd-mcp-server/
+.cursor/skills/verify-argocd-mcp-server/evidence/
+.cursor/skills/verify-argocd-mcp-server/scripts/__pycache__/
