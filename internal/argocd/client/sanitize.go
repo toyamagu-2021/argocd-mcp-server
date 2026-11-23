@@ -11,8 +11,8 @@ import (
 // instead of maintaining our own deny-list, and only carry over the
 // non-secret fields the server fills in after sanitizing.
 
-// sanitizeCluster returns a copy of c with credentials removed.
-func sanitizeCluster(c *v1alpha1.Cluster) *v1alpha1.Cluster {
+// SanitizeCluster returns a copy of c with credentials removed.
+func SanitizeCluster(c *v1alpha1.Cluster) *v1alpha1.Cluster {
 	if c == nil {
 		return nil
 	}
@@ -31,13 +31,13 @@ func sanitizeClusterList(l *v1alpha1.ClusterList) *v1alpha1.ClusterList {
 		return nil
 	}
 	for i := range l.Items {
-		l.Items[i] = *sanitizeCluster(&l.Items[i])
+		l.Items[i] = *SanitizeCluster(&l.Items[i])
 	}
 	return l
 }
 
-// sanitizeRepository returns a copy of r with credentials removed.
-func sanitizeRepository(r *v1alpha1.Repository) *v1alpha1.Repository {
+// SanitizeRepository returns a copy of r with credentials removed.
+func SanitizeRepository(r *v1alpha1.Repository) *v1alpha1.Repository {
 	if r == nil {
 		return nil
 	}
@@ -53,7 +53,7 @@ func sanitizeRepositoryList(l *v1alpha1.RepositoryList) *v1alpha1.RepositoryList
 		return nil
 	}
 	for i, r := range l.Items {
-		l.Items[i] = sanitizeRepository(r)
+		l.Items[i] = SanitizeRepository(r)
 	}
 	return l
 }

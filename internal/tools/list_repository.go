@@ -68,7 +68,7 @@ func listRepositoryHandler(
 	if detailed {
 		full := make([]*v1alpha1.Repository, len(sliced))
 		for i, repo := range sliced {
-			full[i] = repo.Sanitized()
+			full[i] = client.SanitizeRepository(repo)
 		}
 		return writeCompact(page{Items: full, TotalItems: total, HasMore: hasMore, Notice: notice})
 	}
