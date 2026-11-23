@@ -36,7 +36,7 @@ func TestParallel_ListApplicationSets(t *testing.T) {
 			textContent := content[0].(map[string]interface{})
 			text := textContent["text"].(string)
 			// ApplicationSets might not be supported in mock, which is okay
-			if strings.Contains(text, "No ApplicationSets found") ||
+			if strings.Contains(text, `"totalItems":0`) ||
 				strings.Contains(text, "not implemented") {
 				t.Logf("Mock server returned expected message: %s", text)
 			} else {
@@ -60,14 +60,14 @@ func TestParallel_ListApplicationSets(t *testing.T) {
 			t.Fatalf("expected text to be a string, got %T", textContent["text"])
 		}
 
-		// Try to parse as JSON array
-		var appSets []v1alpha1.ApplicationSet
-		if err := json.Unmarshal([]byte(text), &appSets); err == nil {
-			t.Logf("Successfully listed %d ApplicationSets", len(appSets))
-		} else if strings.Contains(text, "No ApplicationSets found") {
-			t.Log("No ApplicationSets found (expected for mock)")
-		} else {
+		var page struct {
+			Items      []v1alpha1.ApplicationSet `json:"items"`
+			TotalItems int                       `json:"totalItems"`
+		}
+		if err := json.Unmarshal([]byte(text), &page); err != nil {
 			t.Errorf("Unexpected response format: %s", text)
+		} else {
+			t.Logf("Successfully listed %d ApplicationSets", page.TotalItems)
 		}
 	}
 }

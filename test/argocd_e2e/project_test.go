@@ -66,34 +66,26 @@ func testListProjects(t *testing.T) {
 		t.Fatalf("expected text to be a string, got %T", textContent["text"])
 	}
 
-	// Parse the JSON response to verify it contains projects
-	if !strings.Contains(text, "No projects found") {
-		var projects []interface{}
-		if err := json.Unmarshal([]byte(text), &projects); err != nil {
-			t.Fatalf("failed to parse projects JSON: %v", err)
-		}
-
-		// Check for default project
-		foundDefault := false
-		for _, proj := range projects {
-			if projMap, ok := proj.(map[string]interface{}); ok {
-				if metadata, ok := projMap["metadata"].(map[string]interface{}); ok {
-					if name, ok := metadata["name"].(string); ok && name == "default" {
-						foundDefault = true
-						break
-					}
-				}
-			}
-		}
-
-		if !foundDefault {
-			t.Log("Warning: 'default' project not found in list, but this might be expected in some environments")
-		}
-
-		t.Logf("Successfully listed %d projects from real ArgoCD server", len(projects))
-	} else {
-		t.Log("No projects found on ArgoCD server (expected in minimal setups)")
+	var page struct {
+		Items []struct {
+			Name string `json:"name"`
+		} `json:"items"`
+		TotalItems int `json:"totalItems"`
 	}
+	if err := json.Unmarshal([]byte(text), &page); err != nil {
+		t.Fatalf("failed to parse project page: %v\n%s", err, text)
+	}
+	foundDefault := false
+	for _, proj := range page.Items {
+		if proj.Name == "default" {
+			foundDefault = true
+			break
+		}
+	}
+	if !foundDefault {
+		t.Log("Warning: 'default' project not found in list, but this might be expected in some environments")
+	}
+	t.Logf("Successfully listed %d projects from real ArgoCD server", page.TotalItems)
 
 	t.Logf("Response snippet: %.500s...", text)
 }

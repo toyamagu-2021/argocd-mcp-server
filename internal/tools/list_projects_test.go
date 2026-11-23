@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -21,9 +22,8 @@ func TestListProjectsTool_Schema(t *testing.T) {
 	}
 
 	// Verify tool has description
-	if ListProjectsTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, ListProjectsTool.Description, "detailed=false")
+	assert.Contains(t, ListProjectsTool.Description, "50")
 
 	// Check input schema exists
 	if ListProjectsTool.InputSchema.Type != "object" {
@@ -92,7 +92,7 @@ func TestListProjectsHandler(t *testing.T) {
 				m.EXPECT().ListProjects(gomock.Any()).Return(projectList, nil)
 			},
 			wantError:   false,
-			wantMessage: "No projects found.",
+			wantMessage: `"totalItems":0`,
 		},
 		{
 			name: "list projects fails",
@@ -111,7 +111,7 @@ func TestListProjectsHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := listProjectsHandler(context.Background(), mockClient, false)
+			result, err := listProjectsHandler(context.Background(), mockClient, false, false, 50, 0)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -135,8 +135,11 @@ func TestListProjectsHandler(t *testing.T) {
 					textContent, ok := mcp.AsTextContent(result.Content[0])
 					require.True(t, ok)
 
-					var projects []v1alpha1.AppProject
-					err := json.Unmarshal([]byte(textContent.Text), &projects)
+					var page struct {
+						Items []v1alpha1.AppProject `json:"items"`
+					}
+					err := json.Unmarshal([]byte(textContent.Text), &page)
+					projects := page.Items
 					require.NoError(t, err)
 					assert.Len(t, projects, tt.wantProjects)
 				}
@@ -176,7 +179,7 @@ func TestListProjectsHandler_NameOnly(t *testing.T) {
 
 	mockClient.EXPECT().ListProjects(gomock.Any()).Return(projectList, nil)
 
-	result, err := listProjectsHandler(context.Background(), mockClient, true)
+	result, err := listProjectsHandler(context.Background(), mockClient, true, true, 50, 0)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -184,10 +187,67 @@ func TestListProjectsHandler_NameOnly(t *testing.T) {
 	textContent, ok := mcp.AsTextContent(result.Content[0])
 	require.True(t, ok)
 
-	var nameList ProjectNameList
-	err = json.Unmarshal([]byte(textContent.Text), &nameList)
+	var namePage struct {
+		Items      []string `json:"items"`
+		TotalItems int      `json:"totalItems"`
+	}
+	err = json.Unmarshal([]byte(textContent.Text), &namePage)
 	require.NoError(t, err)
 
-	assert.Equal(t, 3, nameList.Count)
-	assert.Equal(t, []string{"default", "production", "staging"}, nameList.Names)
+	assert.Equal(t, 3, namePage.TotalItems)
+	assert.Equal(t, []string{"default", "production", "staging"}, namePage.Items)
+	assert.NotContains(t, textContent.Text, `"roles"`)
+}
+
+func TestListProjectsSummarySize(t *testing.T) {
+	token := "jwt-marker:" + strings.Repeat("j", 2048)
+	items := make([]v1alpha1.AppProject, 20)
+	for i := range items {
+		items[i] = v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:          "project-" + itoaSmall(i),
+				ManagedFields: []metav1.ManagedFieldsEntry{{Manager: "kubectl"}},
+				Annotations:   map[string]string{lastAppliedAnnotation: "applied"},
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Description: "desc",
+				SourceRepos: []string{"https://example.com/repo"},
+				Destinations: []v1alpha1.ApplicationDestination{{
+					Server: "https://kubernetes.default.svc", Namespace: "default",
+				}},
+				Roles: []v1alpha1.ProjectRole{{
+					Name:      "admin",
+					JWTTokens: []v1alpha1.JWTToken{{ID: token}},
+				}},
+			},
+		}
+	}
+	before, err := json.MarshalIndent(items, "", "  ")
+	require.NoError(t, err)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().ListProjects(gomock.Any()).Return(&v1alpha1.AppProjectList{Items: items}, nil).Times(2)
+
+	summary := toolText(t, mustListProjects(t, m, false, false))
+	assert.NotContains(t, summary, "jwt-marker")
+	assert.NotContains(t, summary, `"roles"`)
+	assert.Contains(t, summary, `"roleCount":1`)
+	assert.Contains(t, summary, `"totalItems":20`)
+	tokenBytes := strings.Count(string(before), token) * len(token)
+	t.Logf("before_bytes=%d after_bytes=%d jwt_bytes=%d", len(before), len(summary), tokenBytes)
+	assert.Less(t, len(summary), len(before)/5)
+
+	detailed := toolText(t, mustListProjects(t, m, false, true))
+	assert.Contains(t, detailed, "jwt-marker")
+	assert.Contains(t, detailed, `"roles"`)
+	assert.NotContains(t, detailed, "managedFields")
+	assert.NotContains(t, detailed, lastAppliedAnnotation)
+	assert.Less(t, len(detailed), len(before))
+}
+
+func mustListProjects(t *testing.T, m *mock.MockInterface, nameOnly, detailed bool) *mcp.CallToolResult {
+	t.Helper()
+	res, err := listProjectsHandler(context.Background(), m, nameOnly, detailed, 50, 0)
+	require.NoError(t, err)
+	return res
 }
