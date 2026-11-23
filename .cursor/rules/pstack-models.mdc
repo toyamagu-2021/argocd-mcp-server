@@ -1,0 +1,13 @@
+---
+description: pstack per-role model choices (overrides skill defaults)
+alwaysApply: true
+---
+# This is a small repo, so keep fan-out to 1 and the budget at medium.
+# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
+# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model` and spawn `generalPurpose`). Alias entries in a panel list still count toward its fan-out.
+# defaults: 3
+# budget: medium (high)
+arena runners: inherit-parent
+arena cross-judge pool: inherit-parent
+swarm workers: inherit-parent
+interrogate reviewers: inherit-parent
