@@ -16,7 +16,8 @@ import (
 
 func TestSyncAppTool_Schema(t *testing.T) {
 	assert.Equal(t, "sync_application", SyncAppTool.Name)
-	assert.NotEmpty(t, SyncAppTool.Description)
+	assert.Contains(t, SyncAppTool.Description, "get_application")
+	assert.Contains(t, SyncAppTool.Description, "compact")
 	assert.Equal(t, "object", SyncAppTool.InputSchema.Type)
 	assert.Equal(t, []string{"name"}, SyncAppTool.InputSchema.Required)
 

@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -16,7 +15,7 @@ import (
 
 // CreateProjectTool defines the create_project tool schema
 var CreateProjectTool = mcp.NewTool("create_project",
-	mcp.WithDescription("Creates a new ArgoCD project with specified configuration. Projects provide logical grouping of applications with access controls and deployment restrictions."),
+	mcp.WithDescription("Creates a new ArgoCD project with specified configuration. Projects provide logical grouping of applications with access controls and deployment restrictions. The result is the full project as compact JSON, without managedFields or the last-applied annotation."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
@@ -132,13 +131,11 @@ func createProjectHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create project: %v", err)), nil
 	}
 
-	// Convert to JSON for better readability in MCP responses
-	jsonData, err := json.MarshalIndent(createdProject, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if createdProject == nil {
+		return writeCompact(nil)
 	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	stripObjectMeta(&createdProject.ObjectMeta)
+	return writeCompact(createdProject)
 }
 
 // parseCommaSeparated splits a comma-separated string into a slice

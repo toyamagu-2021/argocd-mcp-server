@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -12,7 +11,7 @@ import (
 
 // RefreshAppTool defines the refresh_application tool schema
 var RefreshAppTool = mcp.NewTool("refresh_application",
-	mcp.WithDescription("Refreshes the status of a specific ArgoCD application by fetching the latest state from Git and the cluster."),
+	mcp.WithDescription("Refreshes the status of a specific ArgoCD application by fetching the latest state from Git and the cluster. The result is the Application before reconcile finishes, as compact JSON, without managedFields or the last-applied annotation. Call get_application when only the summary is needed."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithIdempotentHintAnnotation(true),
@@ -67,11 +66,9 @@ func refreshApplicationHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to refresh application: %v", err)), nil
 	}
 
-	// Convert to JSON for better readability in MCP responses
-	jsonData, err := json.MarshalIndent(app, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if app == nil {
+		return writeCompact(nil)
 	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	stripObjectMeta(&app.ObjectMeta)
+	return writeCompact(app)
 }

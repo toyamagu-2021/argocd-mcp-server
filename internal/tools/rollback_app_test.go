@@ -16,6 +16,8 @@ import (
 func TestRollbackApplication_Schema(t *testing.T) {
 	assert.Equal(t, "rollback_application", RollbackApplicationTool.Name)
 	assert.Contains(t, RollbackApplicationTool.Description, "Rollback")
+	assert.Contains(t, RollbackApplicationTool.Description, "get_application")
+	assert.Contains(t, RollbackApplicationTool.Description, "compact")
 	assert.Contains(t, RollbackApplicationTool.Description, "default to false")
 	assert.ElementsMatch(t, []string{"name", "id"}, RollbackApplicationTool.InputSchema.Required)
 	require.NotNil(t, RollbackApplicationTool.Annotations.ReadOnlyHint)

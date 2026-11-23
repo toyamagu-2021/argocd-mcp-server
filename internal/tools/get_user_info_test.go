@@ -20,10 +20,8 @@ func TestGetUserInfoTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_user_info', got %s", GetUserInfoTool.Name)
 	}
 
-	// Verify tool has description
-	if GetUserInfoTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetUserInfoTool.Description, "compact")
+	assert.Contains(t, GetUserInfoTool.Description, "username")
 
 	// Check input schema exists
 	if GetUserInfoTool.InputSchema.Type != "object" {

@@ -14,7 +14,7 @@ import (
 
 // CreateApplicationSetTool provides an MCP tool for creating ApplicationSets in ArgoCD
 var CreateApplicationSetTool = mcp.NewTool("create_applicationset",
-	mcp.WithDescription("Create a new ApplicationSet in ArgoCD"),
+	mcp.WithDescription("Create a new ApplicationSet in ArgoCD. The result is the full ApplicationSet as compact JSON, without managedFields or the last-applied annotation. Helm values in the template stay."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("name",
 		mcp.Required(),
@@ -161,11 +161,9 @@ func createApplicationSetHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create ApplicationSet: %v", err)), nil
 	}
 
-	// Format response
-	jsonData, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if result == nil {
+		return writeCompact(nil)
 	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	stripObjectMeta(&result.ObjectMeta)
+	return writeCompact(result)
 }

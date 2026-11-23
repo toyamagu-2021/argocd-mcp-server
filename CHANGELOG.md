@@ -56,6 +56,18 @@ Not tagged yet.
 10. **`get_application_resource` returns compact JSON.**
     The live manifest loses `managedFields` and the last-applied annotation.
     A nil manifest is still omitted. (#117)
+11. **Application write results are compact JSON.**
+    `create_application`, `sync_application`, `refresh_application`, and
+    `rollback_application` drop `managedFields` and the last-applied annotation.
+    Call `get_application` when only the summary is needed.
+    `update_application` still returns the full spec, including Helm values. (#117)
+12. **`create_project` and `create_applicationset` return compact JSON.**
+    `managedFields` and the last-applied annotation are removed. Helm values in
+    an ApplicationSet template stay. (#117)
+13. **`get_cluster`, `get_repository`, and `get_user_info` return compact JSON.**
+    Cluster annotations lose the last-applied key. Repository fields and the
+    user record are otherwise unchanged. Credentials stay removed by the client
+    sanitizer. (#117)
 
 ## v0.3.0 (2026-11-23)
 

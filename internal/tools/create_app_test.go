@@ -19,10 +19,8 @@ func TestCreateAppTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'create_application', got %s", CreateAppTool.Name)
 	}
 
-	// Verify tool has description
-	if CreateAppTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, CreateAppTool.Description, "get_application")
+	assert.Contains(t, CreateAppTool.Description, "compact")
 
 	// Check input schema exists
 	if CreateAppTool.InputSchema.Type != "object" {

@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -12,7 +11,7 @@ import (
 
 // GetClusterTool provides MCP tool for retrieving cluster details from ArgoCD
 var GetClusterTool = mcp.NewTool("get_cluster",
-	mcp.WithDescription("Retrieves detailed information about a specific ArgoCD cluster"),
+	mcp.WithDescription("Retrieves one ArgoCD cluster as compact JSON. Credentials are removed. The last-applied annotation is removed."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("server",
@@ -46,10 +45,9 @@ func getClusterHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get cluster: %v", err)), nil
 	}
 
-	jsonData, err := json.MarshalIndent(cluster, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if cluster == nil {
+		return writeCompact(nil)
 	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	stripped := strippedCluster(*cluster)
+	return writeCompact(&stripped)
 }

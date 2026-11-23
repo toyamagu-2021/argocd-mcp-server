@@ -19,13 +19,13 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 | `get_application_resource_tree` | | `detailed=false` (default) is a page of node summaries. Hosts are names. `systemInfo`, `networkingInfo`, and `images` are omitted. `detailed=true` pages full nodes and repeats full hosts, including `systemInfo`, on every page. `limit` defaults to 50 |
 | `get_application_managed_resources` | | Compact JSON. Default summary omits manifest strings. `detailed=true` or a resource filter includes the four state strings with `managedFields` and `last-applied-configuration` removed. `limit` defaults to 50, `offset` defaults to 0, response has `totalItems` and `hasMore` |
 | `get_application_resource` | | `ApplicationService.GetResource`. Compact live manifest with `managedFields` and the last-applied annotation removed. A nil manifest is omitted. Argo CD replaces Secret data |
-| `create_application` | ✔ | |
-| `update_application` | ✔ | `ApplicationService.UpdateSpec`. Replaces the whole spec. `validate` defaults to true |
-| `sync_application` | ✔ | `prune`, `dry_run`, `revision` (single-source), `revisions` (multi-source, one per `spec.sources` entry), `resources` (partial sync), `sync_options` (replace, not merge) |
-| `refresh_application` | | treated as read (D11, revised); `hard` |
+| `create_application` | ✔ | Full Application as compact JSON, without `managedFields` or the last-applied annotation. Call `get_application` for the summary |
+| `update_application` | ✔ | `ApplicationService.UpdateSpec`. Replaces the whole spec. `validate` defaults to true. Result is the full spec as compact JSON, including Helm values |
+| `sync_application` | ✔ | `prune`, `dry_run`, `revision` (single-source), `revisions` (multi-source, one per `spec.sources` entry), `resources` (partial sync), `sync_options` (replace, not merge). Result is the full Application as compact JSON, without `managedFields`. Call `get_application` for the summary |
+| `refresh_application` | | treated as read (D11, revised); `hard`. Result is the Application before reconcile finishes, compact, without `managedFields` |
 | `delete_application` | ✔ | `cascade` defaults to **false** (differs from the Argo CD CLI) |
 | `terminate_operation` | ✔ | |
-| `rollback_application` | ✔ | `ApplicationService.Rollback`. `id` is `status.history[].id`. `prune` and `dry_run` default to false |
+| `rollback_application` | ✔ | `ApplicationService.Rollback`. `id` is `status.history[].id`. `prune` and `dry_run` default to false. Result is the full Application as compact JSON, without `managedFields` |
 
 ## ApplicationSets
 
@@ -33,7 +33,7 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 |---|---|---|
 | `list_applicationset` | | `detailed=false` (default) is a page of summaries (`name`, `namespace`, `project`, `generatorCount`). Generators and Helm values are detailed-only. `detailed=true` pages full ApplicationSets without `managedFields`. `limit` defaults to 50. Empty list is an empty page |
 | `get_applicationset` | | `detailed=false` (default) is one summary (`name`, `namespace`, `project`, `generatorCount`). Generators and Helm values are detailed-only. `detailed=true` is the full ApplicationSet without `managedFields`. Not a page |
-| `create_applicationset` | ✔ | `dry_run`, `upsert` |
+| `create_applicationset` | ✔ | `dry_run`, `upsert`. Result is the full ApplicationSet as compact JSON, without `managedFields`. Helm values stay |
 | `delete_applicationset` | ✔ | `app_namespace` (legacy `appsetNamespace` accepted in 0.3); generated Applications are deleted too |
 
 ## Projects
@@ -42,27 +42,27 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 |---|---|---|
 | `list_project` | | `detailed=false` (default) is a page of summaries (`name`, `description`, counts). `name_only` wins and items are name strings. `detailed=true` pages full projects without `managedFields`. `limit` defaults to 50. Empty list is an empty page |
 | `get_project` | | `detailed=false` (default) is one summary (`name`, `description`, counts). Roles, tokens, and allow-lists are detailed-only. `detailed=true` is the full project without `managedFields`. Not a page |
-| `create_project` | ✔ | |
+| `create_project` | ✔ | Result is the full project as compact JSON, without `managedFields` |
 
 ## Clusters
 
 | Tool | Mutating | Notes |
 |---|---|---|
 | `list_cluster` | | `detailed=false` (default) is a page of summaries. `name_only` wins and items are `{name, server}`. `detailed=true` pages sanitized clusters without the last-applied annotation. `limit` defaults to 50. Empty list is an empty page |
-| `get_cluster` | | credentials removed with upstream `Sanitized()` |
+| `get_cluster` | | Compact sanitized cluster. Credentials removed with upstream `Sanitized()`. The last-applied annotation is removed |
 
 ## Repositories
 
 | Tool | Mutating | Notes |
 |---|---|---|
 | `list_repository` | | `detailed=false` (default) is a page of summaries (`repo`, `type`, `name`, `project`, `connectionStatus`) without credentials. `detailed=true` pages sanitized repositories. `limit` defaults to 50. Empty list is an empty page |
-| `get_repository` | | credentials removed with upstream `Sanitized()` |
+| `get_repository` | | Compact sanitized repository. Credentials removed with upstream `Sanitized()` |
 
 ## Session
 
 | Tool | Mutating | Notes |
 |---|---|---|
-| `get_user_info` | | |
+| `get_user_info` | | Compact JSON, including the username |
 
 ## Not planned
 

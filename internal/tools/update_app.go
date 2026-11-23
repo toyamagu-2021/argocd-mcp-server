@@ -13,7 +13,7 @@ import (
 
 // UpdateApplicationTool replaces an Application spec.
 var UpdateApplicationTool = mcp.NewTool("update_application",
-	mcp.WithDescription("Replaces the spec of an existing ArgoCD application (ApplicationService.UpdateSpec). The server loads the Application and changes only spec, so metadata and status are not taken from this call. The spec object replaces the whole spec: fields you omit are cleared. Read the Application with get_application and detailed=true, then send the full spec you want to keep. spec.project is required, and spec.source.repoURL or a spec.sources entry with repoURL is required. validate defaults to true."),
+	mcp.WithDescription("Replaces the spec of an existing ArgoCD application (ApplicationService.UpdateSpec). The server loads the Application and changes only spec, so metadata and status are not taken from this call. The spec object replaces the whole spec: fields you omit are cleared. Read the Application with get_application and detailed=true, then send the full spec you want to keep. spec.project is required, and spec.source.repoURL or a spec.sources entry with repoURL is required. validate defaults to true. The result is the full spec as compact JSON, and Helm values are included."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithIdempotentHintAnnotation(true),
 	mcp.WithString("name",
@@ -72,11 +72,7 @@ func updateApplicationHandler(ctx context.Context, argoClient client.Interface, 
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to update application: %v", err)), nil
 	}
-	jsonData, err := json.MarshalIndent(spec, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-	}
-	return mcp.NewToolResultText(string(jsonData)), nil
+	return writeCompact(spec)
 }
 
 func applicationSpecArg(request mcp.CallToolRequest) (*v1alpha1.ApplicationSpec, error) {

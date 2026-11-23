@@ -17,9 +17,8 @@ func TestGetClusterTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_cluster', got %s", GetClusterTool.Name)
 	}
 
-	if GetClusterTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetClusterTool.Description, "compact")
+	assert.Contains(t, GetClusterTool.Description, "last-applied")
 
 	if GetClusterTool.InputSchema.Type != "object" {
 		t.Errorf("Expected schema type 'object', got %s", GetClusterTool.InputSchema.Type)
