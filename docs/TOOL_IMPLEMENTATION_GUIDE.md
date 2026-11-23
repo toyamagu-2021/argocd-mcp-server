@@ -3,12 +3,13 @@
 How tools are built in the Argo CD MCP server (0.3 layout), and what to touch when you add
 or change one.
 
-> **Scope (design D1, revised 2026-11-23):** the server exposes 25 public tools. The
-> revision added `get_application_managed_resources` and `get_application_resource`
-> because the owner approved expanding read coverage after a gap analysis. New write
-> (state-changing) tools are still out of scope — see
+> **Scope (design D1, revised 2026-11-23):** the server exposes 27 public tools. The
+> revision added read tools `get_application_managed_resources` and
+> `get_application_resource` (owner approved expanding read coverage after a gap
+> analysis) and write tools `update_application` and `rollback_application` (owner
+> approved these two write tools). Other write tools stay out of scope — see
 > [`docs/design/refactor-0.3.md`](design/refactor-0.3.md) §0 and §7. The same steps apply
-> when you change an existing tool or add a read-only one.
+> when you change an existing tool or add another one.
 
 ## Table of Contents
 

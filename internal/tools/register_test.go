@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// publicTools is the locked list of public tools (design D1, revised 2026-11-23: 25 tools).
+// publicTools is the locked list of public tools (design D1, revised 2026-11-23: 27 tools).
 var publicTools = []string{
 	"list_application",
 	"get_application",
@@ -27,10 +27,12 @@ var publicTools = []string{
 	"get_application_managed_resources",
 	"get_application_resource",
 	"create_application",
+	"update_application",
 	"sync_application",
 	"refresh_application",
 	"delete_application",
 	"terminate_operation",
+	"rollback_application",
 	"list_project",
 	"get_project",
 	"create_project",
@@ -130,9 +132,11 @@ func TestRegister_ArgumentWiring(t *testing.T) {
 // Tools removed by ARGOCD_MCP_READ_ONLY=true (design §2).
 var mutatingTools = []string{
 	"create_application",
+	"update_application",
 	"sync_application",
 	"delete_application",
 	"terminate_operation",
+	"rollback_application",
 	"create_project",
 	"create_applicationset",
 	"delete_applicationset",

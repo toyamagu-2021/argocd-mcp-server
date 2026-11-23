@@ -315,6 +315,37 @@ func (s *mockApplicationService) Sync(ctx context.Context, req *application.Appl
 	return app, nil
 }
 
+func (s *mockApplicationService) UpdateSpec(ctx context.Context, req *application.ApplicationUpdateSpecRequest) (*v1alpha1.ApplicationSpec, error) {
+	if err := requireTestToken(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetName() == "" || req.GetSpec() == nil {
+		return nil, status.Error(codes.InvalidArgument, "name and spec are required")
+	}
+	if req.GetName() != "test-app-1" && req.GetName() != "test-app-2" {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", req.GetName()))
+	}
+	return req.GetSpec(), nil
+}
+
+func (s *mockApplicationService) Rollback(ctx context.Context, req *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
+	if err := requireTestToken(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "application name is required")
+	}
+	if req.GetName() != "test-app-1" && req.GetName() != "test-app-2" {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("application %s not found", req.GetName()))
+	}
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: req.GetName(), Namespace: "argocd"},
+		Status: v1alpha1.ApplicationStatus{
+			History: []v1alpha1.RevisionHistory{{ID: req.GetId(), Revision: "abc123"}},
+		},
+	}, nil
+}
+
 func (s *mockApplicationService) ManagedResources(ctx context.Context, req *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
 	if err := requireTestToken(ctx); err != nil {
 		return nil, err

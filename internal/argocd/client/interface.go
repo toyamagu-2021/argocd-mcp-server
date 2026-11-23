@@ -67,6 +67,28 @@ type ResourceQuery struct {
 	Project           string
 }
 
+// UpdateSpecOptions replaces an Application spec.
+// Validate is always sent. The spec replaces spec entirely; metadata and status
+// are left to the server, which loads the current Application first.
+type UpdateSpecOptions struct {
+	Name         string
+	AppNamespace string
+	Project      string
+	Spec         *v1alpha1.ApplicationSpec
+	Validate     bool
+}
+
+// RollbackOptions rolls an Application back to a status.history entry.
+// ID is the history id. Zero is a valid id. Prune and DryRun are always sent.
+type RollbackOptions struct {
+	Name         string
+	ID           int64
+	DryRun       bool
+	Prune        bool
+	AppNamespace string
+	Project      string
+}
+
 // SyncResource selects one resource for a partial sync.
 // Group is the API group and is empty for core resources such as ConfigMap.
 type SyncResource struct {
@@ -121,7 +143,9 @@ type Interface interface {
 	GetApplication(ctx context.Context, name string, appNamespace string) (*v1alpha1.Application, error)
 	ListApplications(ctx context.Context, opts ListApplicationsOptions) (*v1alpha1.ApplicationList, error)
 	CreateApplication(ctx context.Context, app *v1alpha1.Application, upsert bool) (*v1alpha1.Application, error)
+	UpdateApplicationSpec(ctx context.Context, opts UpdateSpecOptions) (*v1alpha1.ApplicationSpec, error)
 	DeleteApplication(ctx context.Context, name string, cascade bool, appNamespace string) error
+	RollbackApplication(ctx context.Context, opts RollbackOptions) (*v1alpha1.Application, error)
 	SyncApplication(ctx context.Context, opts SyncOptions) (*v1alpha1.Application, error)
 	RefreshApplication(ctx context.Context, name string, refreshType string, appNamespace string) (*v1alpha1.Application, error)
 	GetApplicationManifests(ctx context.Context, name string, revision string, appNamespace string) (*repoapiclient.ManifestResponse, error)

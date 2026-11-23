@@ -358,6 +358,52 @@ func toolResultText(t *testing.T, response map[string]interface{}) string {
 	return text
 }
 
+func TestParallel_UpdateApplication(t *testing.T) {
+	t.Parallel()
+
+	response := sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "update_application",
+			"arguments": map[string]interface{}{
+				"name": "test-app-1",
+				"spec": map[string]interface{}{
+					"project":              "default",
+					"source":               map[string]interface{}{"repoURL": "https://github.com/test/repo", "path": "guestbook", "targetRevision": "HEAD"},
+					"destination":          map[string]interface{}{"server": "https://kubernetes.default.svc", "namespace": "default"},
+					"revisionHistoryLimit": 10,
+				},
+			},
+		},
+	})
+	text := toolResultText(t, response)
+	if !strings.Contains(text, "guestbook") || !strings.Contains(text, "revisionHistoryLimit") {
+		t.Errorf("updated spec missing expected fields: %s", text)
+	}
+}
+
+func TestParallel_RollbackApplication(t *testing.T) {
+	t.Parallel()
+
+	response := sendSharedRequest(t, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "rollback_application",
+			"arguments": map[string]interface{}{
+				"name":    "test-app-1",
+				"id":      0,
+				"dry_run": true,
+			},
+		},
+	})
+	text := toolResultText(t, response)
+	if !strings.Contains(text, "test-app-1") || !strings.Contains(text, "abc123") {
+		t.Errorf("rollback response missing history: %s", text)
+	}
+}
+
 func TestParallel_DeleteApplication(t *testing.T) {
 	t.Parallel()
 

@@ -442,6 +442,21 @@ func (mr *MockInterfaceMockRecorder) RefreshApplication(ctx, name, refreshType, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshApplication", reflect.TypeOf((*MockInterface)(nil).RefreshApplication), ctx, name, refreshType, appNamespace)
 }
 
+// RollbackApplication mocks base method.
+func (m *MockInterface) RollbackApplication(ctx context.Context, opts client.RollbackOptions) (*v1alpha1.Application, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RollbackApplication", ctx, opts)
+	ret0, _ := ret[0].(*v1alpha1.Application)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RollbackApplication indicates an expected call of RollbackApplication.
+func (mr *MockInterfaceMockRecorder) RollbackApplication(ctx, opts any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackApplication", reflect.TypeOf((*MockInterface)(nil).RollbackApplication), ctx, opts)
+}
+
 // SyncApplication mocks base method.
 func (m *MockInterface) SyncApplication(ctx context.Context, opts client.SyncOptions) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()
@@ -469,4 +484,19 @@ func (m *MockInterface) TerminateOperation(ctx context.Context, name, appNamespa
 func (mr *MockInterfaceMockRecorder) TerminateOperation(ctx, name, appNamespace, project any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TerminateOperation", reflect.TypeOf((*MockInterface)(nil).TerminateOperation), ctx, name, appNamespace, project)
+}
+
+// UpdateApplicationSpec mocks base method.
+func (m *MockInterface) UpdateApplicationSpec(ctx context.Context, opts client.UpdateSpecOptions) (*v1alpha1.ApplicationSpec, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateApplicationSpec", ctx, opts)
+	ret0, _ := ret[0].(*v1alpha1.ApplicationSpec)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateApplicationSpec indicates an expected call of UpdateApplicationSpec.
+func (mr *MockInterfaceMockRecorder) UpdateApplicationSpec(ctx, opts any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateApplicationSpec", reflect.TypeOf((*MockInterface)(nil).UpdateApplicationSpec), ctx, opts)
 }

@@ -8,7 +8,7 @@
 
 | ID | 決定 |
 |----|------|
-| D1 | （改訂 2026-11-23）公開ツールは 25 個。読み取りを `get_application_managed_resources` と `get_application_resource` に拡張した。未公開の書き込みツールは引き続き作らない。理由: owner approved expanding read coverage after a gap analysis |
+| D1 | （改訂 2026-11-23）公開ツールは 27 個。読み取りに `get_application_managed_resources` と `get_application_resource` を追加（理由: owner approved expanding read coverage after a gap analysis）。同日、書き込みは `update_application`（`ApplicationService.UpdateSpec`。spec 全体の置換。metadata と status はサーバが既存 Application から残す）と `rollback_application`（`ApplicationService.Rollback`）だけ追加を許す（理由: owner approved these two write tools）。それ以外の未公開書き込みは作らない |
 | D2 | 変更系は常時登録。`ARGOCD_MCP_READ_ONLY=true` のときだけ外す |
 | D3 | 対応 Argo CD = **3.6.x のみ**（CI は 3.6.2） |
 | D4 | トランスポート = **stdio のみ** |
@@ -68,8 +68,8 @@ mcp_server.ServeStdio(s)
 
 ### READ_ONLY で外すツール
 
-`create_application`, `sync_application`, `delete_application`,
-`terminate_operation`, `create_project`, `create_applicationset`, `delete_applicationset`
+`create_application`, `update_application`, `sync_application`, `delete_application`,
+`terminate_operation`, `rollback_application`, `create_project`, `create_applicationset`, `delete_applicationset`
 
 ### Interface
 
@@ -127,7 +127,7 @@ destination `cluster` / `namespace` は tools 側 client-side filter 継続。
 
 ## 7. 非ゴール
 
-HTTP/SSE、ツール allowlist、Argo CD v2、新書き込みツール、tools 大規模ディレクトリ分割、Helm values のキー名選択 redact / 全 redact、長さ制限・ハッシュ。
+HTTP/SSE、ツール allowlist、Argo CD v2、`update_application` と `rollback_application` 以外の新書き込みツール、tools 大規模ディレクトリ分割、Helm values のキー名選択 redact / 全 redact、長さ制限・ハッシュ。
 
 ## 8. 成功定義
 

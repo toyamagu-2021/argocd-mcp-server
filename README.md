@@ -16,10 +16,12 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `get_application_managed_resources` - List managed resources as compact JSON. Default is a summary (no manifest strings), `limit` 50. `detailed=true` or a resource filter includes state, without `managedFields` or last-applied-configuration
 - `get_application_resource` - Get the live manifest of one managed resource (ApplicationService.GetResource). Argo CD replaces Secret data
 - `create_application` - Create a new ArgoCD application with source and destination configuration
+- `update_application` - Replace an application's spec (`ApplicationService.UpdateSpec`). The object replaces the whole spec; `validate` defaults to true
 - `sync_application` - Trigger a sync operation for an application, with optional prune, dry-run, a target revision, a per-source revision list, a partial resource list, and per-sync sync options
 - `refresh_application` - Refresh application state from the git repository
 - `delete_application` - Delete an ArgoCD application. **`cascade` defaults to `false`** (resources are kept) — unlike the Argo CD CLI
 - `terminate_operation` - Terminate the currently running operation (sync, refresh, etc.) on an application
+- `rollback_application` - Roll an application back to a `status.history` id. `prune` and `dry_run` default to false
 
 ### ApplicationSet Management
 - `list_applicationset` - List ArgoCD ApplicationSets with optional filtering
@@ -88,8 +90,8 @@ namespace. Both can be combined.
 ### Read-only Mode
 
 With `ARGOCD_MCP_READ_ONLY=true` the server does not register any tool that changes Argo CD state:
-`create_application`, `sync_application`, `delete_application`, `terminate_operation`,
-`create_project`, `create_applicationset`, `delete_applicationset`.
+`create_application`, `update_application`, `sync_application`, `delete_application`, `terminate_operation`,
+`rollback_application`, `create_project`, `create_applicationset`, `delete_applicationset`.
 
 Read-only mode is a convenience on top of Argo CD RBAC, not a replacement for it: issue the
 server a token whose account can only do what you want the LLM to do.
@@ -636,6 +638,8 @@ make lint-advanced
 
 ## Safety Considerations
 
+- **update_application**: Sends `ApplicationService.UpdateSpec`. Argo CD keeps the current metadata and status and replaces `spec` with the object you send, so omitted spec fields are cleared. Call `get_application` and send the full spec. `validate` defaults to `true`
+- **rollback_application**: `id` is `status.history[].id` (zero is valid), not a git SHA. `prune` defaults to `false`. Argo CD rejects the call when auto-sync is enabled. `dry_run: true` previews it
 - **sync_application**: Use `dry_run: true` to preview changes before actual sync. `revision` syncs a single-source app to that git revision, tag, or chart version (omit it to use the spec target). `revisions` is the multi-source list, one entry per source in `spec.sources` order; an empty entry keeps that source's target. `resources` limits the sync to those objects. `sync_options` replaces the Application's sync options for this operation (it does not merge). Syncing to a revision other than the spec target fails when auto-sync is enabled, unless `dry_run` is true
 - **refresh_application**: Use `hard: false` (default) for a normal refresh, `hard: true` to also invalidate the manifest cache
 - **delete_application**: `cascade` defaults to `false`, so only the Application is deleted and its resources stay in the cluster. Pass `cascade: true` to delete the resources as well. This intentionally differs from the Argo CD CLI default (`true`)
