@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -12,17 +11,15 @@ import (
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
 
-// GetApplicationLogsToolDefinition defines the schema for the get_application_logs tool
+// GetApplicationLogsToolDefinition defines the schema for the get_application_logs tool.
 var GetApplicationLogsToolDefinition = mcp.NewTool("get_application_logs",
-	mcp.WithDescription("Retrieves logs from pods in an ArgoCD application. Returns log entries from the specified pod or container. Streaming (follow=true) is not supported over stdio and is rejected; use tail_lines / since_seconds instead."),
+	mcp.WithDescription("Retrieves logs from pods in an ArgoCD application. detailed=false (the default) returns plain text, not JSON. tail_lines defaults to 20. The server does not report the total log size. Pass a larger tail_lines to see more. detailed=true returns compact JSON with the same tail. Streaming (follow=true) is not supported over stdio and is rejected. Use tail_lines or since_seconds instead."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
-	// Required parameters
 	mcp.WithString("name",
 		mcp.Required(),
 		mcp.Description("The name of the application to retrieve logs from"),
 	),
-	// Optional parameters
 	mcp.WithString("pod_name",
 		mcp.Description("Optional. The name of the pod to retrieve logs from. If not specified, returns logs from the first available pod"),
 	),
@@ -42,7 +39,7 @@ var GetApplicationLogsToolDefinition = mcp.NewTool("get_application_logs",
 		mcp.Description("Optional. The API group of the resource (e.g., 'apps' for Deployments)"),
 	),
 	mcp.WithNumber("tail_lines",
-		mcp.Description("Optional. Number of lines from the end of the logs to show. Defaults to 100"),
+		mcp.Description("Optional. Number of lines from the end of the logs to show. Defaults to 20"),
 	),
 	mcp.WithNumber("since_seconds",
 		mcp.Description("Optional. Only return logs newer than this many seconds"),
@@ -62,30 +59,21 @@ var GetApplicationLogsToolDefinition = mcp.NewTool("get_application_logs",
 	mcp.WithString("project",
 		mcp.Description("Optional. The ArgoCD project the application belongs to"),
 	),
+	mcp.WithBoolean("detailed",
+		mcp.Description("If true, returns compact JSON. If false (default), returns plain text. detailed does not change tail_lines."),
+	),
 )
 
 // makeGetApplicationLogs returns the handler for this tool bound to the shared client in d.
 func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		// Extract required parameters
 		name := request.GetString("name", "")
 		if name == "" {
 			return mcp.NewToolResultError("name is required"), nil
 		}
-
-		// Extract optional parameters
-		podName := request.GetString("pod_name", "")
-		container := request.GetString("container", "")
-		namespace := request.GetString("namespace", "")
-		resourceName := request.GetString("resource_name", "")
-		kind := request.GetString("kind", "")
-		group := request.GetString("group", "")
-		filter := request.GetString("filter", "")
-		appNamespace := request.GetString("app_namespace", "")
-		project := request.GetString("project", "")
-
-		// Extract numeric parameters with defaults
-		tailLines := int64(request.GetInt("tail_lines", 100))
+		if request.GetBool("follow", false) {
+			return mcp.NewToolResultError(errFollowUnsupported), nil
+		}
 
 		var sinceSeconds *int64
 		if ss := request.GetInt("since_seconds", 0); ss > 0 {
@@ -93,32 +81,22 @@ func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
 			sinceSeconds = &sinceSecondsVal
 		}
 
-		// Extract boolean parameters
-		follow := request.GetBool("follow", false)
-		if follow {
-			return mcp.NewToolResultError(errFollowUnsupported), nil
-		}
-		previous := request.GetBool("previous", false)
-
-		argoClient := d.Client
-
-		// Use the handler function with the real client
-		return getApplicationLogsHandler(ctx, argoClient, client.LogsOptions{
+		return getApplicationLogsHandler(ctx, d.Client, client.LogsOptions{
 			Name:         name,
-			PodName:      podName,
-			Container:    container,
-			Namespace:    namespace,
-			ResourceName: resourceName,
-			Kind:         kind,
-			Group:        group,
-			TailLines:    tailLines,
+			PodName:      request.GetString("pod_name", ""),
+			Container:    request.GetString("container", ""),
+			Namespace:    request.GetString("namespace", ""),
+			ResourceName: request.GetString("resource_name", ""),
+			Kind:         request.GetString("kind", ""),
+			Group:        request.GetString("group", ""),
+			TailLines:    int64(request.GetInt("tail_lines", defaultTailLines)),
 			SinceSeconds: sinceSeconds,
-			Follow:       follow,
-			Previous:     previous,
-			Filter:       filter,
-			AppNamespace: appNamespace,
-			Project:      project,
-		})
+			Follow:       false,
+			Previous:     request.GetBool("previous", false),
+			Filter:       request.GetString("filter", ""),
+			AppNamespace: request.GetString("app_namespace", ""),
+			Project:      request.GetString("project", ""),
+		}, request.GetBool("detailed", false))
 	}
 }
 
@@ -126,14 +104,28 @@ func makeGetApplicationLogs(d Deps) server.ToolHandlerFunc {
 // log stream would block the stdio tool call forever.
 const errFollowUnsupported = "follow=true is not supported: streaming logs cannot be returned over the stdio MCP transport. Omit follow (or set it to false) and use tail_lines / since_seconds instead."
 
+type logEntry struct {
+	Timestamp string `json:"timestamp,omitempty"`
+	PodName   string `json:"pod_name,omitempty"`
+	Content   string `json:"content"`
+}
+
+type logResponse struct {
+	Application string     `json:"application"`
+	PodName     string     `json:"pod_name,omitempty"`
+	Container   string     `json:"container,omitempty"`
+	TotalLines  int        `json:"total_lines"`
+	Logs        []logEntry `json:"logs"`
+	Notice      string     `json:"notice,omitempty"`
+}
+
 // getApplicationLogsHandler handles the core logic for retrieving application logs.
-// This is separated out to enable testing with mocked clients.
 func getApplicationLogsHandler(
 	ctx context.Context,
 	argoClient client.Interface,
 	opts client.LogsOptions,
+	detailed bool,
 ) (*mcp.CallToolResult, error) {
-	name, podName, container := opts.Name, opts.PodName, opts.Container
 	if opts.Follow {
 		return mcp.NewToolResultError(errFollowUnsupported), nil
 	}
@@ -143,72 +135,59 @@ func getApplicationLogsHandler(
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get application logs: %v", err)), nil
 	}
 
-	// Define types for the response
-	type LogEntry struct {
-		Timestamp string `json:"timestamp,omitempty"`
-		PodName   string `json:"pod_name,omitempty"`
-		Content   string `json:"content"`
+	response := logResponse{
+		Application: opts.Name,
+		PodName:     opts.PodName,
+		Container:   opts.Container,
+		Logs:        []logEntry{},
 	}
 
-	type LogResponse struct {
-		Application string     `json:"application"`
-		PodName     string     `json:"pod_name,omitempty"`
-		Container   string     `json:"container,omitempty"`
-		TotalLines  int        `json:"total_lines"`
-		Logs        []LogEntry `json:"logs"`
-	}
-
-	response := LogResponse{
-		Application: name,
-		PodName:     podName,
-		Container:   container,
-		Logs:        []LogEntry{},
-	}
-
-	// Collect log entries
 	for {
 		entry, err := logs.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			// If we have some logs already, return them with a warning
 			if len(response.Logs) > 0 {
-				response.Logs = append(response.Logs, LogEntry{
+				response.Logs = append(response.Logs, logEntry{
 					Content: fmt.Sprintf("[Warning: Log stream ended with error: %v]", err),
 				})
 				break
 			}
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to read log stream: %v", err)), nil
 		}
-
-		// Check if this is the last entry
 		if entry.GetLast() {
 			break
 		}
 
-		logEntry := LogEntry{
-			Content: strings.TrimRight(entry.GetContent(), "\n"),
-		}
-
+		logLine := logEntry{Content: strings.TrimRight(entry.GetContent(), "\n")}
 		if entry.TimeStampStr != nil && *entry.TimeStampStr != "" {
-			logEntry.Timestamp = *entry.TimeStampStr
+			logLine.Timestamp = *entry.TimeStampStr
 		}
-
 		if entry.PodName != nil && *entry.PodName != "" {
-			logEntry.PodName = *entry.PodName
+			logLine.PodName = *entry.PodName
 		}
-
-		response.Logs = append(response.Logs, logEntry)
+		response.Logs = append(response.Logs, logLine)
 	}
 
 	response.TotalLines = len(response.Logs)
-
-	// Convert to JSON for better readability in MCP responses
-	jsonData, err := json.MarshalIndent(response, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	notice := tailNotice(response.TotalLines, int(opts.TailLines))
+	if detailed {
+		response.Notice = notice
+		return writeCompact(response)
 	}
+	return mcp.NewToolResultText(formatLogText(response, notice)), nil
+}
 
-	return mcp.NewToolResultText(string(jsonData)), nil
+func formatLogText(response logResponse, notice string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "application=%s pod=%s container=%s lines=%d\n", response.Application, response.PodName, response.Container, response.TotalLines)
+	for _, line := range response.Logs {
+		fmt.Fprintf(&b, "%s\t%s\t%s\n", line.Timestamp, line.PodName, line.Content)
+	}
+	if notice != "" {
+		b.WriteString(notice)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }

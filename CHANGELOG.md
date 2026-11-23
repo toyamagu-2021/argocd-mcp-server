@@ -24,6 +24,10 @@ Not tagged yet.
    The indented `EventList` becomes one page. `metadata` is absent unless
    `detailed=true`, and that path still drops `managedFields`. The message is
    not clipped. `limit` defaults to 50. (#117)
+4. **`get_application_logs` returns plain text and tails 20 lines by default.**
+   The JSON log object becomes tab-separated text. Pass `detailed=true` for
+   compact JSON. `tail_lines` defaults to 20, not 100. `follow=true` is still
+   an error. (#117)
 
 ## v0.3.0 (2026-11-23)
 

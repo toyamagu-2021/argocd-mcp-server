@@ -11,7 +11,7 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 - `get_application` - Compact summary of an application (`detailed=false` by default). `detailed=true` returns the full Application without managedFields or last-applied-configuration
 - `get_application_manifests` - Get rendered Kubernetes manifests for an application
 - `get_application_events` - Page of event summaries (`detailed=false` by default, `limit` 50). `metadata` is omitted. `detailed=true` returns full events without `managedFields`
-- `get_application_logs` - Retrieve logs from pods in an ArgoCD application
+- `get_application_logs` - Plain-text pod logs (`detailed=false` by default). `tail_lines` defaults to 20. `detailed=true` returns compact JSON. `follow=true` is rejected
 - `get_application_resource_tree` - Page of node summaries (`detailed=false` by default, `limit` 50). Hosts are names. `detailed=true` includes `systemInfo` and can be very large
 - `get_application_managed_resources` - List managed resources as compact JSON. Default is a summary (no manifest strings), `limit` 50. `detailed=true` or a resource filter includes state, without `managedFields` or last-applied-configuration
 - `get_application_resource` - Get the live manifest of one managed resource (ApplicationService.GetResource). Argo CD replaces Secret data
@@ -196,7 +196,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
       "name": "my-app",
       "pod_name": "my-app-deployment-abc123",
       "container": "main",
-      "tail_lines": 100,
+      "tail_lines": 20,
       "since_seconds": 3600
     }
   }

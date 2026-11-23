@@ -286,7 +286,7 @@ func TestGetApplicationLogs_FollowRejected(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, text.Text, "follow=true is not supported")
 
-	res2, err := getApplicationLogsHandler(context.Background(), m, client.LogsOptions{Name: "app1", Follow: true})
+	res2, err := getApplicationLogsHandler(context.Background(), m, client.LogsOptions{Name: "app1", Follow: true}, false)
 	require.NoError(t, err)
 	assert.True(t, res2.IsError)
 	assert.Contains(t, GetApplicationLogsToolDefinition.Description, "follow=true")
