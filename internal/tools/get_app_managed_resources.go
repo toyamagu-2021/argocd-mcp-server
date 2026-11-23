@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -11,6 +10,9 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client"
 )
+
+// managedResourceFilters is the noun list pageNotice appends for this tool.
+const managedResourceFilters = "kind, resource_name, resource_namespace, group, or version"
 
 // GetApplicationManagedResourcesTool lists resources Argo CD is managing for an application.
 var GetApplicationManagedResourcesTool = mcp.NewTool("get_application_managed_resources",
@@ -56,7 +58,7 @@ var GetApplicationManagedResourcesTool = mcp.NewTool("get_application_managed_re
 // makeGetApplicationManagedResources returns the handler bound to the shared client in d.
 func makeGetApplicationManagedResources(d Deps) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		limit, offset, err := managedResourcesPageArgs(request)
+		limit, offset, err := pageArgs(request, defaultPageLimit)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
@@ -72,51 +74,6 @@ func makeGetApplicationManagedResources(d Deps) server.ToolHandlerFunc {
 		}, request.GetBool("detailed", false), limit, offset)
 	}
 }
-
-func managedResourcesPageArgs(request mcp.CallToolRequest) (int, int, error) {
-	limit, err := nonNegativeIntArg(request, "limit", defaultManagedResourcesLimit)
-	if err != nil {
-		return 0, 0, err
-	}
-	if limit < 1 {
-		return 0, 0, fmt.Errorf("limit must be at least 1")
-	}
-	offset, err := nonNegativeIntArg(request, "offset", 0)
-	if err != nil {
-		return 0, 0, err
-	}
-	return limit, offset, nil
-}
-
-func nonNegativeIntArg(request mcp.CallToolRequest, key string, def int) (int, error) {
-	val, ok := request.GetArguments()[key]
-	if !ok || val == nil {
-		return def, nil
-	}
-	switch n := val.(type) {
-	case int:
-		if n < 0 {
-			return 0, fmt.Errorf("%s must be zero or greater", key)
-		}
-		return n, nil
-	case int64:
-		if n < 0 {
-			return 0, fmt.Errorf("%s must be zero or greater", key)
-		}
-		return int(n), nil
-	case float64:
-		if n < 0 || n != float64(int64(n)) {
-			return 0, fmt.Errorf("%s must be a non-negative integer", key)
-		}
-		return int(n), nil
-	default:
-		return 0, fmt.Errorf("%s must be a non-negative integer", key)
-	}
-}
-
-const defaultManagedResourcesLimit = 50
-
-const lastAppliedAnnotation = "kubectl.kubernetes.io/last-applied-configuration"
 
 func getApplicationManagedResourcesHandler(
 	ctx context.Context,
@@ -138,36 +95,30 @@ func getApplicationManagedResourcesHandler(
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get managed resources: %v", err)), nil
 	}
-	payload := formatManagedResources(resp, opts, detailed, limit, offset)
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
-	}
-	return mcp.NewToolResultText(string(jsonData)), nil
+	return writeCompact(formatManagedResources(resp, opts, detailed, limit, offset))
 }
 
-type managedResourcesPage struct {
-	Items      any    `json:"items"`
-	TotalItems int    `json:"totalItems"`
-	HasMore    bool   `json:"hasMore"`
-	Notice     string `json:"notice,omitempty"`
-}
-
-func formatManagedResources(resp *applicationpkg.ManagedResourcesResponse, opts client.ManagedResourcesOptions, detailed bool, limit, offset int) managedResourcesPage {
+func formatManagedResources(resp *applicationpkg.ManagedResourcesResponse, opts client.ManagedResourcesOptions, detailed bool, limit, offset int) page {
 	var items []*v1alpha1.ResourceDiff
 	if resp != nil {
 		items = resp.Items
 	}
-	page, total, hasMore := pageResourceDiffs(items, limit, offset)
-	notice := managedResourcesNotice(offset, len(page), total, hasMore)
+	filtered := make([]*v1alpha1.ResourceDiff, 0, len(items))
+	for _, item := range items {
+		if item != nil {
+			filtered = append(filtered, item)
+		}
+	}
+	sliced, total, hasMore := pageSlice(filtered, limit, offset)
+	notice := pageNotice(offset, len(sliced), total, hasMore, managedResourceFilters)
 	if includeManagedResourceState(opts, detailed) {
-		detailedItems := make([]*v1alpha1.ResourceDiff, len(page))
-		for i, item := range page {
+		detailedItems := make([]*v1alpha1.ResourceDiff, len(sliced))
+		for i, item := range sliced {
 			detailedItems[i] = stripResourceDiff(item)
 		}
-		return managedResourcesPage{Items: detailedItems, TotalItems: total, HasMore: hasMore, Notice: notice}
+		return page{Items: detailedItems, TotalItems: total, HasMore: hasMore, Notice: notice}
 	}
-	return managedResourcesPage{Items: summarizeResourceDiffs(page), TotalItems: total, HasMore: hasMore, Notice: notice}
+	return page{Items: summarizeResourceDiffs(sliced), TotalItems: total, HasMore: hasMore, Notice: notice}
 }
 
 // includeManagedResourceState reports whether the four manifest strings should be returned.
@@ -208,38 +159,6 @@ func summarizeResourceDiffs(items []*v1alpha1.ResourceDiff) []managedResourceSum
 	return out
 }
 
-func pageResourceDiffs(items []*v1alpha1.ResourceDiff, limit, offset int) ([]*v1alpha1.ResourceDiff, int, bool) {
-	cleaned := make([]*v1alpha1.ResourceDiff, 0, len(items))
-	for _, item := range items {
-		if item != nil {
-			cleaned = append(cleaned, item)
-		}
-	}
-	total := len(cleaned)
-	if offset > total {
-		offset = total
-	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
-	return cleaned[offset:end], total, end < total
-}
-
-func managedResourcesNotice(offset, returned, total int, hasMore bool) string {
-	if offset == 0 && !hasMore {
-		return ""
-	}
-	if returned == 0 {
-		return fmt.Sprintf("offset %d is past %d items. Narrow with kind, resource_name, resource_namespace, group, or version.", offset, total)
-	}
-	end := offset + returned
-	if hasMore {
-		return fmt.Sprintf("Showing items %d-%d of %d. Pass offset=%d to fetch more, or narrow with kind, resource_name, resource_namespace, group, or version.", offset, end-1, total, end)
-	}
-	return fmt.Sprintf("Showing items %d-%d of %d.", offset, end-1, total)
-}
-
 func stripResourceDiff(in *v1alpha1.ResourceDiff) *v1alpha1.ResourceDiff {
 	if in == nil {
 		return nil
@@ -250,28 +169,4 @@ func stripResourceDiff(in *v1alpha1.ResourceDiff) *v1alpha1.ResourceDiff {
 	out.PredictedLiveState = stripManifestNoise(in.PredictedLiveState)
 	out.NormalizedLiveState = stripManifestNoise(in.NormalizedLiveState)
 	return &out
-}
-
-func stripManifestNoise(raw string) string {
-	if raw == "" {
-		return ""
-	}
-	var obj map[string]any
-	if err := json.Unmarshal([]byte(raw), &obj); err != nil {
-		return raw
-	}
-	if meta, ok := obj["metadata"].(map[string]any); ok {
-		delete(meta, "managedFields")
-		if ann, ok := meta["annotations"].(map[string]any); ok {
-			delete(ann, lastAppliedAnnotation)
-			if len(ann) == 0 {
-				delete(meta, "annotations")
-			}
-		}
-	}
-	out, err := json.Marshal(obj)
-	if err != nil {
-		return raw
-	}
-	return string(out)
 }
