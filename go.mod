@@ -14,6 +14,7 @@ require (
 	google.golang.org/protobuf v1.36.12
 	k8s.io/api v0.37.0
 	k8s.io/apimachinery v0.37.0
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
@@ -179,7 +180,6 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 // k8s.io/kubernetes v1.37 publishes staging modules as v0.0.0 and replaces

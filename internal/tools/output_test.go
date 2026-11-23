@@ -215,9 +215,9 @@ func TestStripManifestNoise(t *testing.T) {
 		{name: "empty", raw: "", want: ""},
 		{name: "not json", raw: "not-json", want: "not-json"},
 		{
-			name: "yaml is unchanged",
-			raw:  "kind: Deployment\nmetadata:\n  annotations:\n    kubectl.kubernetes.io/last-applied-configuration: blob\n",
-			want: "kind: Deployment\nmetadata:\n  annotations:\n    kubectl.kubernetes.io/last-applied-configuration: blob\n",
+			name: "yaml loses the annotation and stays yaml",
+			raw:  "kind: Deployment\nmetadata:\n  name: web\n  annotations:\n    keep-me: kept\n    kubectl.kubernetes.io/last-applied-configuration: blob\n",
+			want: "kind: Deployment\nmetadata:\n  annotations:\n    keep-me: kept\n  name: web\n",
 		},
 		{name: "json array", raw: "[1,2]", want: "[1,2]"},
 		{name: "json null", raw: "null", want: "null"},

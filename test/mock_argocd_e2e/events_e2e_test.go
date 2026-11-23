@@ -119,11 +119,12 @@ func TestParallel_GetApplicationManifests(t *testing.T) {
 		t.Fatalf("expected response to be valid JSON: %v", err)
 	}
 
-	// Check for expected fields in manifest response
-	if _, ok := manifestResp["Manifests"]; !ok {
-		if _, ok := manifestResp["manifests"]; !ok {
-			t.Error("expected response to contain manifests field")
-		}
+	// The body is a page. Manifest strings are items, not a manifests array.
+	if _, ok := manifestResp["items"]; !ok {
+		t.Error("expected response to contain items field")
+	}
+	if _, ok := manifestResp["totalItems"]; !ok {
+		t.Error("expected response to contain totalItems field")
 	}
 
 	t.Logf("Successfully retrieved manifests for application test-app-1")

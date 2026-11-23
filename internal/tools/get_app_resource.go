@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -12,7 +11,7 @@ import (
 
 // GetApplicationResourceTool returns the live manifest of one resource in an application.
 var GetApplicationResourceTool = mcp.NewTool("get_application_resource",
-	mcp.WithDescription("Returns the live manifest of one Kubernetes resource managed by an ArgoCD application (ApplicationService.GetResource). Argo CD replaces Secret data before returning the manifest."),
+	mcp.WithDescription("Returns the live manifest of one Kubernetes resource managed by an ArgoCD application (ApplicationService.GetResource). The body is compact JSON. metadata.managedFields and kubectl.kubernetes.io/last-applied-configuration are removed. A nil manifest is omitted. Argo CD replaces Secret data before returning the manifest."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("name",
@@ -80,9 +79,9 @@ func getApplicationResourceHandler(
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to get application resource: %v", err)), nil
 	}
-	jsonData, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to format response: %v", err)), nil
+	if resp != nil && resp.Manifest != nil {
+		stripped := stripManifestNoise(*resp.Manifest)
+		resp.Manifest = &stripped
 	}
-	return mcp.NewToolResultText(string(jsonData)), nil
+	return writeCompact(resp)
 }

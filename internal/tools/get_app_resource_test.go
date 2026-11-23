@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -17,6 +18,8 @@ func TestGetApplicationResource_Schema(t *testing.T) {
 	assert.Equal(t, "get_application_resource", GetApplicationResourceTool.Name)
 	assert.Contains(t, GetApplicationResourceTool.Description, "GetResource")
 	assert.Contains(t, GetApplicationResourceTool.Description, "Secret")
+	assert.Contains(t, GetApplicationResourceTool.Description, "compact")
+	assert.Contains(t, GetApplicationResourceTool.Description, "managedFields")
 	assert.ElementsMatch(t, []string{"name", "resource_name", "kind", "version"}, GetApplicationResourceTool.InputSchema.Required)
 	require.NotNil(t, GetApplicationResourceTool.Annotations.ReadOnlyHint)
 	assert.True(t, *GetApplicationResourceTool.Annotations.ReadOnlyHint)
@@ -35,7 +38,7 @@ func TestGetApplicationResourceHandler(t *testing.T) {
 		Name: "app", ResourceName: "web", Version: "v1", Group: "apps", Kind: "Deployment",
 		ResourceNamespace: "prod", AppNamespace: "team-a", Project: "proj",
 	}
-	manifest := `{"kind":"Deployment","metadata":{"name":"web"}}`
+	manifest := `{"kind":"Deployment","metadata":{"name":"web","managedFields":[{"manager":"kubectl"}],"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"blob","keep-me":"yes"}}}`
 	ctrl := gomock.NewController(t)
 	m := mock.NewMockInterface(ctrl)
 	m.EXPECT().GetApplicationResource(gomock.Any(), q).Return(&applicationpkg.ApplicationResourceResponse{
@@ -48,6 +51,11 @@ func TestGetApplicationResourceHandler(t *testing.T) {
 	text, ok := mcp.AsTextContent(res.Content[0])
 	require.True(t, ok)
 	assert.Contains(t, text.Text, "Deployment")
+	assert.Contains(t, text.Text, "keep-me")
+	assert.NotContains(t, text.Text, "managedFields")
+	assert.NotContains(t, text.Text, lastAppliedAnnotation)
+	assert.NotContains(t, text.Text, "\n")
+	require.NoError(t, json.Unmarshal([]byte(text.Text), &applicationpkg.ApplicationResourceResponse{}))
 
 	for _, missing := range []client.ResourceQuery{
 		{},

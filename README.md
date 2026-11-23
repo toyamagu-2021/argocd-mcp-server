@@ -9,12 +9,12 @@ A Model Context Protocol (MCP) server that provides ArgoCD functionality as tool
 ### Application Management
 - `list_application` - List applications. Default is a TSV summary, at most 50 rows (`limit` defaults to 50). `detailed=true` is a compact page of full Applications. Empty JSON is a page, not a sentence
 - `get_application` - Compact summary of an application (`detailed=false` by default). `detailed=true` returns the full Application without managedFields or last-applied-configuration
-- `get_application_manifests` - Get rendered Kubernetes manifests for an application
+- `get_application_manifests` - Page of rendered manifests (`detailed=false` by default, `limit` 10). `managedFields` and the last-applied annotation are removed. `commands` and integrity fields are detailed-only
 - `get_application_events` - Page of event summaries (`detailed=false` by default, `limit` 50). `metadata` is omitted. `detailed=true` returns full events without `managedFields`
 - `get_application_logs` - Plain-text pod logs (`detailed=false` by default). `tail_lines` defaults to 20. `detailed=true` returns compact JSON. `follow=true` is rejected
 - `get_application_resource_tree` - Page of node summaries (`detailed=false` by default, `limit` 50). Hosts are names. `detailed=true` includes `systemInfo` and can be very large
 - `get_application_managed_resources` - List managed resources as compact JSON. Default is a summary (no manifest strings), `limit` 50. `detailed=true` or a resource filter includes state, without `managedFields` or last-applied-configuration
-- `get_application_resource` - Get the live manifest of one managed resource (ApplicationService.GetResource). Argo CD replaces Secret data
+- `get_application_resource` - Compact live manifest of one managed resource (ApplicationService.GetResource). `managedFields` and the last-applied annotation are removed. Argo CD replaces Secret data
 - `create_application` - Create a new ArgoCD application with source and destination configuration
 - `update_application` - Replace an application's spec (`ApplicationService.UpdateSpec`). The object replaces the whole spec; `validate` defaults to true
 - `sync_application` - Trigger a sync operation for an application, with optional prune, dry-run, a target revision, a per-source revision list, a partial resource list, and per-sync sync options

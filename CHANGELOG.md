@@ -48,6 +48,14 @@ Not tagged yet.
    body is compact JSON and does not include `metadata.managedFields` or
    `kubectl.kubernetes.io/last-applied-configuration`. The result is one object,
    not a page. (#117)
+9. **`get_application_manifests` returns a page of stripped manifests.**
+   The indented response becomes one page. `limit` defaults to 10. Each
+   manifest loses `managedFields` and the last-applied annotation. YAML
+   manifests stay YAML and may be re-quoted. `commands` and integrity fields
+   appear only when `detailed=true`. `revision` is still the git revision. (#117)
+10. **`get_application_resource` returns compact JSON.**
+    The live manifest loses `managedFields` and the last-applied annotation.
+    A nil manifest is still omitted. (#117)
 
 ## v0.3.0 (2026-11-23)
 
