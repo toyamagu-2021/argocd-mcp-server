@@ -666,9 +666,8 @@ func TestParallel_GetApplicationResourceTree(t *testing.T) {
 		t.Errorf("expected response to contain test-deployment")
 	}
 
-	// Check for orphaned nodes
-	if !strings.Contains(text, "orphanedNodes") {
-		t.Errorf("expected response to contain orphanedNodes field")
+	if !strings.Contains(text, `"orphaned":true`) {
+		t.Errorf("expected response to mark the orphaned node")
 	}
 
 	if !strings.Contains(text, "orphaned-config") {
@@ -776,27 +775,8 @@ func TestParallel_GetApplicationResourceTree_Empty(t *testing.T) {
 		t.Fatalf("expected text to be a string, got %T", textContent["text"])
 	}
 
-	// Debug: log the actual response to see the structure
-	t.Logf("Empty app resource tree response: %s", text)
-
-	// For empty trees, ArgoCD returns {} because of omitempty JSON tags
-	// or it might return explicit empty arrays
-	isEmptyObject := text == "{}" || text == "{\n}" || text == "{ }"
-	hasEmptyNodes := strings.Contains(text, `"nodes":[]`) ||
-		strings.Contains(text, `"nodes": []`) ||
-		strings.Contains(text, `"nodes": [`)
-	hasEmptyOrphaned := strings.Contains(text, `"orphanedNodes":[]`) ||
-		strings.Contains(text, `"orphanedNodes": []`) ||
-		strings.Contains(text, `"orphanedNodes": [`)
-
-	// Either empty object or has explicit empty arrays is valid
-	if !isEmptyObject && !hasEmptyNodes {
-		t.Errorf("expected response to be empty object or contain empty nodes array, got: %s", text)
-	}
-
-	// If it has nodes field, check orphaned too
-	if hasEmptyNodes && !hasEmptyOrphaned && !isEmptyObject {
-		t.Errorf("expected response to contain empty orphanedNodes array when nodes is present, got: %s", text)
+	if text != `{"items":[],"totalItems":0,"hasMore":false}` {
+		t.Errorf("expected an empty page, got: %s", text)
 	}
 }
 

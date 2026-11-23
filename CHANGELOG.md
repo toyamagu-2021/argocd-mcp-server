@@ -16,6 +16,10 @@ Not tagged yet.
    Application. That body is compact JSON and does not include
    `metadata.managedFields` or `kubectl.kubernetes.io/last-applied-configuration`.
    Helm values are still included when `detailed=true`. (#117)
+2. **`get_application_resource_tree` returns a page of node summaries by default.**
+   The indented tree becomes one page. Orphaned nodes are items with `orphaned`
+   true. `systemInfo`, `networkingInfo`, and `images` are absent unless
+   `detailed=true`. Summary hosts are names. `limit` defaults to 50. (#117)
 
 ## v0.3.0 (2026-11-23)
 

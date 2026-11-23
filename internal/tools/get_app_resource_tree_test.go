@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -11,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/toyamagu-2021/argocd-mcp-server/internal/argocd/client/mock"
 	"go.uber.org/mock/gomock"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Test the tool schema
@@ -20,10 +23,9 @@ func TestGetApplicationResourceTreeTool_Schema(t *testing.T) {
 		t.Errorf("Expected tool name 'get_application_resource_tree', got %s", GetApplicationResourceTreeTool.Name)
 	}
 
-	// Verify tool has description
-	if GetApplicationResourceTreeTool.Description == "" {
-		t.Error("Tool description should not be empty")
-	}
+	assert.Contains(t, GetApplicationResourceTreeTool.Description, "detailed=false")
+	assert.Contains(t, GetApplicationResourceTreeTool.Description, "50")
+	assert.Contains(t, GetApplicationResourceTreeTool.Description, "systemInfo")
 
 	// Check input schema exists
 	if GetApplicationResourceTreeTool.InputSchema.Type != "object" {
@@ -194,7 +196,7 @@ func TestGetApplicationResourceTreeHandler(t *testing.T) {
 			mockClient := mock.NewMockInterface(ctrl)
 			tt.setupMock(mockClient)
 
-			result, err := getApplicationResourceTreeHandler(context.Background(), mockClient, tt.appName, tt.appNamespace, tt.project)
+			result, err := getApplicationResourceTreeHandler(context.Background(), mockClient, tt.appName, tt.appNamespace, tt.project, false, 50, 0)
 
 			if tt.wantError {
 				require.Nil(t, err)
@@ -216,159 +218,19 @@ func TestGetApplicationResourceTreeHandler(t *testing.T) {
 				textContent, ok := mcp.AsTextContent(result.Content[0])
 				require.True(t, ok)
 
-				var tree v1alpha1.ApplicationTree
-				err := json.Unmarshal([]byte(textContent.Text), &tree)
-				require.NoError(t, err)
-
-				// Verify the tree contains expected data
-				assert.Len(t, tree.Nodes, 3)
-				assert.Len(t, tree.OrphanedNodes, 1)
+				assert.NotContains(t, textContent.Text, "\n")
+				assert.Contains(t, textContent.Text, `"totalItems":4`)
+				assert.Contains(t, textContent.Text, "my-service")
+				assert.Contains(t, textContent.Text, "my-deployment")
+				assert.Contains(t, textContent.Text, "orphaned-config")
+				assert.Contains(t, textContent.Text, `"orphaned":true`)
+				assert.NotContains(t, textContent.Text, "nginx:latest")
+				assert.NotContains(t, textContent.Text, "Service is healthy")
+				assert.Equal(t, 1, strings.Count(textContent.Text, "service-uid"))
+				assert.Equal(t, 1, strings.Count(textContent.Text, "deployment-uid"))
 			}
 		})
 	}
-}
-
-// Test the resource tree with complex hierarchy
-func TestGetApplicationResourceTreeHandler_ComplexTree(t *testing.T) {
-	// Create a complex ApplicationTree with multiple levels
-	complexTree := &v1alpha1.ApplicationTree{
-		Nodes: []v1alpha1.ResourceNode{
-			// Root application
-			{
-				ResourceRef: v1alpha1.ResourceRef{
-					Group:     "argoproj.io",
-					Version:   "v1alpha1",
-					Kind:      "Application",
-					Namespace: "argocd",
-					Name:      "root-app",
-					UID:       "root-uid",
-				},
-			},
-			// Service
-			{
-				ResourceRef: v1alpha1.ResourceRef{
-					Group:     "",
-					Version:   "v1",
-					Kind:      "Service",
-					Namespace: "production",
-					Name:      "web-service",
-					UID:       "service-uid",
-				},
-				ParentRefs: []v1alpha1.ResourceRef{
-					{
-						Group:     "argoproj.io",
-						Version:   "v1alpha1",
-						Kind:      "Application",
-						Namespace: "argocd",
-						Name:      "root-app",
-						UID:       "root-uid",
-					},
-				},
-			},
-			// StatefulSet
-			{
-				ResourceRef: v1alpha1.ResourceRef{
-					Group:     "apps",
-					Version:   "v1",
-					Kind:      "StatefulSet",
-					Namespace: "production",
-					Name:      "database",
-					UID:       "statefulset-uid",
-				},
-				ParentRefs: []v1alpha1.ResourceRef{
-					{
-						Group:     "argoproj.io",
-						Version:   "v1alpha1",
-						Kind:      "Application",
-						Namespace: "argocd",
-						Name:      "root-app",
-						UID:       "root-uid",
-					},
-				},
-			},
-			// PersistentVolumeClaim
-			{
-				ResourceRef: v1alpha1.ResourceRef{
-					Group:     "",
-					Version:   "v1",
-					Kind:      "PersistentVolumeClaim",
-					Namespace: "production",
-					Name:      "database-pvc",
-					UID:       "pvc-uid",
-				},
-				ParentRefs: []v1alpha1.ResourceRef{
-					{
-						Group:     "apps",
-						Version:   "v1",
-						Kind:      "StatefulSet",
-						Namespace: "production",
-						Name:      "database",
-						UID:       "statefulset-uid",
-					},
-				},
-			},
-		},
-	}
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockClient := mock.NewMockInterface(ctrl)
-	mockClient.EXPECT().GetApplicationResourceTree(gomock.Any(), "complex-app", "", "").Return(complexTree, nil)
-
-	result, err := getApplicationResourceTreeHandler(context.Background(), mockClient, "complex-app", "", "")
-
-	require.Nil(t, err)
-	require.NotNil(t, result)
-	assert.False(t, result.IsError)
-
-	// Verify the response contains the complex tree structure
-	require.Len(t, result.Content, 1)
-	textContent, ok := mcp.AsTextContent(result.Content[0])
-	require.True(t, ok)
-
-	var tree v1alpha1.ApplicationTree
-	err = json.Unmarshal([]byte(textContent.Text), &tree)
-	require.NoError(t, err)
-
-	// Verify the hierarchy
-	assert.Len(t, tree.Nodes, 4)
-
-	// Check for root application
-	var rootApp *v1alpha1.ResourceNode
-	for i := range tree.Nodes {
-		if tree.Nodes[i].Kind == "Application" {
-			rootApp = &tree.Nodes[i]
-			break
-		}
-	}
-	require.NotNil(t, rootApp)
-	assert.Equal(t, "root-app", rootApp.Name)
-
-	// Check for StatefulSet with parent reference
-	var statefulSet *v1alpha1.ResourceNode
-	for i := range tree.Nodes {
-		if tree.Nodes[i].Kind == "StatefulSet" {
-			statefulSet = &tree.Nodes[i]
-			break
-		}
-	}
-	require.NotNil(t, statefulSet)
-	assert.Equal(t, "database", statefulSet.Name)
-	assert.Len(t, statefulSet.ParentRefs, 1)
-
-	// Check for PVC with parent reference to StatefulSet
-	var pvc *v1alpha1.ResourceNode
-	for i := range tree.Nodes {
-		if tree.Nodes[i].Kind == "PersistentVolumeClaim" {
-			pvc = &tree.Nodes[i]
-			break
-		}
-	}
-	require.NotNil(t, pvc)
-	assert.Equal(t, "database-pvc", pvc.Name)
-	assert.Len(t, pvc.ParentRefs, 1)
-	assert.Equal(t, "StatefulSet", pvc.ParentRefs[0].Kind)
 }
 
 // Test empty resource tree
@@ -384,21 +246,130 @@ func TestGetApplicationResourceTreeHandler_EmptyTree(t *testing.T) {
 	mockClient := mock.NewMockInterface(ctrl)
 	mockClient.EXPECT().GetApplicationResourceTree(gomock.Any(), "empty-app", "argocd", "default").Return(emptyTree, nil)
 
-	result, err := getApplicationResourceTreeHandler(context.Background(), mockClient, "empty-app", "argocd", "default")
+	result, err := getApplicationResourceTreeHandler(context.Background(), mockClient, "empty-app", "argocd", "default", false, 50, 0)
 
 	require.Nil(t, err)
 	require.NotNil(t, result)
 	assert.False(t, result.IsError)
 
-	// Verify the response contains an empty tree
 	require.Len(t, result.Content, 1)
 	textContent, ok := mcp.AsTextContent(result.Content[0])
 	require.True(t, ok)
+	assert.Equal(t, `{"items":[],"totalItems":0,"hasMore":false}`, textContent.Text)
+}
 
-	var tree v1alpha1.ApplicationTree
-	err = json.Unmarshal([]byte(textContent.Text), &tree)
+func TestGetApplicationResourceTreeSummaryPage(t *testing.T) {
+	tree := sampleResourceTree()
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetApplicationResourceTree(gomock.Any(), "guestbook", "", "").Return(tree, nil).Times(3)
+
+	summaryRes, err := getApplicationResourceTreeHandler(context.Background(), m, "guestbook", "", "", false, 50, 0)
+	require.NoError(t, err)
+	summaryText := toolText(t, summaryRes)
+	for _, forbidden := range []string{"systemInfo", "networkingInfo", "images", "image-marker", "networking-marker", "sysinfo-marker"} {
+		assert.NotContains(t, summaryText, forbidden)
+	}
+	assert.Contains(t, summaryText, `"totalItems":40`)
+	assert.Contains(t, summaryText, `"hasMore":false`)
+	assert.Contains(t, summaryText, "node-0")
+	assert.Contains(t, summaryText, "host-a")
+	assert.Contains(t, summaryText, "host-b")
+	assert.NotContains(t, summaryText, "parent-uid")
+
+	var summary struct {
+		Items []struct {
+			Name     string `json:"name"`
+			Orphaned bool   `json:"orphaned"`
+		} `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(summaryText), &summary))
+	require.Len(t, summary.Items, 40)
+	for i, item := range summary.Items {
+		assert.Equal(t, i >= 30, item.Orphaned, item.Name)
+	}
+
+	pageRes, err := getApplicationResourceTreeHandler(context.Background(), m, "guestbook", "", "", false, 1, 0)
+	require.NoError(t, err)
+	pageText := toolText(t, pageRes)
+	assert.Contains(t, pageText, `"hasMore":true`)
+	assert.Contains(t, pageText, "Showing items 0-0 of 40. Pass offset=1 to fetch more.")
+	assert.Contains(t, pageText, "host-a")
+	assert.Contains(t, pageText, "host-b")
+	assert.NotContains(t, pageText, "node-1")
+
+	detailedRes, err := getApplicationResourceTreeHandler(context.Background(), m, "guestbook", "", "", true, 50, 0)
+	require.NoError(t, err)
+	detailedText := toolText(t, detailedRes)
+	assert.Contains(t, detailedText, "networkingInfo")
+	assert.Contains(t, detailedText, "networking-marker")
+	assert.Contains(t, detailedText, "image-marker")
+	assert.Contains(t, detailedText, "systemInfo")
+	assert.Contains(t, detailedText, "sysinfo-marker")
+}
+
+func TestGetApplicationResourceTreeSummarySize(t *testing.T) {
+	tree := sampleResourceTree()
+	before, err := json.MarshalIndent(tree, "", "  ")
 	require.NoError(t, err)
 
-	assert.Len(t, tree.Nodes, 0)
-	assert.Len(t, tree.OrphanedNodes, 0)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockInterface(ctrl)
+	m.EXPECT().GetApplicationResourceTree(gomock.Any(), "guestbook", "", "").Return(tree, nil)
+	res, err := getApplicationResourceTreeHandler(context.Background(), m, "guestbook", "", "", false, 50, 0)
+	require.NoError(t, err)
+	text := toolText(t, res)
+	systemInfoBytes := strings.Count(string(before), resourceTreeSystemInfoPad) * len(resourceTreeSystemInfoPad)
+	t.Logf("before_bytes=%d after_bytes=%d systeminfo_bytes=%d", len(before), len(text), systemInfoBytes)
+	assert.Less(t, len(text), len(before)/5)
+	assert.Greater(t, systemInfoBytes, len(text)*4)
+	assert.Contains(t, text, "node-0")
+	assert.NotContains(t, text, "sysinfo-marker")
+}
+
+func toolText(t *testing.T, res *mcp.CallToolResult) string {
+	t.Helper()
+	require.False(t, res.IsError)
+	require.Len(t, res.Content, 1)
+	text, ok := mcp.AsTextContent(res.Content[0])
+	require.True(t, ok)
+	return text.Text
+}
+
+var resourceTreeSystemInfoPad = "sysinfo-marker:" + strings.Repeat("S", 4096)
+
+func sampleResourceTree() *v1alpha1.ApplicationTree {
+	pad := resourceTreeSystemInfoPad
+	info := corev1.NodeSystemInfo{
+		MachineID: pad, SystemUUID: pad, BootID: pad, KernelVersion: pad, OSImage: pad,
+		ContainerRuntimeVersion: pad, KubeletVersion: pad,
+		OperatingSystem: pad, Architecture: pad,
+	}
+	nodes := make([]v1alpha1.ResourceNode, 30)
+	for i := range nodes {
+		nodes[i] = v1alpha1.ResourceNode{
+			ResourceRef: v1alpha1.ResourceRef{
+				Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default",
+				Name: "node-" + strconv.Itoa(i), UID: "uid-" + strconv.Itoa(i),
+			},
+			Health: &v1alpha1.HealthStatus{Status: "Healthy"},
+		}
+	}
+	nodes[0].Images = []string{"image-marker"}
+	nodes[0].NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{ExternalURLs: []string{"http://networking-marker.example"}}
+	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Kind: "Deployment", Name: "node-0", UID: "parent-uid"}}
+	orphaned := make([]v1alpha1.ResourceNode, 10)
+	for i := range orphaned {
+		orphaned[i] = v1alpha1.ResourceNode{
+			ResourceRef: v1alpha1.ResourceRef{Version: "v1", Kind: "ConfigMap", Namespace: "default", Name: "orphan-" + strconv.Itoa(i)},
+		}
+	}
+	return &v1alpha1.ApplicationTree{
+		Nodes:         nodes,
+		OrphanedNodes: orphaned,
+		Hosts: []v1alpha1.HostInfo{
+			{Name: "host-a", SystemInfo: info},
+			{Name: "host-b", SystemInfo: info},
+		},
+	}
 }
