@@ -413,18 +413,18 @@ func (mr *MockInterfaceMockRecorder) RefreshApplication(ctx, name, refreshType, 
 }
 
 // SyncApplication mocks base method.
-func (m *MockInterface) SyncApplication(ctx context.Context, name, revision string, prune, dryRun bool, appNamespace string) (*v1alpha1.Application, error) {
+func (m *MockInterface) SyncApplication(ctx context.Context, opts client.SyncOptions) (*v1alpha1.Application, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SyncApplication", ctx, name, revision, prune, dryRun, appNamespace)
+	ret := m.ctrl.Call(m, "SyncApplication", ctx, opts)
 	ret0, _ := ret[0].(*v1alpha1.Application)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SyncApplication indicates an expected call of SyncApplication.
-func (mr *MockInterfaceMockRecorder) SyncApplication(ctx, name, revision, prune, dryRun, appNamespace any) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) SyncApplication(ctx, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncApplication", reflect.TypeOf((*MockInterface)(nil).SyncApplication), ctx, name, revision, prune, dryRun, appNamespace)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncApplication", reflect.TypeOf((*MockInterface)(nil).SyncApplication), ctx, opts)
 }
 
 // TerminateOperation mocks base method.
