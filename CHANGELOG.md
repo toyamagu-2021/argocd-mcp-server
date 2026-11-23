@@ -20,6 +20,10 @@ Not tagged yet.
    The indented tree becomes one page. Orphaned nodes are items with `orphaned`
    true. `systemInfo`, `networkingInfo`, and `images` are absent unless
    `detailed=true`. Summary hosts are names. `limit` defaults to 50. (#117)
+3. **`get_application_events` returns a page of event summaries by default.**
+   The indented `EventList` becomes one page. `metadata` is absent unless
+   `detailed=true`, and that path still drops `managedFields`. The message is
+   not clipped. `limit` defaults to 50. (#117)
 
 ## v0.3.0 (2026-11-23)
 
