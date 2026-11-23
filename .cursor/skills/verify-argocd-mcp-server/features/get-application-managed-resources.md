@@ -1,6 +1,6 @@
 # Managed resources
 
-`get_application_managed_resources` lists the resources Argo CD is managing for an Application. The default body is one compact JSON object with `items`, `totalItems`, and `hasMore`. Each default item has `group`, `kind`, `namespace`, `name`, and `modified`. `detailed` true, or any resource filter, adds the manifest strings and removes `metadata.managedFields` and `kubectl.kubernetes.io/last-applied-configuration` from those strings. `limit` defaults to 50 and `offset` defaults to 0. A page that is not the whole list includes a `notice`.
+`get_application_managed_resources` lists the resources Argo CD is managing for an Application. The default body is one compact JSON object with `items`, `totalItems`, and `hasMore`. Each default item has `group`, `kind`, `namespace`, `name`, `resourceVersion`, `hook` (omitted when empty), and `modified`. `detailed` true, or any resource filter, adds the manifest strings and removes `metadata.managedFields` and `kubectl.kubernetes.io/last-applied-configuration` from those strings. `limit` defaults to 50 and `offset` defaults to 0. A page that is not the whole list includes a `notice`.
 
 ## Sub-features
 

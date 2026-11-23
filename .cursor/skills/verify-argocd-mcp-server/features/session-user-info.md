@@ -18,7 +18,7 @@ Preconditions:
 
 - `scripts/doctor.sh` prints `DOCTOR_OK` and `user=admin`.
 
-- **Call the tool.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/drive.sh call --feature session-user-info --label get-user get_user_info '{}'`. The call has `is_error` false and `rpc_error` null. The text includes `"loggedIn": true` and `"username": "admin"`.
+- **Call the tool.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/drive.sh call --feature session-user-info --label get-user get_user_info '{}'`. The call has `is_error` false and `rpc_error` null. The text is compact JSON and includes `"loggedIn":true` and `"username":"admin"`.
 - **API view.** Run `.cursor/skills/verify-argocd-mcp-server/scripts/evidence.sh --feature session-user-info`. `userinfo.json` is `{"loggedIn": true, "username": "admin", ...}` with no token field.
 - **Proof.** The username in the tool text equals `username` in `userinfo.json`. The transcript does not contain the raw token.
 
