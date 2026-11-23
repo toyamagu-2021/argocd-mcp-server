@@ -1076,6 +1076,12 @@ func testManagedResourcesCreatedApplication(t *testing.T) {
 	if !strings.Contains(summary, `"kind"`) || !strings.Contains(summary, `"name"`) {
 		t.Fatalf("summary missing identity fields: %s", summary)
 	}
+	if !strings.Contains(summary, `"totalItems"`) || !strings.Contains(summary, `"hasMore"`) {
+		t.Fatalf("summary missing page fields: %s", summary)
+	}
+	if strings.Contains(summary, "\n") {
+		t.Fatalf("summary is not compact JSON: %s", summary)
+	}
 	t.Logf("summary bytes=%d", len(summary))
 
 	detailed, toolErr := callManagedResources(t, map[string]interface{}{"name": testAppName, "detailed": true})
@@ -1084,6 +1090,9 @@ func testManagedResourcesCreatedApplication(t *testing.T) {
 	}
 	if !strings.Contains(detailed, "targetState") && !strings.Contains(detailed, "liveState") {
 		t.Fatalf("detailed response missing manifest state: %s", detailed)
+	}
+	if strings.Contains(detailed, "managedFields") || strings.Contains(detailed, "last-applied-configuration") {
+		t.Fatalf("detailed response kept manifest noise: %.500s", detailed)
 	}
 	t.Logf("detailed bytes=%d", len(detailed))
 }
