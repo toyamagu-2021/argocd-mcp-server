@@ -16,7 +16,7 @@ The server exposes **27 public tools** (design D1, revised 2026-11-23, see
 | `get_application_manifests` | | Secret data hidden by the Argo CD server |
 | `get_application_events` | | |
 | `get_application_logs` | | `follow=true` is rejected (stdio cannot stream) |
-| `get_application_resource_tree` | | |
+| `get_application_resource_tree` | | `detailed=false` (default) is a page of node summaries. Hosts are names. `systemInfo`, `networkingInfo`, and `images` are omitted. `detailed=true` pages full nodes and repeats full hosts, including `systemInfo`, on every page. `limit` defaults to 50 |
 | `get_application_managed_resources` | | Compact JSON. Default summary omits manifest strings. `detailed=true` or a resource filter includes the four state strings with `managedFields` and `last-applied-configuration` removed. `limit` defaults to 50, `offset` defaults to 0, response has `totalItems` and `hasMore` |
 | `get_application_resource` | | `ApplicationService.GetResource`. Live manifest; Argo CD replaces Secret data |
 | `create_application` | ✔ | |
